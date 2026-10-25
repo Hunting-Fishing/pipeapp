@@ -5,6 +5,7 @@ import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_directory.dart';
 import 'marketplace_dispatch_my_requests_page.dart';
 import 'marketplace_dispatch_request_service_page.dart';
+import 'marketplace_navigation.dart';
 
 enum DispatchSection {
   dashboard,
@@ -216,6 +217,11 @@ class _MarketplaceDispatchNavigationState
       ),
     );
 
+    final searchServicesAction = OutlinedButton.icon(
+      onPressed: () => MarketplaceNavigation.openSearchServices(context),
+      icon: const Icon(Icons.manage_search_rounded),
+      label: const Text('Search for Services'),
+    );
     final myRequestsAction = OutlinedButton.icon(
       onPressed: () => _openMyDispatchRequests(context),
       icon: const Icon(Icons.assignment_outlined),
@@ -242,7 +248,7 @@ class _MarketplaceDispatchNavigationState
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 840) {
+        if (constraints.maxWidth < 1320) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -253,6 +259,7 @@ class _MarketplaceDispatchNavigationState
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
+                  searchServicesAction,
                   myRequestsAction,
                   providerAction,
                   roleBadge,
@@ -265,6 +272,8 @@ class _MarketplaceDispatchNavigationState
           children: [
             Expanded(child: navigation),
             const SizedBox(width: 12),
+            searchServicesAction,
+            const SizedBox(width: 8),
             myRequestsAction,
             const SizedBox(width: 8),
             roleBadge,
@@ -344,6 +353,16 @@ class MarketplaceDispatchCustomerHome extends StatelessWidget {
                         foregroundColor: Colors.white,
                         side: const BorderSide(color: Colors.white38),
                       ),
+                      onPressed: () =>
+                          MarketplaceNavigation.openSearchServices(context),
+                      icon: const Icon(Icons.manage_search_rounded),
+                      label: const Text('Search for Services'),
+                    ),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white38),
+                      ),
                       onPressed: onBrowseDirectory,
                       icon: const Icon(Icons.business_outlined),
                       label: const Text('Find Companies'),
@@ -398,6 +417,14 @@ class MarketplaceDispatchCustomerHome extends StatelessWidget {
                             label: const Text('Request a service'),
                           ),
                           OutlinedButton.icon(
+                            onPressed: () =>
+                                MarketplaceNavigation.openSearchServices(
+                              context,
+                            ),
+                            icon: const Icon(Icons.manage_search_rounded),
+                            label: const Text('Search for Services'),
+                          ),
+                          OutlinedButton.icon(
                             onPressed: onBrowseDirectory,
                             icon: const Icon(Icons.business_outlined),
                             label: const Text('Browse directory'),
@@ -416,10 +443,22 @@ class MarketplaceDispatchCustomerHome extends StatelessWidget {
                         Icons.business_center_outlined,
                         color: PipeBuyerColors.industrialBlue,
                       ),
-                      child: FilledButton.icon(
-                        onPressed: onListBusiness,
-                        icon: const Icon(Icons.add_business_outlined),
-                        label: const Text('List your business'),
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: onListBusiness,
+                            icon: const Icon(Icons.add_business_outlined),
+                            label: const Text('List your business'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                MarketplaceNavigation.openListServices(context),
+                            icon: const Icon(Icons.workspace_premium_outlined),
+                            label: const Text('List Services (Priority Ad)'),
+                          ),
+                        ],
                       ),
                     ),
                   ),

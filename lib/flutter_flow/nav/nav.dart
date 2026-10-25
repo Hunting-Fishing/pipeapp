@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '/backend/backend.dart';
@@ -21,6 +22,9 @@ import '/marketplace/marketplace_payout_settings.dart';
 import '/marketplace/marketplace_stripe_connect_return_page.dart';
 import '/marketplace/marketplace_tax_compliance_admin_page.dart';
 import '/marketplace/marketplace_tax_profile_page.dart';
+import '/marketplace/pipebuyer_contact_center_dashboard.dart';
+import '/marketplace/pipebuyer_list_services_page.dart';
+import '/marketplace/pipebuyer_yellow_pages_directory_page.dart';
 
 export 'package:go_router/go_router.dart';
 export 'serialization_util.dart';
@@ -82,8 +86,22 @@ class AppStateNotifier extends ChangeNotifier {
   }
 }
 
+String _resolveInitialRouterLocation() {
+  if (kIsWeb) {
+    final path = Uri.base.path;
+    if (path.isNotEmpty && path != '/') {
+      return Uri(
+        path: path,
+        queryParameters:
+            Uri.base.queryParameters.isEmpty ? null : Uri.base.queryParameters,
+      ).toString();
+    }
+  }
+  return '/';
+}
+
 GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
-      initialLocation: '/',
+      initialLocation: _resolveInitialRouterLocation(),
       debugLogDiagnostics: true,
       refreshListenable: appStateNotifier,
       navigatorKey: appNavigatorKey,
@@ -198,6 +216,36 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           requireAuth: true,
           builder: (context, params) =>
               const MarketplaceTaxComplianceAdminPage(),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.servicesDirectoryRouteName,
+          path: MarketplaceDeepLinks.servicesDirectoryPath,
+          builder: (context, params) => PipeBuyerYellowPagesDirectoryPage(
+            initialQuery:
+                params.getParam<String>('q', ParamType.string) ?? '',
+            initialCategoryCode:
+                params.getParam<String>('category', ParamType.string) ?? '',
+            initialCountryCode:
+                params.getParam<String>('country', ParamType.string) ?? '',
+            initialViewMode:
+                params.getParam<String>('view', ParamType.string) == 'lines'
+                    ? YellowPagesViewMode.lines
+                    : YellowPagesViewMode.grid,
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.listServicesRouteName,
+          path: MarketplaceDeepLinks.listServicesPath,
+          builder: (context, params) => const PipeBuyerListServicesPage(),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.contactCenterRouteName,
+          path: MarketplaceDeepLinks.contactCenterPath,
+          requireAuth: true,
+          builder: (context, params) => PipeBuyerContactCenterDashboard(
+            initialSearchQuery:
+                params.getParam<String>('q', ParamType.string) ?? '',
+          ),
         ),
         FFRoute(
           name: MarketplaceDeepLinks.privacyRouteName,

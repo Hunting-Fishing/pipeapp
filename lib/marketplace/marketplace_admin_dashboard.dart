@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_admin_role_manager.dart';
+import 'marketplace_navigation.dart';
 import 'marketplace_payment_readiness.dart';
 
 class MarketplaceAdminDashboard extends StatefulWidget {
@@ -165,6 +166,16 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             ),
           ],
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: FilledButton.icon(
+              onPressed: () => MarketplaceNavigation.openYellowPagesAdmin(context),
+              icon: const Icon(Icons.menu_book_outlined, size: 18),
+              label: const Text('Yellow Pages Admin & Flagged'),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -1622,6 +1633,46 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            Card(
+              color: const Color(0xFFFFF7ED),
+              margin: const EdgeInsets.only(bottom: 14),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.menu_book_outlined,
+                        color: Color(0xFFFF6A00), size: 30),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PipeBuyer Yellow Pages — Master Admin Search, Viewing ON/OFF & Flagged Businesses',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Search any company name, current phone, or 2015/2016 Yellow Book phone number. Turn public website viewing ON or OFF in 1 click, flag prohibited businesses, and manage the blocked phone blacklist.',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: () =>
+                          MarketplaceNavigation.openYellowPagesAdmin(context),
+                      icon: const Icon(Icons.manage_search_rounded),
+                      label: const Text('Open Yellow Pages Control'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             _explanationBanner(
               title: 'Trust & Safety Moderation Intake',
               explanation:

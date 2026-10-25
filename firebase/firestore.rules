@@ -826,5 +826,46 @@ service cloud.firestore {
         request.resource.data.revision == resource.data.revision + 1;
       allow delete: if false;
     }
+
+    // PipeBuyer Yellow Pages — Smart North America Service Directory & Contact Center
+    match /yellow_pages_public_entries/{companyId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /yellow_pages_companies/{companyId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /yellow_pages_contact_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /yellow_pages_staff/{uid} {
+      allow read: if isAdmin() || owns(uid);
+      allow write: if false;
+    }
+
+    match /yellow_pages_audit_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /yellow_pages_blocked_numbers/{phoneKey} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /yellow_pages_listing_requests/{requestId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.submitterUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /yellow_pages_book_pages/{pageId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
   }
 }

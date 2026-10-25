@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'pipebuyer_contact_center_dashboard.dart';
+import 'pipebuyer_list_services_page.dart';
+import 'pipebuyer_yellow_pages_directory_page.dart';
+
 @immutable
 class MarketplaceDestinationRequest {
   const MarketplaceDestinationRequest(this.pageIndex);
@@ -36,5 +40,43 @@ class MarketplaceNavigation {
   static void goToWanted(BuildContext context) {
     wantedRequests.value++;
     Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  static Future<void> openSearchServices(
+    BuildContext context, {
+    String initialQuery = '',
+    String initialCategoryCode = '',
+    String initialCountryCode = '',
+  }) {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PipeBuyerYellowPagesDirectoryPage(
+          initialQuery: initialQuery,
+          initialCategoryCode: initialCategoryCode,
+          initialCountryCode: initialCountryCode,
+        ),
+      ),
+    );
+  }
+
+  static Future<bool?> openListServices(BuildContext context) {
+    return Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => const PipeBuyerListServicesPage(),
+      ),
+    );
+  }
+
+  static Future<void> openYellowPagesAdmin(
+    BuildContext context, {
+    String initialSearchQuery = '',
+  }) {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PipeBuyerContactCenterDashboard(
+          initialSearchQuery: initialSearchQuery,
+        ),
+      ),
+    );
   }
 }

@@ -19,6 +19,9 @@ class MarketplaceHomeWelcome extends StatelessWidget {
         onSell: () => MarketplaceNavigation.goToSell(context),
         onDispatch: () => MarketplaceNavigation.goToDispatch(context),
         onWanted: () => MarketplaceNavigation.goToWanted(context),
+        onSearchServices: () =>
+            MarketplaceNavigation.openSearchServices(context),
+        onListServices: () => MarketplaceNavigation.openListServices(context),
       );
     }
 
@@ -50,6 +53,9 @@ class MarketplaceHomeWelcome extends StatelessWidget {
           onSell: () => MarketplaceNavigation.goToSell(context),
           onDispatch: () => MarketplaceNavigation.goToDispatch(context),
           onWanted: () => MarketplaceNavigation.goToWanted(context),
+          onSearchServices: () =>
+              MarketplaceNavigation.openSearchServices(context),
+          onListServices: () => MarketplaceNavigation.openListServices(context),
         );
       },
     );
@@ -70,6 +76,8 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
     this.onSell,
     this.onDispatch,
     this.onWanted,
+    this.onSearchServices,
+    this.onListServices,
   });
 
   final String? name;
@@ -78,6 +86,8 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
   final VoidCallback? onSell;
   final VoidCallback? onDispatch;
   final VoidCallback? onWanted;
+  final VoidCallback? onSearchServices;
+  final VoidCallback? onListServices;
 
   bool get _signedIn => name != null && name!.trim().isNotEmpty;
 
@@ -98,6 +108,7 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
           accountType: accountType,
           title: title,
           subtitle: subtitle,
+          onSearchServices: onSearchServices,
         ),
         const SizedBox(height: 12),
         MarketplaceHomeIntentActions(
@@ -105,6 +116,8 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
           onSell: onSell,
           onDispatch: onDispatch,
           onWanted: onWanted,
+          onSearchServices: onSearchServices,
+          onListServices: onListServices,
         ),
         const SizedBox(height: 12),
         const PipeBuyerTrustBand(
@@ -146,18 +159,22 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
     this.onSell,
     this.onDispatch,
     this.onWanted,
+    this.onSearchServices,
+    this.onListServices,
   });
 
   final VoidCallback? onBrowse;
   final VoidCallback? onSell;
   final VoidCallback? onDispatch;
   final VoidCallback? onWanted;
+  final VoidCallback? onSearchServices;
+  final VoidCallback? onListServices;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 980 ? 4 : 2;
+        final columns = constraints.maxWidth >= 980 ? 3 : 2;
         const spacing = 10.0;
         final cardWidth =
             (constraints.maxWidth - (spacing * (columns - 1))) / columns;
@@ -208,6 +225,26 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                         title: 'Sell something',
                         subtitle: 'Create a guided Marketplace listing.',
                         onTap: onSell,
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _MarketplaceIntentCard(
+                        icon: Icons.manage_search_rounded,
+                        title: 'Search for services',
+                        subtitle:
+                            'Smart search verified Canada & USA Oil & Gas companies.',
+                        onTap: onSearchServices,
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _MarketplaceIntentCard(
+                        icon: Icons.workspace_premium_outlined,
+                        title: 'List services',
+                        subtitle:
+                            'Get Priority Verified placement in Yellow Pages.',
+                        onTap: onListServices,
                       ),
                     ),
                     SizedBox(
@@ -318,12 +355,14 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
     required this.accountType,
     required this.title,
     required this.subtitle,
+    this.onSearchServices,
   });
 
   final bool signedIn;
   final String accountType;
   final String title;
   final String subtitle;
+  final VoidCallback? onSearchServices;
 
   @override
   Widget build(BuildContext context) {
@@ -444,25 +483,30 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
                           ),
                         ),
                         SizedBox(height: isMobile ? 20 : 24),
-                        const Wrap(
+                        Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            _HeroCapabilityChip(
+                            const _HeroCapabilityChip(
                               icon: Icons.horizontal_rule_rounded,
                               label: 'Pipe & tubing',
                             ),
-                            _HeroCapabilityChip(
+                            const _HeroCapabilityChip(
                               icon: Icons.precision_manufacturing_outlined,
                               label: 'Heavy equipment',
                             ),
-                            _HeroCapabilityChip(
+                            const _HeroCapabilityChip(
                               icon: Icons.cabin_outlined,
                               label: 'Buildings & crew sites',
                             ),
-                            _HeroCapabilityChip(
+                            const _HeroCapabilityChip(
                               icon: Icons.local_shipping_outlined,
                               label: 'Trucking & Dispatch',
+                            ),
+                            _HeroCapabilityChip(
+                              icon: Icons.manage_search_rounded,
+                              label: 'Services Directory',
+                              onTap: onSearchServices,
                             ),
                           ],
                         ),
@@ -581,25 +625,35 @@ class _HeroBrandMark extends StatelessWidget {
 }
 
 class _HeroCapabilityChip extends StatelessWidget {
-  const _HeroCapabilityChip({required this.icon, required this.label});
+  const _HeroCapabilityChip({
+    required this.icon,
+    required this.label,
+    this.onTap,
+  });
 
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final pill = Container(
       constraints: const BoxConstraints(minHeight: 34),
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: .28),
+        color: onTap != null
+            ? PipeBuyerColors.orange.withValues(alpha: .26)
+            : Colors.black.withValues(alpha: .28),
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: Colors.white.withValues(alpha: .22)),
+        border: Border.all(
+          color: onTap != null
+              ? PipeBuyerColors.orange.withValues(alpha: .72)
+              : Colors.white.withValues(alpha: .22),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(width: 0),
           Icon(icon, color: PipeBuyerColors.orange, size: 16),
           const SizedBox(width: 7),
           Text(
@@ -611,6 +665,15 @@ class _HeroCapabilityChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+    if (onTap == null) return pill;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(11),
+        child: pill,
       ),
     );
   }

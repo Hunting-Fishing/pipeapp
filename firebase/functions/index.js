@@ -47,6 +47,7 @@ const {
 } = require("./policy_acceptance_commands");
 const { createSupportCommands } = require("./support_commands");
 const {createWantedMatching} = require("./wanted_matching");
+const {createYellowPagesCommands} = require("./yellow_pages_commands");
 const admin = createAdminRuntime();
 
 async function notifyActiveAdministrators(notification) {
@@ -112,6 +113,9 @@ const notificationDelivery = createNotificationDelivery(admin);
 const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const supportCommands = createSupportCommands(admin);
 const wantedMatching = createWantedMatching(admin);
+const yellowPagesCommands = createYellowPagesCommands(admin, {
+  notifyAdministrators: notifyActiveAdministrators,
+});
 exports.syncDispatchDirectoryFromPublicProfile = onDocumentWritten(
   {
     document: "public_business_profiles/{companyId}",
@@ -1164,4 +1168,109 @@ exports.onWeightSuggestionCreated = onDocumentCreated(
     });
     return null;
   },
+);
+
+// PipeBuyer Yellow Pages — Smart North America Service Directory & Contact Center
+const publicDirectoryReadOptions = Object.freeze({
+  enforceAppCheck: false,
+});
+exports.getYellowPagesTaxonomy = onCall(
+  publicDirectoryReadOptions,
+  yellowPagesCommands.getYellowPagesTaxonomy,
+);
+exports.searchPipeBuyerYellowPages = onCall(
+  publicDirectoryReadOptions,
+  yellowPagesCommands.searchPipeBuyerYellowPages,
+);
+exports.listPipeBuyerYellowPages = onCall(
+  publicDirectoryReadOptions,
+  yellowPagesCommands.searchPipeBuyerYellowPages,
+);
+exports.getPipeBuyerYellowPagesEntry = onCall(
+  publicDirectoryReadOptions,
+  yellowPagesCommands.getPipeBuyerYellowPagesEntry,
+);
+exports.recordYellowPagesLeadInteraction = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.recordYellowPagesLeadInteraction,
+);
+exports.submitYellowPagesServiceListingRequest = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.submitYellowPagesServiceListingRequest,
+);
+exports.getYellowPagesAccess = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.getYellowPagesAccess,
+);
+exports.searchAdminYellowPagesCompanies = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.searchAdminYellowPagesCompanies,
+);
+exports.listYellowPagesDashboardView = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.listYellowPagesDashboardView,
+);
+exports.getYellowPagesCompany = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.getYellowPagesCompany,
+);
+exports.upsertYellowPagesCompany = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.upsertYellowPagesCompany,
+);
+exports.setYellowPagesCompanyVisibility = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.setYellowPagesCompanyVisibility,
+);
+exports.setYellowPagesFlaggedStatus = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.setYellowPagesFlaggedStatus,
+);
+exports.manageYellowPagesBlockedNumber = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.manageYellowPagesBlockedNumber,
+);
+exports.listYellowPagesBlockedNumbers = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.listYellowPagesBlockedNumbers,
+);
+exports.assignYellowPagesCompany = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.assignYellowPagesCompany,
+);
+exports.recordYellowPagesContactEvent = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.recordYellowPagesContactEvent,
+);
+exports.setYellowPagesDoNotContact = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.setYellowPagesDoNotContact,
+);
+exports.reviewYellowPagesVerification = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.reviewYellowPagesVerification,
+);
+exports.setYellowPagesBillingStatus = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.setYellowPagesBillingStatus,
+);
+exports.setYellowPagesPublicationStatus = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.setYellowPagesPublicationStatus,
+);
+exports.reviewYellowPagesListingRequest = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.reviewYellowPagesListingRequest,
+);
+exports.upsertYellowPagesBookPageAudit = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.upsertYellowPagesBookPageAudit,
+);
+exports.listYellowPagesStaff = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.listYellowPagesStaff,
+);
+exports.manageYellowPagesStaff = onCall(
+  protectedCallableOptions,
+  yellowPagesCommands.manageYellowPagesStaff,
 );

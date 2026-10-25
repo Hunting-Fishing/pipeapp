@@ -16,11 +16,17 @@ class MarketplaceDeepLinks {
   static const termsRouteName = 'public-terms';
   static const supportRouteName = 'public-support';
   static const accountDeletionRouteName = 'public-account-deletion';
+  static const servicesDirectoryRouteName = 'yellow-pages-services';
+  static const listServicesRouteName = 'yellow-pages-list-services';
+  static const contactCenterRouteName = 'yellow-pages-contact-center';
 
   static const privacyPath = '/privacy';
   static const termsPath = '/terms';
   static const supportPath = '/support';
   static const accountDeletionPath = '/account-deletion';
+  static const servicesDirectoryPath = '/services';
+  static const listServicesPath = '/services/list';
+  static const contactCenterPath = '/contact-center';
 
   static String listing(String listingId) =>
       '/listings/${Uri.encodeComponent(_requiredId(listingId))}';

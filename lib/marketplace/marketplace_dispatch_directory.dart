@@ -12,6 +12,7 @@ import 'marketplace_command_client.dart';
 import 'marketplace_dispatch_directory_actions.dart';
 import 'marketplace_dispatch_service_taxonomy.dart';
 import 'marketplace_location_picker.dart';
+import 'marketplace_navigation.dart';
 import 'open_address_autocomplete.dart';
 
 class DispatchDirectoryEntry {
@@ -695,6 +696,34 @@ class _MarketplaceDispatchDirectoryPageState
               subtitle:
                   'Search structured provider profiles by service, operating area and availability. Results come from the server-owned Dispatch Directory projection, which excludes private contacts, exact addresses, credentials and account-only data.',
               icon: Icons.business_outlined,
+            ),
+            const SizedBox(height: 12),
+            PipeBuyerSectionCard(
+              title: 'North America Oil & Gas Yellow Pages (Canada & USA)',
+              subtitle:
+                  'Smart search verified oilfield & industrial service companies across all basins, or list your business for Priority Verified placement.',
+              leading: const Icon(
+                Icons.menu_book_outlined,
+                color: PipeBuyerColors.orange,
+              ),
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () =>
+                        MarketplaceNavigation.openSearchServices(context),
+                    icon: const Icon(Icons.manage_search_rounded),
+                    label: const Text('Search for Services'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        MarketplaceNavigation.openListServices(context),
+                    icon: const Icon(Icons.workspace_premium_outlined),
+                    label: const Text('List Services (Paid Priority)'),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 14),
             _DirectoryRadiusSearchCard(

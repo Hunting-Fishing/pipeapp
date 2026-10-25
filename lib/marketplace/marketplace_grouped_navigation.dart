@@ -11,6 +11,10 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
     required this.dispatchEnabled,
     required this.onDestinationSelected,
     required this.onWanted,
+    this.onSearchServices,
+    this.onListServices,
+    this.onYellowPagesAdmin,
+    this.isAdmin = false,
   });
 
   final int selectedPageIndex;
@@ -19,6 +23,10 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
   final bool dispatchEnabled;
   final ValueChanged<int> onDestinationSelected;
   final VoidCallback onWanted;
+  final VoidCallback? onSearchServices;
+  final VoidCallback? onListServices;
+  final VoidCallback? onYellowPagesAdmin;
+  final bool isAdmin;
 
   @override
   Widget build(BuildContext context) => ListView(
@@ -61,6 +69,33 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
               selected: selectedPageIndex == 3,
               onTap: () => onDestinationSelected(3),
             ),
+          ],
+          if (onSearchServices != null || onListServices != null) ...[
+            const _SectionLabel('SERVICES & DIRECTORY'),
+            if (onSearchServices != null)
+              _NavItem(
+                icon: Icons.manage_search_rounded,
+                selectedIcon: Icons.manage_search_rounded,
+                label: 'Search for Services',
+                selected: false,
+                onTap: onSearchServices!,
+              ),
+            if (onListServices != null)
+              _NavItem(
+                icon: Icons.workspace_premium_outlined,
+                selectedIcon: Icons.workspace_premium_rounded,
+                label: 'List Services',
+                selected: false,
+                onTap: onListServices!,
+              ),
+            if (isAdmin && onYellowPagesAdmin != null)
+              _NavItem(
+                icon: Icons.contact_phone_outlined,
+                selectedIcon: Icons.contact_phone_rounded,
+                label: 'Yellow Pages Admin',
+                selected: false,
+                onTap: onYellowPagesAdmin!,
+              ),
           ],
           const _SectionLabel('DEALS'),
           _NavItem(
