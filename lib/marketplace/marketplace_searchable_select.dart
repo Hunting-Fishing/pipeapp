@@ -165,10 +165,7 @@ class _MarketplaceSearchableSelectFieldState<T> extends FormFieldState<T> {
             ),
             clipBehavior: Clip.antiAlias,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 540,
-                maxHeight: 620,
-              ),
+              constraints: const BoxConstraints(maxWidth: 540, maxHeight: 620),
               child: _MarketplacePickerModalContent<T>(
                 title: title,
                 selectedValue: value,
@@ -292,19 +289,69 @@ class _MarketplaceSearchableSelectFieldState<T> extends FormFieldState<T> {
               ),
             ],
           )
-        : Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: arrowColor,
-          );
+        : Icon(Icons.keyboard_arrow_down_rounded, color: arrowColor);
+
+    final borderColor =
+        isDark ? PipeBuyerColors.darkLine : const Color(0xFFCFD9E6);
+    final inheritedBorder = theme.inputDecorationTheme.border;
+    final needsVisibleOutline = inheritedBorder == null ||
+        (inheritedBorder is OutlineInputBorder &&
+            inheritedBorder.borderSide == BorderSide.none);
+    final fallbackRadius = BorderRadius.circular(10);
 
     final baseDecoration = InputDecoration(
       labelText: widget.label,
       floatingLabelBehavior: FloatingLabelBehavior.always,
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       helperText: widget.helperText,
       errorText: errorText,
       enabled: widget.enabled,
-      prefixIcon: widget.prefixIcon != null ? Icon(widget.prefixIcon) : null,
+      prefixIcon:
+          widget.prefixIcon != null ? Icon(widget.prefixIcon, size: 20) : null,
       suffixIcon: suffixWidget,
+      border: needsVisibleOutline
+          ? OutlineInputBorder(
+              borderRadius: fallbackRadius,
+              borderSide: BorderSide(color: borderColor),
+            )
+          : null,
+      enabledBorder: needsVisibleOutline
+          ? OutlineInputBorder(
+              borderRadius: fallbackRadius,
+              borderSide: BorderSide(color: borderColor),
+            )
+          : null,
+      disabledBorder: needsVisibleOutline
+          ? OutlineInputBorder(
+              borderRadius: fallbackRadius,
+              borderSide: BorderSide(color: borderColor.withValues(alpha: 0.6)),
+            )
+          : null,
+      focusedBorder: needsVisibleOutline
+          ? OutlineInputBorder(
+              borderRadius: fallbackRadius,
+              borderSide: const BorderSide(
+                color: PipeBuyerColors.orange,
+                width: 1.8,
+              ),
+            )
+          : null,
+      errorBorder: needsVisibleOutline
+          ? OutlineInputBorder(
+              borderRadius: fallbackRadius,
+              borderSide: const BorderSide(color: PipeBuyerColors.danger),
+            )
+          : null,
+      focusedErrorBorder: needsVisibleOutline
+          ? OutlineInputBorder(
+              borderRadius: fallbackRadius,
+              borderSide: const BorderSide(
+                color: PipeBuyerColors.danger,
+                width: 1.8,
+              ),
+            )
+          : null,
     ).applyDefaults(theme.inputDecorationTheme);
 
     return Semantics(
@@ -406,8 +453,9 @@ class _MarketplacePickerModalContentState<T>
     if (widget.selectedValue != null &&
         widget.allOptionsWhenUnfiltered != null &&
         !widget.options.any((o) => o.value == widget.selectedValue) &&
-        widget.allOptionsWhenUnfiltered!
-            .any((o) => o.value == widget.selectedValue)) {
+        widget.allOptionsWhenUnfiltered!.any(
+          (o) => o.value == widget.selectedValue,
+        )) {
       _showingAllUnfiltered = true;
     }
   }
@@ -532,9 +580,8 @@ class _MarketplacePickerModalContentState<T>
             onChanged: (next) => setState(() => _query = next),
             onSubmitted: (_) {
               if (matchingRegular.isNotEmpty) {
-                Navigator.of(context).pop(
-                  _PickerSelection<T>(matchingRegular.first.value),
-                );
+                Navigator.of(context)
+                    .pop(_PickerSelection<T>(matchingRegular.first.value));
               }
             },
             decoration: InputDecoration(
@@ -590,9 +637,8 @@ class _MarketplacePickerModalContentState<T>
                     return _OptionTile<T>(
                       option: option,
                       isSelected: isSelected,
-                      onTap: () => Navigator.of(context).pop(
-                        _PickerSelection<T>(option.value),
-                      ),
+                      onTap: () => Navigator.of(context)
+                          .pop(_PickerSelection<T>(option.value)),
                     );
                   },
                 ),
@@ -613,9 +659,8 @@ class _MarketplacePickerModalContentState<T>
                       option: special,
                       isSelected: special.value == widget.selectedValue,
                       isPinnedFooter: true,
-                      onTap: () => Navigator.of(context).pop(
-                        _PickerSelection<T>(special.value),
-                      ),
+                      onTap: () => Navigator.of(context)
+                          .pop(_PickerSelection<T>(special.value)),
                     ),
                   )
                   .toList(growable: false),
@@ -1029,62 +1074,50 @@ class _MarketplaceEnginePowertrainFieldState
       );
     }
 
-    // Case B: Exactly 1 catalog engine option -> pre-filled TextFormField with
-    // 'Catalog spec matched' chip and one-tap 'Reset to catalog spec' override!
+    // Case B: Exactly 1 catalog engine option -> compact single-row TextFormField
+    // with inline 'Matched' pill or one-tap 'Reset' icon button inside suffixIcon!
     if (options.length == 1) {
       final singleSpec = options.first;
       final currentTrimmed = widget.controller.text.trim();
       final matchesCatalogSpec = currentTrimmed == singleSpec.label.trim();
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          TextFormField(
-            controller: widget.controller,
-            onChanged: widget.onChanged,
-            decoration: const InputDecoration(
-              labelText: 'Engine / powertrain details',
-              hintText:
-                  'Engine make/model, HP, fuel type, tier or transmission',
-              prefixIcon: Icon(Icons.settings_outlined),
+      return TextFormField(
+        controller: widget.controller,
+        onChanged: widget.onChanged,
+        decoration: InputDecoration(
+          labelText: 'Engine / powertrain details',
+          hintText: 'Engine make/model, HP, fuel type, tier or transmission',
+          prefixIcon: const Icon(Icons.settings_outlined),
+          suffixIcon: Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (matchesCatalogSpec)
+                  const _SubtleBadgePill(
+                    text: 'Matched',
+                    tone: PipeBuyerColors.success,
+                  )
+                else
+                  IconButton(
+                    tooltip: 'Reset to catalog spec',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      _lastAutoAppliedSingleSpec = singleSpec.label;
+                      _setControllerTextSilently(singleSpec.label);
+                      setState(() {});
+                      widget.onChanged?.call(singleSpec.label);
+                    },
+                    icon: const Icon(
+                      Icons.restart_alt_rounded,
+                      size: 18,
+                      color: PipeBuyerColors.industrialBlue,
+                    ),
+                  ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: <Widget>[
-              _SubtleBadgePill(
-                text: matchesCatalogSpec
-                    ? 'Catalog spec matched'
-                    : 'Custom engine / powertrain override',
-                tone: matchesCatalogSpec
-                    ? PipeBuyerColors.success
-                    : PipeBuyerColors.industrialBlue,
-              ),
-              if (!matchesCatalogSpec)
-                TextButton.icon(
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 34),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: () {
-                    _lastAutoAppliedSingleSpec = singleSpec.label;
-                    _setControllerTextSilently(singleSpec.label);
-                    setState(() {});
-                    widget.onChanged?.call(singleSpec.label);
-                  },
-                  icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                  label: const Text('Reset to catalog spec'),
-                ),
-            ],
-          ),
-        ],
+        ),
       );
     }
 
