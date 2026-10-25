@@ -277,11 +277,7 @@ class _MarketplaceEquipmentStep2SectionState
     widget.manualModelController.clear();
     widget.engineDetailsController.clear();
     widget.onSelectionChanged(
-      EquipmentSpecSelection(
-        brand: nextBrand,
-        year: null,
-        model: null,
-      ),
+      EquipmentSpecSelection(brand: nextBrand, year: null, model: null),
     );
   }
 
@@ -599,8 +595,9 @@ class _MarketplaceEquipmentStep2SectionState
               ]
             : null;
 
-    final selectedManufacturerEntry =
-        widget.catalog.findManufacturer(widget.selectedBrand);
+    final selectedManufacturerEntry = widget.catalog.findManufacturer(
+      widget.selectedBrand,
+    );
     final usesManual = _usesManualModelAndYear;
 
     // Year options (strictly locked to selected catalog model's manufactured years!)
@@ -770,522 +767,628 @@ class _MarketplaceEquipmentStep2SectionState
             ? widget.maintenanceHistory
             : _maintenanceHistoryOptions.last;
 
-    return Column(
+    final Widget serialPinField = TextFormField(
+      key: const Key('step2_serial_pin_field'),
+      controller: widget.serialNumberController,
+      textCapitalization: TextCapitalization.characters,
+      onChanged: _onSerialTextChanged,
+      onFieldSubmitted: (_) => _decodeSerialAndApply(autoTriggered: false),
+      decoration: InputDecoration(
+        labelText: '# Serial number / PIN (optional)',
+        hintText: isTransport
+            ? '17-char truck/trailer VIN or serial #'
+            : '17-char PIN / VIN or equipment serial #',
+        prefixIcon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (widget.serialNumberController.text.isNotEmpty)
+              IconButton(
+                tooltip: 'Clear serial / PIN',
+                visualDensity: VisualDensity.compact,
+                onPressed: () {
+                  widget.serialNumberController.clear();
+                  _onSerialTextChanged('');
+                },
+                icon: const Icon(Icons.clear_rounded, size: 17),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: TextButton.icon(
+                key: const Key('step2_serial_autofill_button'),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 34),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: _decodingSerial || normalizedSerial.length < 6
+                    ? null
+                    : () => _decodeSerialAndApply(autoTriggered: false),
+                icon: _decodingSerial
+                    ? const SizedBox.square(
+                        dimension: 13,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_fix_high_rounded, size: 15),
+                label: Text(
+                  _decodingSerial ? 'Decoding…' : 'Auto-fill',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final Widget quickSearchField = TextField(
+      key: const Key('step2_catalog_quick_search_field'),
+      controller: _quickSearchController,
+      onChanged: (value) => setState(() => _quickSearchQuery = value),
+      decoration: InputDecoration(
+        labelText: 'Search make, model or year',
+        hintText: isTransport
+            ? 'e.g. 2020 Peterbilt 389, Kenworth T880...'
+            : 'e.g. 2022 Case SV340B, Bobcat T76, Cat 320D...',
+        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+        suffixIcon: _quickSearchQuery.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Clear catalog search',
+                visualDensity: VisualDensity.compact,
+                onPressed: () {
+                  _quickSearchController.clear();
+                  setState(() => _quickSearchQuery = '');
+                },
+                icon: const Icon(Icons.clear_rounded, size: 17),
+              ),
+      ),
+    );
+
+    final Widget brandField = MarketplaceSearchableSelectField<String>(
+      key: const Key('step2_brand_select_field'),
+      semanticKey: const Key('step2_brand_select_trigger'),
+      label: widget.requiredSpecs
+          ? 'Brand or manufacturer *'
+          : 'Brand or manufacturer',
+      hintText: 'Search or select manufacturer...',
+      value: widget.selectedBrand,
+      options: primaryBrandOptions,
+      allOptionsWhenUnfiltered: unfilteredBrandOptions,
+      filterChipLabel: unfilteredBrandOptions == null
+          ? null
+          : 'Showing ${widget.category ?? 'category'} manufacturers (${categoryManufacturers.length}) — Tap to show all ${allManufacturers.length}',
+      prefixIcon: Icons.factory_outlined,
+      searchHintText:
+          'Search manufacturer or alias (e.g. CAT, Deere, Case, Peterbilt)...',
+      emptyStateText:
+          'No manufacturer matched — select "$kManualCatalogOptionValue" below.',
+      onChanged: _handleBrandSelected,
+      validator: (selectedValue) =>
+          widget.requiredSpecs && selectedValue == null
+              ? 'Select a manufacturer'
+              : null,
+    );
+
+    final Widget? customBrandField =
+        widget.selectedBrand == kManualCatalogOptionValue
+            ? TextFormField(
+                key: const Key('step2_custom_brand_field'),
+                controller: widget.customBrandController,
+                decoration: InputDecoration(
+                  labelText: widget.requiredSpecs
+                      ? 'Enter manufacturer *'
+                      : 'Enter manufacturer',
+                  hintText: 'Exact OEM or fabricator name',
+                  prefixIcon: const Icon(Icons.edit_outlined, size: 20),
+                ),
+                validator: (value) =>
+                    widget.selectedBrand == kManualCatalogOptionValue &&
+                            widget.requiredSpecs &&
+                            (value == null || value.trim().isEmpty)
+                        ? 'Enter the manufacturer'
+                        : null,
+              )
+            : null;
+
+    final Widget manualYearField = TextFormField(
+      key: const Key('step2_manual_year_field'),
+      controller: widget.manualYearController,
+      keyboardType: TextInputType.number,
+      inputFormatters: <TextInputFormatter>[
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(4),
+      ],
+      onChanged: (raw) {
+        final parsed = int.tryParse(raw.trim());
+        final validYear = (parsed != null && parsed >= 1900 && parsed <= 2100)
+            ? parsed
+            : null;
+        widget.onSelectionChanged(
+          EquipmentSpecSelection(
+            brand: widget.selectedBrand,
+            year: validYear,
+            model: null,
+          ),
+        );
+      },
+      decoration: InputDecoration(
+        labelText: widget.requiredSpecs
+            ? 'Enter model year *'
+            : 'Enter model year (optional)',
+        hintText: '4-digit year (e.g. 2021)',
+        prefixIcon: const Icon(Icons.calendar_today_outlined, size: 20),
+      ),
+      validator: (value) {
+        final trimmed = (value ?? '').trim();
+        if (trimmed.isEmpty) {
+          return widget.requiredSpecs ? 'Enter the model year' : null;
+        }
+        final year = int.tryParse(trimmed);
+        final maxYear = DateTime.now().year + 1;
+        if (year == null || year < 1900 || year > maxYear) {
+          return 'Enter a valid 4-digit year (1900–$maxYear)';
+        }
+        return null;
+      },
+    );
+
+    final Widget catalogYearField = MarketplaceSearchableSelectField<int>(
+      key: const Key('step2_year_select_field'),
+      semanticKey: const Key('step2_year_select_trigger'),
+      clearButtonKey: const Key('step2_year_clear_button'),
+      allowClear: true,
+      clearTooltip: 'Clear model year',
+      label: widget.requiredSpecs ? 'Model year *' : 'Model year',
+      modalTitle: selectedModelEntry != null
+          ? '${widget.selectedBrand ?? ''} ${selectedModelEntry.model} — Manufactured Years (${selectedModelEntry.yearRangeLabel})'
+              .trim()
+          : null,
+      headerBadge: selectedModelEntry?.yearRangeLabel,
+      hintText: selectedModelEntry != null
+          ? 'Select year (${selectedModelEntry.yearRangeLabel})...'
+          : catalogModelFilter != null && scopedYears.isNotEmpty
+              ? 'Select year (${scopedYears.last}–${scopedYears.first})...'
+              : 'Select model year...',
+      value: widget.selectedYear,
+      options: yearOptions,
+      prefixIcon: Icons.calendar_today_outlined,
+      searchHintText: selectedModelEntry != null
+          ? 'Type 4-digit year in ${selectedModelEntry.yearRangeLabel}...'
+          : 'Type 4-digit year (e.g. 2023, 2018, 1995)...',
+      emptyStateText: selectedModelEntry != null
+          ? 'No matching year — ${selectedModelEntry.model} was manufactured ${selectedModelEntry.yearRangeLabel}.'
+          : 'No matching year in range.',
+      onChanged: _handleCatalogYearSelected,
+      validator: (selectedValue) =>
+          widget.requiredSpecs && selectedValue == null
+              ? 'Select the model year'
+              : null,
+    );
+
+    final Widget manualModelField = TextFormField(
+      key: const Key('step2_manual_model_field'),
+      controller: widget.manualModelController,
+      decoration: InputDecoration(
+        labelText: widget.requiredSpecs ? 'Enter model # *' : 'Enter model #',
+        hintText: selectedManufacturerEntry != null &&
+                selectedManufacturerEntry.exampleModels.isNotEmpty
+            ? 'Example: ${selectedManufacturerEntry.exampleModels.take(3).join(', ')}'
+            : 'Exact model # from unit data plate',
+        prefixIcon: const Icon(
+          Icons.precision_manufacturing_outlined,
+          size: 20,
+        ),
+      ),
+      validator: (value) =>
+          widget.requiredSpecs && (value == null || value.trim().isEmpty)
+              ? 'Enter the model #'
+              : null,
+    );
+
+    final String? closedModelCountBadge = widget.selectedBrand != null &&
+            widget.selectedModel == null &&
+            allYearModels.isNotEmpty
+        ? '${allYearModels.length} ${allYearModels.length == 1 ? 'model' : 'models'}'
+        : null;
+
+    final Widget catalogModelColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        // ====================================================================
-        // 1. SERIAL NUMBER / PIN (FIRST ITEM IN STEP 2 — ABOVE MANUFACTURER)
-        // ====================================================================
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isDark
-                ? PipeBuyerColors.darkSurfaceMuted
-                : PipeBuyerColors.industrialBlue.withValues(alpha: 0.045),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isDark
-                  ? PipeBuyerColors.darkLine
-                  : PipeBuyerColors.industrialBlue.withValues(alpha: 0.22),
+        MarketplaceSearchableSelectField<String>(
+          key: const Key('step2_model_select_field'),
+          semanticKey: const Key('step2_model_select_trigger'),
+          clearButtonKey: const Key('step2_model_clear_button'),
+          allowClear: true,
+          clearTooltip: 'Clear model',
+          label: widget.requiredSpecs ? 'Model *' : 'Model',
+          headerBadge: closedModelCountBadge,
+          hintText: widget.selectedBrand == null
+              ? 'Select manufacturer first...'
+              : widget.selectedYear != null
+                  ? 'Search ${widget.selectedYear} ${widget.selectedBrand} models...'
+                  : 'Search ${widget.selectedBrand} models (with years)...',
+          enabled: widget.selectedBrand != null,
+          value: widget.selectedModel,
+          options: modelOptions,
+          allOptionsWhenUnfiltered: unfilteredModelOptions,
+          filterChipLabel: unfilteredModelOptions == null
+              ? null
+              : 'Showing ${widget.productType} models (${strictTypeModels.length}) — Tap to show all ${allYearModels.length} ${widget.selectedBrand} models',
+          prefixIcon: Icons.precision_manufacturing_outlined,
+          searchHintText:
+              'Search model #, manufactured years, series, or engine (e.g. SV340B, 2022, T76)...',
+          emptyStateText: widget.selectedYear != null
+              ? 'No catalog model matched for ${widget.selectedYear} — select "$kManualCatalogOptionValue" below.'
+              : 'No catalog model matched — select "$kManualCatalogOptionValue" below.',
+          onChanged: _handleCatalogModelSelected,
+          validator: (selectedValue) =>
+              widget.requiredSpecs && selectedValue == null
+                  ? 'Select a model'
+                  : null,
+        ),
+        if (widget.selectedModel == kManualCatalogOptionValue) ...<Widget>[
+          const SizedBox(height: 10),
+          TextFormField(
+            key: const Key('step2_custom_model_field'),
+            controller: widget.manualModelController,
+            decoration: InputDecoration(
+              labelText:
+                  widget.requiredSpecs ? 'Enter model # *' : 'Enter model #',
+              hintText: 'Exact model # from data plate',
+              prefixIcon: const Icon(Icons.edit_outlined, size: 20),
             ),
+            validator: (value) =>
+                widget.selectedModel == kManualCatalogOptionValue &&
+                        widget.requiredSpecs &&
+                        (value == null || value.trim().isEmpty)
+                    ? 'Enter the model #'
+                    : null,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              TextFormField(
-                key: const Key('step2_serial_pin_field'),
-                controller: widget.serialNumberController,
-                textCapitalization: TextCapitalization.characters,
-                onChanged: _onSerialTextChanged,
-                onFieldSubmitted: (_) =>
-                    _decodeSerialAndApply(autoTriggered: false),
-                decoration: InputDecoration(
-                  labelText: '# Serial number / PIN (optional)',
-                  hintText: isTransport
-                      ? '17-character truck/trailer VIN or serial #'
-                      : '17-character machine PIN / VIN or equipment serial #',
-                  prefixIcon: const Icon(Icons.qr_code_scanner_rounded),
-                  suffixIcon: Row(
-                    mainAxisSize: MainAxisSize.min,
+        ],
+      ],
+    );
+
+    final Widget enginePowertrainField = MarketplaceEnginePowertrainField(
+      key: const Key('step2_engine_powertrain_field'),
+      engineOptions: engineOptions,
+      controller: widget.engineDetailsController,
+      brand: widget.selectedBrand,
+      model: widget.selectedModel,
+      modelYear: _effectiveYear,
+    );
+
+    final Widget machineHoursField = TextFormField(
+      key: const Key('step2_machine_hours_field'),
+      controller: widget.machineHoursController,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText:
+            isTransport ? 'Engine / PTO hours (optional)' : 'Machine hours',
+        suffixText: 'hrs',
+        prefixIcon: const Icon(Icons.schedule, size: 20),
+      ),
+    );
+
+    final Widget operatingStatusField = DropdownButtonFormField<String>(
+      key: ValueKey<String>('step2_operating_$effectiveOperatingStatus'),
+      initialValue: effectiveOperatingStatus,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Operating status',
+        prefixIcon: Icon(Icons.engineering_outlined, size: 20),
+      ),
+      selectedItemBuilder: (context) => _operatingStatusOptions
+          .map(
+            (value) => Align(
+              alignment: Alignment.centerLeft,
+              child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          )
+          .toList(growable: false),
+      items: _operatingStatusOptions.map((value) {
+        final visual = _operatingVisual(value);
+        return DropdownMenuItem<String>(
+          value: value,
+          child: MarketplaceFormOption(
+            label: value,
+            icon: visual.icon,
+            iconColor: visual.color,
+          ),
+        );
+      }).toList(growable: false),
+      onChanged: (value) =>
+          widget.onOperatingStatusChanged(value ?? 'Operational'),
+    );
+
+    final Widget maintenanceHistoryField = DropdownButtonFormField<String>(
+      key: ValueKey<String>('step2_maintenance_$effectiveMaintenanceHistory'),
+      initialValue: effectiveMaintenanceHistory,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Maintenance history',
+        prefixIcon: Icon(Icons.history_outlined, size: 20),
+      ),
+      selectedItemBuilder: (context) => _maintenanceHistoryOptions
+          .map(
+            (value) => Align(
+              alignment: Alignment.centerLeft,
+              child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          )
+          .toList(growable: false),
+      items: _maintenanceHistoryOptions.map((value) {
+        final visual = _maintenanceVisual(value);
+        return DropdownMenuItem<String>(
+          value: value,
+          child: MarketplaceFormOption(
+            label: value,
+            icon: visual.icon,
+            iconColor: visual.color,
+          ),
+        );
+      }).toList(growable: false),
+      onChanged: (value) => widget.onMaintenanceHistoryChanged(
+        value ?? 'Unknown / not available',
+      ),
+    );
+
+    final Widget attachmentsField = TextFormField(
+      key: const Key('step2_attachments_field'),
+      controller: widget.attachmentsController,
+      minLines: 1,
+      maxLines: 2,
+      decoration: InputDecoration(
+        labelText: 'Attachments & included equipment',
+        hintText: isTransport
+            ? 'Wet kit, winch, headache rack, ramps, tarps, chains, etc.'
+            : 'Buckets, forks, thumb, quick coupler, auxiliary hydraulics, etc.',
+        prefixIcon: const Icon(Icons.construction_outlined, size: 20),
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 640;
+        final isThreeCol = constraints.maxWidth >= 720;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // ================================================================
+            // 1. FAST AUTO-FILL & 50-YEAR QUICK SEARCH BAR (ABOVE BRAND!)
+            // ================================================================
+            Container(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? PipeBuyerColors.darkSurfaceMuted
+                    : PipeBuyerColors.industrialBlue.withValues(alpha: 0.038),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark
+                      ? PipeBuyerColors.darkLine
+                      : PipeBuyerColors.industrialBlue.withValues(alpha: 0.18),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  if (isWide)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Expanded(flex: 6, child: serialPinField),
+                        const SizedBox(width: 10),
+                        Expanded(flex: 5, child: quickSearchField),
+                      ],
+                    )
+                  else ...<Widget>[
+                    serialPinField,
+                    const SizedBox(height: 8),
+                    quickSearchField,
+                  ],
+                  const SizedBox(height: 6),
+                  Row(
+                    key: const Key('step2_serial_autofill_note'),
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: <Widget>[
-                      if (widget.serialNumberController.text.isNotEmpty)
-                        IconButton(
-                          tooltip: 'Clear serial / PIN',
-                          onPressed: () {
-                            widget.serialNumberController.clear();
-                            _onSerialTextChanged('');
-                          },
-                          icon: const Icon(Icons.clear_rounded, size: 18),
-                        ),
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: TextButton.icon(
-                          key: const Key('step2_serial_autofill_button'),
-                          onPressed: _decodingSerial ||
-                                  normalizedSerial.length < 6
-                              ? null
-                              : () =>
-                                  _decodeSerialAndApply(autoTriggered: false),
-                          icon: _decodingSerial
-                              ? const SizedBox.square(
-                                  dimension: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.auto_fix_high_rounded,
-                                  size: 16,
-                                ),
-                          label: Text(
-                            _decodingSerial ? 'Decoding…' : 'Auto-fill',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+                      Icon(
+                        Icons.bolt_rounded,
+                        size: 14,
+                        color: isDark
+                            ? PipeBuyerColors.orange
+                            : PipeBuyerColors.industrialBlue,
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          'Attempt auto-fill with VIN # or equipment PIN: Enter a 17-char truck/trailer VIN (US DOT NHTSA) or heavy-equipment PIN (Caterpillar, Deere, Bobcat, Case, Komatsu, JCB, Kubota, Volvo CE) — or quick-search 50+ years.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.25,
+                            color: mutedColor,
                           ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                key: const Key('step2_serial_autofill_note'),
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Icon(
-                    Icons.bolt_rounded,
-                    size: 16,
-                    color: isDark
-                        ? PipeBuyerColors.orange
-                        : PipeBuyerColors.industrialBlue,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Attempt auto-fill with VIN # or equipment PIN: Enter a 17-character truck/trailer VIN (US DOT NHTSA) or heavy-equipment PIN / serial # (Caterpillar, John Deere, Bobcat, Komatsu, JCB, Case, Kubota, Volvo CE & more) to auto-detect Make, Model Year, Model, and Engine specs when encoded.',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        height: 1.32,
-                        color: mutedColor,
+                  if (_lastDecodeResult != null) ...<Widget>[
+                    const SizedBox(height: 8),
+                    _SerialDecodeStatusBanner(
+                      key: const Key('step2_serial_decode_banner'),
+                      result: _lastDecodeResult!,
+                    ),
+                  ],
+                  if (quickHits.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 8),
+                    Container(
+                      key: const Key('step2_catalog_quick_search_results'),
+                      decoration: BoxDecoration(
+                        color:
+                            isDark ? PipeBuyerColors.darkSurface : Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isDark
+                              ? PipeBuyerColors.darkLine
+                              : PipeBuyerColors.line,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          for (var i = 0;
+                              i < quickHits.length;
+                              i++) ...<Widget>[
+                            if (i > 0)
+                              Divider(
+                                height: 1,
+                                color: isDark
+                                    ? PipeBuyerColors.darkLine
+                                    : PipeBuyerColors.line,
+                              ),
+                            _QuickSearchHitTile(
+                              hit: quickHits[i],
+                              onTap: () => _applyQuickSearchHit(quickHits[i]),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
-              if (_lastDecodeResult != null) ...<Widget>[
+            ),
+            const SizedBox(height: 10),
+
+            // ================================================================
+            // 2. BRAND & MODEL YEAR (ABOVE MODEL!) + 3. MODEL & POWERTRAIN
+            // ================================================================
+            if (usesManual) ...<Widget>[
+              if (customBrandField != null && isWide)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(child: brandField),
+                    const SizedBox(width: 10),
+                    Expanded(child: customBrandField),
+                  ],
+                )
+              else ...<Widget>[
+                brandField,
+                if (customBrandField != null) ...<Widget>[
+                  const SizedBox(height: 10),
+                  customBrandField,
+                ],
+              ],
+              const SizedBox(height: 8),
+              _ManualEntryManufacturerBanner(
+                key: const Key('step2_manual_entry_notice'),
+                brandName: widget.selectedBrand == kManualCatalogOptionValue
+                    ? 'Custom manufacturer'
+                    : (widget.selectedBrand ?? ''),
+                reason: selectedManufacturerEntry?.manualEntryReason,
+                exampleModels: selectedManufacturerEntry?.exampleModels ??
+                    const <String>[],
+                onExampleModelSelected: (example) {
+                  setState(() => widget.manualModelController.text = example);
+                },
+              ),
+              const SizedBox(height: 10),
+              if (isWide)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(flex: 2, child: manualYearField),
+                    const SizedBox(width: 10),
+                    Expanded(flex: 3, child: manualModelField),
+                  ],
+                )
+              else ...<Widget>[
+                manualYearField,
                 const SizedBox(height: 10),
-                _SerialDecodeStatusBanner(
-                  key: const Key('step2_serial_decode_banner'),
-                  result: _lastDecodeResult!,
+                manualModelField,
+              ],
+              const SizedBox(height: 10),
+              enginePowertrainField,
+            ] else ...<Widget>[
+              if (isWide) ...<Widget>[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(flex: 3, child: brandField),
+                    const SizedBox(width: 10),
+                    Expanded(flex: 2, child: catalogYearField),
+                  ],
                 ),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(flex: 5, child: catalogModelColumn),
+                    const SizedBox(width: 10),
+                    Expanded(flex: 6, child: enginePowertrainField),
+                  ],
+                ),
+              ] else ...<Widget>[
+                brandField,
+                const SizedBox(height: 10),
+                catalogYearField,
+                const SizedBox(height: 10),
+                catalogModelColumn,
+                const SizedBox(height: 10),
+                enginePowertrainField,
               ],
             ],
-          ),
-        ),
-        const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
-        // ====================================================================
-        // 2. STEP 2 QUICK CATALOG SEARCH BAR (ACROSS 50+ YEARS MAKE/MODEL/YEAR)
-        // ====================================================================
-        TextField(
-          key: const Key('step2_catalog_quick_search_field'),
-          controller: _quickSearchController,
-          onChanged: (value) => setState(() => _quickSearchQuery = value),
-          decoration: InputDecoration(
-            labelText: 'Search make, model or year',
-            hintText: isTransport
-                ? 'Quick-find e.g. 2020 Peterbilt 389, Kenworth T880, Cascadia...'
-                : 'Quick-find e.g. 2022 Bobcat T76, Cat 320D, Deere 333G...',
-            prefixIcon: const Icon(Icons.search_rounded),
-            suffixIcon: _quickSearchQuery.isEmpty
-                ? null
-                : IconButton(
-                    tooltip: 'Clear catalog search',
-                    onPressed: () {
-                      _quickSearchController.clear();
-                      setState(() => _quickSearchQuery = '');
-                    },
-                    icon: const Icon(Icons.clear_rounded, size: 18),
-                  ),
-          ),
-        ),
-        if (quickHits.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 6),
-          Container(
-            key: const Key('step2_catalog_quick_search_results'),
-            decoration: BoxDecoration(
-              color: isDark ? PipeBuyerColors.darkSurface : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isDark ? PipeBuyerColors.darkLine : PipeBuyerColors.line,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (var i = 0; i < quickHits.length; i++) ...<Widget>[
-                  if (i > 0)
-                    Divider(
-                      height: 1,
-                      color: isDark
-                          ? PipeBuyerColors.darkLine
-                          : PipeBuyerColors.line,
-                    ),
-                  _QuickSearchHitTile(
-                    hit: quickHits[i],
-                    onTap: () => _applyQuickSearchHit(quickHits[i]),
-                  ),
+            // ================================================================
+            // 4. MACHINE HOURS, OPERATING STATUS & MAINTENANCE (BELOW ENGINE!)
+            // ================================================================
+            if (isThreeCol)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(flex: 3, child: machineHoursField),
+                  const SizedBox(width: 10),
+                  Expanded(flex: 4, child: operatingStatusField),
+                  const SizedBox(width: 10),
+                  Expanded(flex: 4, child: maintenanceHistoryField),
                 ],
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: 12),
-
-        // ====================================================================
-        // 3. BRAND OR MANUFACTURER (SEARCHABLE SELECTOR)
-        // ====================================================================
-        MarketplaceSearchableSelectField<String>(
-          key: const Key('step2_brand_select_field'),
-          semanticKey: const Key('step2_brand_select_trigger'),
-          label: widget.requiredSpecs
-              ? 'Brand or manufacturer *'
-              : 'Brand or manufacturer',
-          hintText: 'Search or select manufacturer...',
-          value: widget.selectedBrand,
-          options: primaryBrandOptions,
-          allOptionsWhenUnfiltered: unfilteredBrandOptions,
-          filterChipLabel: unfilteredBrandOptions == null
-              ? null
-              : 'Showing ${widget.category ?? 'category'} manufacturers (${categoryManufacturers.length}) — Tap to show all ${allManufacturers.length}',
-          prefixIcon: Icons.factory_outlined,
-          searchHintText:
-              'Search manufacturer or alias (e.g. CAT, Deere, Doosan, Peterbilt)...',
-          emptyStateText:
-              'No manufacturer matched — select "$kManualCatalogOptionValue" below.',
-          onChanged: _handleBrandSelected,
-          validator: (selectedValue) =>
-              widget.requiredSpecs && selectedValue == null
-                  ? 'Select a manufacturer'
-                  : null,
-        ),
-        if (widget.selectedBrand == kManualCatalogOptionValue) ...<Widget>[
-          const SizedBox(height: 12),
-          TextFormField(
-            key: const Key('step2_custom_brand_field'),
-            controller: widget.customBrandController,
-            decoration: InputDecoration(
-              labelText: widget.requiredSpecs
-                  ? 'Enter manufacturer *'
-                  : 'Enter manufacturer',
-              hintText: 'Exact OEM or fabricator name',
-              prefixIcon: const Icon(Icons.edit_outlined),
-            ),
-            validator: (value) =>
-                widget.selectedBrand == kManualCatalogOptionValue &&
-                        widget.requiredSpecs &&
-                        (value == null || value.trim().isEmpty)
-                    ? 'Enter the manufacturer'
-                    : null,
-          ),
-        ],
-        if (usesManual) ...<Widget>[
-          const SizedBox(height: 10),
-          _ManualEntryManufacturerBanner(
-            key: const Key('step2_manual_entry_notice'),
-            brandName: widget.selectedBrand == kManualCatalogOptionValue
-                ? 'Custom manufacturer'
-                : (widget.selectedBrand ?? ''),
-            reason: selectedManufacturerEntry?.manualEntryReason,
-            exampleModels:
-                selectedManufacturerEntry?.exampleModels ?? const <String>[],
-            onExampleModelSelected: (example) {
-              setState(() => widget.manualModelController.text = example);
-            },
-          ),
-        ],
-        const SizedBox(height: 12),
-
-        // ====================================================================
-        // 4. MODEL YEAR (BROUGHT ABOVE MODEL!)
-        // ====================================================================
-        if (usesManual)
-          TextFormField(
-            key: const Key('step2_manual_year_field'),
-            controller: widget.manualYearController,
-            keyboardType: TextInputType.number,
-            inputFormatters: <TextInputFormatter>[
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(4),
+              )
+            else if (isWide) ...<Widget>[
+              machineHoursField,
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(child: operatingStatusField),
+                  const SizedBox(width: 10),
+                  Expanded(child: maintenanceHistoryField),
+                ],
+              ),
+            ] else ...<Widget>[
+              machineHoursField,
+              const SizedBox(height: 10),
+              operatingStatusField,
+              const SizedBox(height: 10),
+              maintenanceHistoryField,
             ],
-            onChanged: (raw) {
-              final parsed = int.tryParse(raw.trim());
-              final validYear =
-                  (parsed != null && parsed >= 1900 && parsed <= 2100)
-                      ? parsed
-                      : null;
-              widget.onSelectionChanged(
-                EquipmentSpecSelection(
-                  brand: widget.selectedBrand,
-                  year: validYear,
-                  model: null,
-                ),
-              );
-            },
-            decoration: InputDecoration(
-              labelText: widget.requiredSpecs
-                  ? 'Enter model year *'
-                  : 'Enter model year (optional)',
-              hintText: '4-digit model year (e.g. 2021)',
-              prefixIcon: const Icon(Icons.calendar_today_outlined),
-            ),
-            validator: (value) {
-              final trimmed = (value ?? '').trim();
-              if (trimmed.isEmpty) {
-                return widget.requiredSpecs ? 'Enter the model year' : null;
-              }
-              final year = int.tryParse(trimmed);
-              final maxYear = DateTime.now().year + 1;
-              if (year == null || year < 1900 || year > maxYear) {
-                return 'Enter a valid 4-digit year (1900–$maxYear)';
-              }
-              return null;
-            },
-          )
-        else
-          MarketplaceSearchableSelectField<int>(
-            key: const Key('step2_year_select_field'),
-            semanticKey: const Key('step2_year_select_trigger'),
-            clearButtonKey: const Key('step2_year_clear_button'),
-            allowClear: true,
-            clearTooltip: 'Clear model year',
-            label: widget.requiredSpecs ? 'Model year *' : 'Model year',
-            modalTitle: selectedModelEntry != null
-                ? '${widget.selectedBrand ?? ''} ${selectedModelEntry.model} — Manufactured Years (${selectedModelEntry.yearRangeLabel})'
-                    .trim()
-                : null,
-            headerBadge: selectedModelEntry?.yearRangeLabel,
-            hintText: selectedModelEntry != null
-                ? 'Select year (${selectedModelEntry.yearRangeLabel})...'
-                : catalogModelFilter != null && scopedYears.isNotEmpty
-                    ? 'Select year (${scopedYears.last}–${scopedYears.first})...'
-                    : 'Search or select model year...',
-            helperText: selectedModelEntry != null
-                ? 'Manufactured years for ${widget.selectedBrand ?? ''} ${selectedModelEntry.model}: ${selectedModelEntry.yearRangeLabel}'
-                    .trim()
-                : catalogModelFilter != null && scopedYears.isNotEmpty
-                    ? 'Valid production window for $catalogModelFilter: '
-                        '${scopedYears.last == scopedYears.first ? '${scopedYears.first}' : '${scopedYears.last}–${scopedYears.first}'}'
-                    : null,
-            value: widget.selectedYear,
-            options: yearOptions,
-            prefixIcon: Icons.calendar_today_outlined,
-            searchHintText: selectedModelEntry != null
-                ? 'Type 4-digit year in ${selectedModelEntry.yearRangeLabel}...'
-                : 'Type 4-digit year (e.g. 2023, 2018, 1995)...',
-            emptyStateText: selectedModelEntry != null
-                ? 'No matching year — ${selectedModelEntry.model} was manufactured ${selectedModelEntry.yearRangeLabel}.'
-                : 'No matching year in range.',
-            onChanged: _handleCatalogYearSelected,
-            validator: (selectedValue) =>
-                widget.requiredSpecs && selectedValue == null
-                    ? 'Select the model year'
-                    : null,
-          ),
-        const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
-        // ====================================================================
-        // 5. MODEL (BELOW MODEL YEAR — STRICTLY COUPLED TO MODEL YEAR!)
-        // ====================================================================
-        if (usesManual)
-          TextFormField(
-            key: const Key('step2_manual_model_field'),
-            controller: widget.manualModelController,
-            decoration: InputDecoration(
-              labelText:
-                  widget.requiredSpecs ? 'Enter model # *' : 'Enter model #',
-              hintText: selectedManufacturerEntry != null &&
-                      selectedManufacturerEntry.exampleModels.isNotEmpty
-                  ? 'Example: ${selectedManufacturerEntry.exampleModels.take(3).join(', ')}'
-                  : 'Exact model number from unit data plate',
-              prefixIcon: const Icon(Icons.precision_manufacturing_outlined),
-            ),
-            validator: (value) =>
-                widget.requiredSpecs && (value == null || value.trim().isEmpty)
-                    ? 'Enter the model #'
-                    : null,
-          )
-        else ...<Widget>[
-          MarketplaceSearchableSelectField<String>(
-            key: const Key('step2_model_select_field'),
-            semanticKey: const Key('step2_model_select_trigger'),
-            clearButtonKey: const Key('step2_model_clear_button'),
-            allowClear: true,
-            clearTooltip: 'Clear model',
-            label: widget.requiredSpecs ? 'Model *' : 'Model',
-            hintText: widget.selectedBrand == null
-                ? 'Select manufacturer first...'
-                : widget.selectedYear != null
-                    ? 'Search ${widget.selectedYear} ${widget.selectedBrand} models...'
-                    : 'Search ${widget.selectedBrand} models (with manufactured years)...',
-            helperText: widget.selectedBrand != null &&
-                    widget.selectedYear != null
-                ? 'Showing ${allYearModels.length} verified ${widget.selectedBrand} '
-                    '${allYearModels.length == 1 ? 'model' : 'models'} manufactured in ${widget.selectedYear}'
-                : widget.selectedBrand != null && allYearModels.isNotEmpty
-                    ? 'Showing ${allYearModels.length} verified ${widget.selectedBrand} models with manufactured year ranges'
-                    : null,
-            enabled: widget.selectedBrand != null,
-            value: widget.selectedModel,
-            options: modelOptions,
-            allOptionsWhenUnfiltered: unfilteredModelOptions,
-            filterChipLabel: unfilteredModelOptions == null
-                ? null
-                : 'Showing ${widget.productType} models (${strictTypeModels.length}) — Tap to show all ${allYearModels.length} ${widget.selectedBrand} models',
-            prefixIcon: Icons.precision_manufacturing_outlined,
-            searchHintText:
-                'Search model #, manufactured years, series, or engine (e.g. SV340B, 2022, T76)...',
-            emptyStateText: widget.selectedYear != null
-                ? 'No catalog model matched for ${widget.selectedYear} — select "$kManualCatalogOptionValue" below.'
-                : 'No catalog model matched — select "$kManualCatalogOptionValue" below.',
-            onChanged: _handleCatalogModelSelected,
-            validator: (selectedValue) =>
-                widget.requiredSpecs && selectedValue == null
-                    ? 'Select a model'
-                    : null,
-          ),
-          if (widget.selectedModel == kManualCatalogOptionValue) ...<Widget>[
-            const SizedBox(height: 12),
-            TextFormField(
-              key: const Key('step2_custom_model_field'),
-              controller: widget.manualModelController,
-              decoration: InputDecoration(
-                labelText:
-                    widget.requiredSpecs ? 'Enter model # *' : 'Enter model #',
-                hintText: 'Exact model # from data plate',
-                prefixIcon: const Icon(Icons.edit_outlined),
-              ),
-              validator: (value) =>
-                  widget.selectedModel == kManualCatalogOptionValue &&
-                          widget.requiredSpecs &&
-                          (value == null || value.trim().isEmpty)
-                      ? 'Enter the model #'
-                      : null,
-            ),
+            // ================================================================
+            // 5. ATTACHMENTS & INCLUDED EQUIPMENT
+            // ================================================================
+            attachmentsField,
           ],
-        ],
-        const SizedBox(height: 12),
-
-        // ====================================================================
-        // 6. ENGINE / POWERTRAIN DETAILS (MOVED ABOVE MACHINE HOURS!)
-        // ====================================================================
-        MarketplaceEnginePowertrainField(
-          key: const Key('step2_engine_powertrain_field'),
-          engineOptions: engineOptions,
-          controller: widget.engineDetailsController,
-          brand: widget.selectedBrand,
-          model: widget.selectedModel,
-          modelYear: _effectiveYear,
-        ),
-        const SizedBox(height: 12),
-
-        // ====================================================================
-        // 7. MACHINE HOURS (BELOW ENGINE / POWERTRAIN DETAILS!)
-        // ====================================================================
-        TextFormField(
-          key: const Key('step2_machine_hours_field'),
-          controller: widget.machineHoursController,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText:
-                isTransport ? 'Engine / PTO hours (optional)' : 'Machine hours',
-            suffixText: 'hours',
-            prefixIcon: const Icon(Icons.schedule),
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // ====================================================================
-        // 8. ATTACHMENTS, OPERATING STATUS & MAINTENANCE HISTORY
-        // ====================================================================
-        TextFormField(
-          key: const Key('step2_attachments_field'),
-          controller: widget.attachmentsController,
-          maxLines: 2,
-          decoration: InputDecoration(
-            labelText: 'Attachments and included equipment',
-            hintText: isTransport
-                ? 'Wet kit, winch, headache rack, ramps, tarps, chains, etc.'
-                : 'Buckets, forks, thumb, quick coupler, auxiliary hydraulics, etc.',
-            prefixIcon: const Icon(Icons.construction_outlined),
-          ),
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          key: ValueKey<String>('step2_operating_$effectiveOperatingStatus'),
-          initialValue: effectiveOperatingStatus,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Operating status',
-            prefixIcon: Icon(Icons.engineering_outlined),
-          ),
-          selectedItemBuilder: (context) => _operatingStatusOptions
-              .map(
-                (value) => Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(value),
-                ),
-              )
-              .toList(growable: false),
-          items: _operatingStatusOptions.map((value) {
-            final visual = _operatingVisual(value);
-            return DropdownMenuItem<String>(
-              value: value,
-              child: MarketplaceFormOption(
-                label: value,
-                icon: visual.icon,
-                iconColor: visual.color,
-              ),
-            );
-          }).toList(growable: false),
-          onChanged: (value) =>
-              widget.onOperatingStatusChanged(value ?? 'Operational'),
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          key: ValueKey<String>(
-            'step2_maintenance_$effectiveMaintenanceHistory',
-          ),
-          initialValue: effectiveMaintenanceHistory,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Maintenance history',
-            prefixIcon: Icon(Icons.history_outlined),
-          ),
-          selectedItemBuilder: (context) => _maintenanceHistoryOptions
-              .map(
-                (value) => Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(value),
-                ),
-              )
-              .toList(growable: false),
-          items: _maintenanceHistoryOptions.map((value) {
-            final visual = _maintenanceVisual(value);
-            return DropdownMenuItem<String>(
-              value: value,
-              child: MarketplaceFormOption(
-                label: value,
-                icon: visual.icon,
-                iconColor: visual.color,
-              ),
-            );
-          }).toList(growable: false),
-          onChanged: (value) => widget.onMaintenanceHistoryChanged(
-            value ?? 'Unknown / not available',
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -1329,7 +1432,7 @@ const List<String> _maintenanceHistoryOptions = <String>[
   if (label.contains('owner-maintained')) {
     return (
       icon: Icons.handyman_outlined,
-      color: PipeBuyerColors.industrialBlue
+      color: PipeBuyerColors.industrialBlue,
     );
   }
   return (icon: Icons.help_outline, color: const Color(0xFF66758A));
@@ -1352,10 +1455,7 @@ class _QuickCatalogHit {
 }
 
 class _QuickSearchHitTile extends StatelessWidget {
-  const _QuickSearchHitTile({
-    required this.hit,
-    required this.onTap,
-  });
+  const _QuickSearchHitTile({required this.hit, required this.onTap});
 
   final _QuickCatalogHit hit;
   final VoidCallback onTap;
@@ -1439,10 +1539,7 @@ class _QuickSearchHitTile extends StatelessWidget {
 }
 
 class _SerialDecodeStatusBanner extends StatelessWidget {
-  const _SerialDecodeStatusBanner({
-    super.key,
-    required this.result,
-  });
+  const _SerialDecodeStatusBanner({super.key, required this.result});
 
   final SerialDecodeResult result;
 

@@ -268,31 +268,31 @@ class _PlacementCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 78),
+          constraints: const BoxConstraints(minHeight: 54),
           child: Ink(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: background,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: border, width: selected ? 1.6 : 1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: border, width: selected ? 1.5 : 1),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 30,
+                  height: 30,
                   decoration: BoxDecoration(
                     color: selected
                         ? PipeBuyerColors.orange
                         : PipeBuyerColors.industrialBlue.withValues(alpha: .08),
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     option.icon,
-                    size: 18,
+                    size: 16,
                     color: selected
                         ? Colors.white
                         : enabled
@@ -300,9 +300,10 @@ class _PlacementCard extends StatelessWidget {
                             : PipeBuyerColors.muted,
                   ),
                 ),
-                const SizedBox(width: 9),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
@@ -310,11 +311,13 @@ class _PlacementCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               option.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: enabled
                                     ? PipeBuyerColors.ink
                                     : PipeBuyerColors.muted,
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
@@ -322,22 +325,22 @@ class _PlacementCard extends StatelessWidget {
                           if (selected)
                             const Icon(
                               Icons.check_circle_rounded,
-                              size: 17,
+                              size: 15,
                               color: PipeBuyerColors.orange,
                             ),
                         ],
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 1),
                       Text(
                         enabled
                             ? option.description
                             : 'Temporarily unavailable',
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: PipeBuyerColors.muted,
                           fontSize: 10.5,
-                          height: 1.2,
+                          height: 1.18,
                         ),
                       ),
                     ],
@@ -347,6 +350,114 @@ class _PlacementCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class MarketplaceListingSectionCard extends StatelessWidget {
+  const MarketplaceListingSectionCard({
+    super.key,
+    required this.step,
+    required this.title,
+    required this.icon,
+    required this.child,
+    this.description,
+    this.trailing,
+  });
+
+  final int step;
+  final String title;
+  final String? description;
+  final IconData icon;
+  final Widget? trailing;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: isDark ? PipeBuyerColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? PipeBuyerColors.darkLine : const Color(0xFFDCE5EF),
+        ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: const Color(0xFF0D1117).withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: PipeBuyerColors.ink,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$step',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(icon, size: 17, color: PipeBuyerColors.orange),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : PipeBuyerColors.ink,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (description != null &&
+                        description!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 1),
+                      Text(
+                        description!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isDark
+                              ? PipeBuyerColors.darkMuted
+                              : PipeBuyerColors.muted,
+                          fontSize: 11,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+            ],
+          ),
+          const SizedBox(height: 11),
+          child,
+        ],
       ),
     );
   }
@@ -487,8 +598,10 @@ class MarketplaceListingCategoryGuide extends StatelessWidget {
             children: [
               for (final fact in guide.recommendedFacts)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(999),

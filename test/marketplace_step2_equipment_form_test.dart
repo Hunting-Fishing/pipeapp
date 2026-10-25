@@ -115,94 +115,228 @@ void main() {
 
   group('MarketplaceEquipmentStep2Section layout, filtering & auto-fill', () {
     testWidgets(
-        'renders exact requested Step 2 vertical field order and VIN/PIN note',
-        (tester) async {
-      tester.view.physicalSize = const Size(1280, 1900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+      'renders exact requested Step 2 vertical field order and VIN/PIN note',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 1900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final formKey = GlobalKey<FormState>();
-      final serialCtrl = TextEditingController();
-      final customBrandCtrl = TextEditingController();
-      final manualYearCtrl = TextEditingController();
-      final manualModelCtrl = TextEditingController();
-      final engineCtrl = TextEditingController();
-      final hoursCtrl = TextEditingController();
-      final attachCtrl = TextEditingController();
-      addTearDown(() {
-        serialCtrl.dispose();
-        customBrandCtrl.dispose();
-        manualYearCtrl.dispose();
-        manualModelCtrl.dispose();
-        engineCtrl.dispose();
-        hoursCtrl.dispose();
-        attachCtrl.dispose();
-      });
+        final formKey = GlobalKey<FormState>();
+        final serialCtrl = TextEditingController();
+        final customBrandCtrl = TextEditingController();
+        final manualYearCtrl = TextEditingController();
+        final manualModelCtrl = TextEditingController();
+        final engineCtrl = TextEditingController();
+        final hoursCtrl = TextEditingController();
+        final attachCtrl = TextEditingController();
+        addTearDown(() {
+          serialCtrl.dispose();
+          customBrandCtrl.dispose();
+          manualYearCtrl.dispose();
+          manualModelCtrl.dispose();
+          engineCtrl.dispose();
+          hoursCtrl.dispose();
+          attachCtrl.dispose();
+        });
 
-      final decoder = MarketplaceSerialDecoder(
-        httpClient: MockClient((_) async => http.Response('{}', 500)),
-      );
-      addTearDown(decoder.dispose);
+        final decoder = MarketplaceSerialDecoder(
+          httpClient: MockClient((_) async => http.Response('{}', 500)),
+        );
+        addTearDown(decoder.dispose);
 
-      await tester.pumpWidget(
-        _Step2TestHarness(
-          catalog: catalog,
-          serialDecoder: decoder,
-          formKey: formKey,
-          serialController: serialCtrl,
-          customBrandController: customBrandCtrl,
-          manualYearController: manualYearCtrl,
-          manualModelController: manualModelCtrl,
-          engineController: engineCtrl,
-          hoursController: hoursCtrl,
-          attachmentsController: attachCtrl,
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _Step2TestHarness(
+            catalog: catalog,
+            serialDecoder: decoder,
+            formKey: formKey,
+            serialController: serialCtrl,
+            customBrandController: customBrandCtrl,
+            manualYearController: manualYearCtrl,
+            manualModelController: manualModelCtrl,
+            engineController: engineCtrl,
+            hoursController: hoursCtrl,
+            attachmentsController: attachCtrl,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // Verify explanatory VIN / PIN auto-fill note is present.
-      expect(
-          find.byKey(const Key('step2_serial_autofill_note')), findsOneWidget);
-      expect(
-        find.textContaining('Attempt auto-fill with VIN # or equipment PIN'),
-        findsOneWidget,
-      );
+        // Verify explanatory VIN / PIN auto-fill note is present.
+        expect(
+          find.byKey(const Key('step2_serial_autofill_note')),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('Attempt auto-fill with VIN # or equipment PIN'),
+          findsOneWidget,
+        );
 
-      final serialDy =
-          tester.getTopLeft(find.byKey(const Key('step2_serial_pin_field'))).dy;
-      final searchDy = tester
-          .getTopLeft(find.byKey(const Key('step2_catalog_quick_search_field')))
-          .dy;
-      final brandDy = tester
-          .getTopLeft(find.byKey(const Key('step2_brand_select_field')))
-          .dy;
-      final yearDy = tester
-          .getTopLeft(find.byKey(const Key('step2_year_select_field')))
-          .dy;
-      final modelDy = tester
-          .getTopLeft(find.byKey(const Key('step2_model_select_field')))
-          .dy;
-      final engineDy = tester
-          .getTopLeft(find.byKey(const Key('step2_engine_powertrain_field')))
-          .dy;
-      final hoursDy = tester
-          .getTopLeft(find.byKey(const Key('step2_machine_hours_field')))
-          .dy;
+        final serialPos = tester.getTopLeft(
+          find.byKey(const Key('step2_serial_pin_field')),
+        );
+        final searchPos = tester.getTopLeft(
+          find.byKey(const Key('step2_catalog_quick_search_field')),
+        );
+        final brandPos = tester.getTopLeft(
+          find.byKey(const Key('step2_brand_select_field')),
+        );
+        final yearPos = tester.getTopLeft(
+          find.byKey(const Key('step2_year_select_field')),
+        );
+        final modelPos = tester.getTopLeft(
+          find.byKey(const Key('step2_model_select_field')),
+        );
+        final enginePos = tester.getTopLeft(
+          find.byKey(const Key('step2_engine_powertrain_field')),
+        );
+        final hoursPos = tester.getTopLeft(
+          find.byKey(const Key('step2_machine_hours_field')),
+        );
 
-      // 1. Serial / PIN is FIRST (above Brand)
-      expect(serialDy, lessThan(searchDy));
-      expect(searchDy, lessThan(brandDy));
-      // 2. Model Year is ABOVE Model
-      expect(brandDy, lessThan(yearDy));
-      expect(yearDy, lessThan(modelDy));
-      // 3. Engine / Powertrain Details is ABOVE Machine Hours
-      expect(modelDy, lessThan(engineDy));
-      expect(engineDy, lessThan(hoursDy));
-    });
+        // Desktop (1280px) compressed grid invariants:
+        // 1. Serial / PIN + Quick Search are on Row 1 (above Brand!)
+        expect(serialPos.dx, lessThan(searchPos.dx));
+        expect(serialPos.dy, lessThan(brandPos.dy));
+        expect(searchPos.dy, lessThan(brandPos.dy));
+        // 2. Brand + Model Year are on Row 2 (Model Year strictly ABOVE Model!)
+        expect(brandPos.dx, lessThan(yearPos.dx));
+        expect(yearPos.dy, lessThan(modelPos.dy));
+        // 3. Model + Engine/Powertrain are on Row 3 (strictly ABOVE Machine Hours!)
+        expect(modelPos.dx, lessThan(enginePos.dx));
+        expect(enginePos.dy, lessThan(hoursPos.dy));
 
-    testWidgets('auto-fills Make, Model Year, Model & Engine from VIN/PIN',
-        (tester) async {
+        // Mobile (390px) single-column stacked invariants:
+        tester.view.physicalSize = const Size(390, 1900);
+        await tester.pumpAndSettle();
+
+        final mSerialDy = tester
+            .getTopLeft(find.byKey(const Key('step2_serial_pin_field')))
+            .dy;
+        final mSearchDy = tester
+            .getTopLeft(
+              find.byKey(const Key('step2_catalog_quick_search_field')),
+            )
+            .dy;
+        final mBrandDy = tester
+            .getTopLeft(find.byKey(const Key('step2_brand_select_field')))
+            .dy;
+        final mYearDy = tester
+            .getTopLeft(find.byKey(const Key('step2_year_select_field')))
+            .dy;
+        final mModelDy = tester
+            .getTopLeft(find.byKey(const Key('step2_model_select_field')))
+            .dy;
+        final mEngineDy = tester
+            .getTopLeft(find.byKey(const Key('step2_engine_powertrain_field')))
+            .dy;
+        final mHoursDy = tester
+            .getTopLeft(find.byKey(const Key('step2_machine_hours_field')))
+            .dy;
+
+        expect(mSerialDy, lessThan(mSearchDy));
+        expect(mSearchDy, lessThan(mBrandDy));
+        expect(mBrandDy, lessThan(mYearDy));
+        expect(mYearDy, lessThan(mModelDy));
+        expect(mModelDy, lessThan(mEngineDy));
+        expect(mEngineDy, lessThan(mHoursDy));
+      },
+    );
+
+    testWidgets(
+      'never overlaps floating Model * label with placeholder text even under borderless Material 3 theme',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 1200);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final formKey = GlobalKey<FormState>();
+        final serialCtrl = TextEditingController();
+        final customBrandCtrl = TextEditingController();
+        final manualYearCtrl = TextEditingController();
+        final manualModelCtrl = TextEditingController();
+        final engineCtrl = TextEditingController();
+        final hoursCtrl = TextEditingController();
+        final attachCtrl = TextEditingController();
+        addTearDown(() {
+          serialCtrl.dispose();
+          customBrandCtrl.dispose();
+          manualYearCtrl.dispose();
+          manualModelCtrl.dispose();
+          engineCtrl.dispose();
+          hoursCtrl.dispose();
+          attachCtrl.dispose();
+        });
+
+        final decoder = MarketplaceSerialDecoder(
+          httpClient: MockClient((_) async => http.Response('{}', 500)),
+        );
+        addTearDown(decoder.dispose);
+
+        String? brand = 'Bobcat';
+        int? year = 2011;
+        String? model;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData.light(useMaterial3: true).copyWith(
+              inputDecorationTheme: InputDecorationTheme(
+                filled: true,
+                fillColor: const Color(0xFFF0F5FA),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Form(
+                  key: formKey,
+                  child: MarketplaceEquipmentStep2Section(
+                    category: 'Heavy Equipment',
+                    productType: 'Backhoe',
+                    catalog: catalog,
+                    serialDecoder: decoder,
+                    requiredSpecs: true,
+                    selectedBrand: brand,
+                    selectedYear: year,
+                    selectedModel: model,
+                    operatingStatus: 'Operational',
+                    maintenanceHistory: 'Unknown / not available',
+                    serialNumberController: serialCtrl,
+                    customBrandController: customBrandCtrl,
+                    manualYearController: manualYearCtrl,
+                    manualModelController: manualModelCtrl,
+                    engineDetailsController: engineCtrl,
+                    machineHoursController: hoursCtrl,
+                    attachmentsController: attachCtrl,
+                    onSelectionChanged: (_) {},
+                    onOperatingStatusChanged: (_) {},
+                    onMaintenanceHistoryChanged: (_) {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        formKey.currentState!.validate();
+        await tester.pumpAndSettle();
+
+        final modelLabelRect = tester.getRect(find.text('Model *'));
+        final modelHintRect = tester.getRect(
+          find.text('Search 2011 Bobcat models...'),
+        );
+        expect(modelLabelRect.overlaps(modelHintRect), isFalse);
+        expect(modelLabelRect.bottom, lessThanOrEqualTo(modelHintRect.top));
+      },
+    );
+
+    testWidgets('auto-fills Make, Model Year, Model & Engine from VIN/PIN', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1280, 1900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -284,443 +418,482 @@ void main() {
       expect(latestSelection!.model, '389');
       expect(engineCtrl.text, contains('Cummins'));
       expect(
-          find.byKey(const Key('step2_serial_decode_banner')), findsOneWidget);
+        find.byKey(const Key('step2_serial_decode_banner')),
+        findsOneWidget,
+      );
     });
 
     testWidgets(
-        'enforces year-bounded model picker (2020–2026 T76 excluded in 2019, shown in 2022)',
-        (tester) async {
-      tester.view.physicalSize = const Size(1280, 1900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+      'enforces year-bounded model picker (2020–2026 T76 excluded in 2019, shown in 2022)',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 1900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final formKey = GlobalKey<FormState>();
-      final serialCtrl = TextEditingController();
-      final customBrandCtrl = TextEditingController();
-      final manualYearCtrl = TextEditingController();
-      final manualModelCtrl = TextEditingController();
-      final engineCtrl = TextEditingController();
-      final hoursCtrl = TextEditingController();
-      final attachCtrl = TextEditingController();
-      addTearDown(() {
-        serialCtrl.dispose();
-        customBrandCtrl.dispose();
-        manualYearCtrl.dispose();
-        manualModelCtrl.dispose();
-        engineCtrl.dispose();
-        hoursCtrl.dispose();
-        attachCtrl.dispose();
-      });
+        final formKey = GlobalKey<FormState>();
+        final serialCtrl = TextEditingController();
+        final customBrandCtrl = TextEditingController();
+        final manualYearCtrl = TextEditingController();
+        final manualModelCtrl = TextEditingController();
+        final engineCtrl = TextEditingController();
+        final hoursCtrl = TextEditingController();
+        final attachCtrl = TextEditingController();
+        addTearDown(() {
+          serialCtrl.dispose();
+          customBrandCtrl.dispose();
+          manualYearCtrl.dispose();
+          manualModelCtrl.dispose();
+          engineCtrl.dispose();
+          hoursCtrl.dispose();
+          attachCtrl.dispose();
+        });
 
-      final decoder = MarketplaceSerialDecoder(
-        httpClient: MockClient((_) async => http.Response('{}', 500)),
-      );
-      addTearDown(decoder.dispose);
+        final decoder = MarketplaceSerialDecoder(
+          httpClient: MockClient((_) async => http.Response('{}', 500)),
+        );
+        addTearDown(decoder.dispose);
 
-      await tester.pumpWidget(
-        _Step2TestHarness(
-          catalog: catalog,
-          serialDecoder: decoder,
-          formKey: formKey,
-          serialController: serialCtrl,
-          customBrandController: customBrandCtrl,
-          manualYearController: manualYearCtrl,
-          manualModelController: manualModelCtrl,
-          engineController: engineCtrl,
-          hoursController: hoursCtrl,
-          attachmentsController: attachCtrl,
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _Step2TestHarness(
+            catalog: catalog,
+            serialDecoder: decoder,
+            formKey: formKey,
+            serialController: serialCtrl,
+            customBrandController: customBrandCtrl,
+            manualYearController: manualYearCtrl,
+            manualModelController: manualModelCtrl,
+            engineController: engineCtrl,
+            hoursController: hoursCtrl,
+            attachmentsController: attachCtrl,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // 1. Open Brand picker, search 'Bobcat', and select it.
-      await tester.tap(find.byKey(const Key('step2_brand_select_trigger')));
-      await tester.pumpAndSettle();
-      final modalSearch = find.descendant(
-        of: find.byType(Dialog),
-        matching: find.byType(TextField),
-      );
-      await tester.enterText(modalSearch, 'Bobcat');
-      await tester.pumpAndSettle();
-      await tester.tap(find.descendant(
-        of: find.byType(ListView),
-        matching: find.text('Bobcat'),
-      ));
-      await tester.pumpAndSettle();
-
-      // 2. Open Model Year picker, search '2019', and select 2019.
-      await tester.tap(find.byKey(const Key('step2_year_select_trigger')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.descendant(
+        // 1. Open Brand picker, search 'Bobcat', and select it.
+        await tester.tap(find.byKey(const Key('step2_brand_select_trigger')));
+        await tester.pumpAndSettle();
+        final modalSearch = find.descendant(
           of: find.byType(Dialog),
           matching: find.byType(TextField),
-        ),
-        '2019',
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.descendant(
-        of: find.byType(ListView),
-        matching: find.text('2019'),
-      ));
-      await tester.pumpAndSettle();
+        );
+        await tester.enterText(modalSearch, 'Bobcat');
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('Bobcat'),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // 3. Open Model picker for 2019 and search 'T76' (2020–2026 only) -> NOT listed!
-      await tester.tap(find.byKey(const Key('step2_model_select_trigger')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(Dialog),
-          matching: find.byType(TextField),
-        ),
-        'T76',
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.descendant(
-          of: find.byType(ListView),
-          matching: find.textContaining('T76'),
-        ),
-        findsNothing,
-      );
-      // Close dialog
-      await tester.tap(find.byTooltip('Close'));
-      await tester.pumpAndSettle();
+        // 2. Open Model Year picker, search '2019', and select 2019.
+        await tester.tap(find.byKey(const Key('step2_year_select_trigger')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.byType(TextField),
+          ),
+          '2019',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('2019'),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // 4. Change Model Year to 2022 -> now T76 (2020–2026) IS listed and selectable!
-      await tester.tap(find.byKey(const Key('step2_year_select_trigger')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(Dialog),
-          matching: find.byType(TextField),
-        ),
-        '2022',
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.descendant(
-        of: find.byType(ListView),
-        matching: find.text('2022'),
-      ));
-      await tester.pumpAndSettle();
+        // 3. Open Model picker for 2019 and search 'T76' (2020–2026 only) -> NOT listed!
+        await tester.tap(find.byKey(const Key('step2_model_select_trigger')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.byType(TextField),
+          ),
+          'T76',
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.textContaining('T76'),
+          ),
+          findsNothing,
+        );
+        // Close dialog
+        await tester.tap(find.byTooltip('Close'));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('step2_model_select_trigger')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(Dialog),
-          matching: find.byType(TextField),
-        ),
-        'T76',
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.descendant(
-          of: find.byType(ListView),
-          matching: find.text('T76 (2020–2026)'),
-        ),
-        findsOneWidget,
-      );
-      await tester.tap(find.descendant(
-        of: find.byType(ListView),
-        matching: find.text('T76 (2020–2026)'),
-      ));
-      await tester.pumpAndSettle();
+        // 4. Change Model Year to 2022 -> now T76 (2020–2026) IS listed and selectable!
+        await tester.tap(find.byKey(const Key('step2_year_select_trigger')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.byType(TextField),
+          ),
+          '2022',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('2022'),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // Auto-populated Bobcat D24 engine details!
-      expect(engineCtrl.text, contains('D24'));
-    });
+        await tester.tap(find.byKey(const Key('step2_model_select_trigger')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.byType(TextField),
+          ),
+          'T76',
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('T76 (2020–2026)'),
+          ),
+          findsOneWidget,
+        );
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('T76 (2020–2026)'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Auto-populated Bobcat D24 engine details!
+        expect(engineCtrl.text, contains('D24'));
+      },
+    );
 
     testWidgets(
-        'displays manufactured year ranges beside every model and strictly locks Model Year when Case SV340B is selected',
-        (tester) async {
-      tester.view.physicalSize = const Size(1280, 1900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+      'displays manufactured year ranges beside every model and strictly locks Model Year when Case SV340B is selected',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 1900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final formKey = GlobalKey<FormState>();
-      final serialCtrl = TextEditingController();
-      final customBrandCtrl = TextEditingController();
-      final manualYearCtrl = TextEditingController();
-      final manualModelCtrl = TextEditingController();
-      final engineCtrl = TextEditingController();
-      final hoursCtrl = TextEditingController();
-      final attachCtrl = TextEditingController();
-      addTearDown(() {
-        serialCtrl.dispose();
-        customBrandCtrl.dispose();
-        manualYearCtrl.dispose();
-        manualModelCtrl.dispose();
-        engineCtrl.dispose();
-        hoursCtrl.dispose();
-        attachCtrl.dispose();
-      });
+        final formKey = GlobalKey<FormState>();
+        final serialCtrl = TextEditingController();
+        final customBrandCtrl = TextEditingController();
+        final manualYearCtrl = TextEditingController();
+        final manualModelCtrl = TextEditingController();
+        final engineCtrl = TextEditingController();
+        final hoursCtrl = TextEditingController();
+        final attachCtrl = TextEditingController();
+        addTearDown(() {
+          serialCtrl.dispose();
+          customBrandCtrl.dispose();
+          manualYearCtrl.dispose();
+          manualModelCtrl.dispose();
+          engineCtrl.dispose();
+          hoursCtrl.dispose();
+          attachCtrl.dispose();
+        });
 
-      final decoder = MarketplaceSerialDecoder(
-        httpClient: MockClient((_) async => http.Response('{}', 500)),
-      );
-      addTearDown(decoder.dispose);
+        final decoder = MarketplaceSerialDecoder(
+          httpClient: MockClient((_) async => http.Response('{}', 500)),
+        );
+        addTearDown(decoder.dispose);
 
-      EquipmentSpecSelection? latestSelection;
-      await tester.pumpWidget(
-        _Step2TestHarness(
-          catalog: catalog,
-          serialDecoder: decoder,
-          formKey: formKey,
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          serialController: serialCtrl,
-          customBrandController: customBrandCtrl,
-          manualYearController: manualYearCtrl,
-          manualModelController: manualModelCtrl,
-          engineController: engineCtrl,
-          hoursController: hoursCtrl,
-          attachmentsController: attachCtrl,
-          onStateUpdated: (sel) => latestSelection = sel,
-        ),
-      );
-      await tester.pumpAndSettle();
+        EquipmentSpecSelection? latestSelection;
+        await tester.pumpWidget(
+          _Step2TestHarness(
+            catalog: catalog,
+            serialDecoder: decoder,
+            formKey: formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            serialController: serialCtrl,
+            customBrandController: customBrandCtrl,
+            manualYearController: manualYearCtrl,
+            manualModelController: manualModelCtrl,
+            engineController: engineCtrl,
+            hoursController: hoursCtrl,
+            attachmentsController: attachCtrl,
+            onStateUpdated: (sel) => latestSelection = sel,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // Trigger validation up front (simulating live Create Listing Form)
-      expect(formKey.currentState!.validate(), isFalse);
-      await tester.pumpAndSettle();
-      expect(find.text('Select a manufacturer'), findsOneWidget);
-      expect(find.text('Select the model year'), findsOneWidget);
-      expect(find.text('Select a model'), findsOneWidget);
+        // Trigger validation up front (simulating live Create Listing Form)
+        expect(formKey.currentState!.validate(), isFalse);
+        await tester.pumpAndSettle();
+        expect(find.text('Select a manufacturer'), findsOneWidget);
+        expect(find.text('Select the model year'), findsOneWidget);
+        expect(find.text('Select a model'), findsOneWidget);
 
-      // 1. Select Manufacturer = Case -> 'Select a manufacturer' clears immediately!
-      await tester.tap(find.byKey(const Key('step2_brand_select_trigger')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(Dialog),
-          matching: find.byType(TextField),
-        ),
-        'Case',
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.descendant(
-        of: find.byType(ListView),
-        matching: find.text('Case'),
-      ));
-      await tester.pumpAndSettle();
-      expect(find.text('Select a manufacturer'), findsNothing);
+        // 1. Select Manufacturer = Case -> 'Select a manufacturer' clears immediately!
+        await tester.tap(find.byKey(const Key('step2_brand_select_trigger')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.byType(TextField),
+          ),
+          'Case',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('Case'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Select a manufacturer'), findsNothing);
 
-      // 2. Open Model * picker FIRST (before choosing a year) and verify models
-      // display their manufactured year range directly beside the model name!
-      await tester.tap(find.byKey(const Key('step2_model_select_trigger')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(Dialog),
-          matching: find.byType(TextField),
-        ),
-        'SV340',
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.descendant(
-          of: find.byType(ListView),
-          matching: find.text('SV340 (2017–2019)'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byType(ListView),
-          matching: find.text('SV340B (2020–2026)'),
-        ),
-        findsOneWidget,
-      );
+        // 2. Open Model * picker FIRST (before choosing a year) and verify models
+        // display their manufactured year range directly beside the model name!
+        await tester.tap(find.byKey(const Key('step2_model_select_trigger')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.byType(TextField),
+          ),
+          'SV340',
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('SV340 (2017–2019)'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('SV340B (2020–2026)'),
+          ),
+          findsOneWidget,
+        );
 
-      // Select SV340B (2020–2026) -> canonical stored value is 'SV340B' and
-      // 'Select a model' validation error clears immediately!
-      await tester.tap(find.descendant(
-        of: find.byType(ListView),
-        matching: find.text('SV340B (2020–2026)'),
-      ));
-      await tester.pumpAndSettle();
+        // Select SV340B (2020–2026) -> canonical stored value is 'SV340B' and
+        // 'Select a model' validation error clears immediately!
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('SV340B (2020–2026)'),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(latestSelection?.brand, 'Case');
-      expect(latestSelection?.model, 'SV340B');
-      expect(find.text('Select a model'), findsNothing);
-      expect(find.text('SV340B (2020–2026)'), findsOneWidget);
+        expect(latestSelection?.brand, 'Case');
+        expect(latestSelection?.model, 'SV340B');
+        expect(find.text('Select a model'), findsNothing);
+        expect(find.text('SV340B (2020–2026)'), findsOneWidget);
 
-      // 3. Open Model year * picker -> strictly locked to 2020–2026 ONLY!
-      // No 'Tap for all years' escape banner, and 2019 / 1985 do NOT exist!
-      await tester.tap(find.byKey(const Key('step2_year_select_trigger')));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Tap for all years'), findsNothing);
-      expect(
-        find.descendant(of: find.byType(ListView), matching: find.text('2026')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: find.byType(ListView), matching: find.text('2020')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: find.byType(ListView), matching: find.text('2019')),
-        findsNothing,
-      );
+        // 3. Open Model year * picker -> strictly locked to 2020–2026 ONLY!
+        // No 'Tap for all years' escape banner, and 2019 / 1985 do NOT exist!
+        await tester.tap(find.byKey(const Key('step2_year_select_trigger')));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Tap for all years'), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('2026'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('2020'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('2019'),
+          ),
+          findsNothing,
+        );
 
-      // Searching '2019' yields empty state explaining SV340B was manufactured 2020–2026
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(Dialog),
-          matching: find.byType(TextField),
-        ),
-        '2019',
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.textContaining('SV340B was manufactured 2020–2026'),
-        findsOneWidget,
-      );
+        // Searching '2019' yields empty state explaining SV340B was manufactured 2020–2026
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.byType(TextField),
+          ),
+          '2019',
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('SV340B was manufactured 2020–2026'),
+          findsOneWidget,
+        );
 
-      // Select 2022 -> 'Select the model year' clears immediately!
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(Dialog),
-          matching: find.byType(TextField),
-        ),
-        '2022',
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.descendant(
-        of: find.byType(ListView),
-        matching: find.text('2022'),
-      ));
-      await tester.pumpAndSettle();
+        // Select 2022 -> 'Select the model year' clears immediately!
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.byType(TextField),
+          ),
+          '2022',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('2022'),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(latestSelection?.year, 2022);
-      expect(find.text('Select the model year'), findsNothing);
-      expect(formKey.currentState!.validate(), isTrue);
+        expect(latestSelection?.year, 2022);
+        expect(find.text('Select the model year'), findsNothing);
+        expect(formKey.currentState!.validate(), isTrue);
 
-      // 4. Test one-tap clear on Model * -> clears SV340B while keeping Case + 2022
-      await tester.tap(find.byKey(const Key('step2_model_clear_button')));
-      await tester.pumpAndSettle();
-      expect(latestSelection?.brand, 'Case');
-      expect(latestSelection?.year, 2022);
-      expect(latestSelection?.model, isNull);
-    });
+        // 4. Test one-tap clear on Model * -> clears SV340B while keeping Case + 2022
+        await tester.tap(find.byKey(const Key('step2_model_clear_button')));
+        await tester.pumpAndSettle();
+        expect(latestSelection?.brand, 'Case');
+        expect(latestSelection?.year, 2022);
+        expect(latestSelection?.model, isNull);
+      },
+    );
 
     testWidgets(
-        'supports multi-engine selector via Step 2 Quick-Search & manual fallback for uncovered OEMs',
-        (tester) async {
-      tester.view.physicalSize = const Size(1280, 1900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+      'supports multi-engine selector via Step 2 Quick-Search & manual fallback for uncovered OEMs',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 1900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      final formKey = GlobalKey<FormState>();
-      final serialCtrl = TextEditingController();
-      final customBrandCtrl = TextEditingController();
-      final manualYearCtrl = TextEditingController();
-      final manualModelCtrl = TextEditingController();
-      final engineCtrl = TextEditingController();
-      final hoursCtrl = TextEditingController();
-      final attachCtrl = TextEditingController();
-      addTearDown(() {
-        serialCtrl.dispose();
-        customBrandCtrl.dispose();
-        manualYearCtrl.dispose();
-        manualModelCtrl.dispose();
-        engineCtrl.dispose();
-        hoursCtrl.dispose();
-        attachCtrl.dispose();
-      });
+        final formKey = GlobalKey<FormState>();
+        final serialCtrl = TextEditingController();
+        final customBrandCtrl = TextEditingController();
+        final manualYearCtrl = TextEditingController();
+        final manualModelCtrl = TextEditingController();
+        final engineCtrl = TextEditingController();
+        final hoursCtrl = TextEditingController();
+        final attachCtrl = TextEditingController();
+        addTearDown(() {
+          serialCtrl.dispose();
+          customBrandCtrl.dispose();
+          manualYearCtrl.dispose();
+          manualModelCtrl.dispose();
+          engineCtrl.dispose();
+          hoursCtrl.dispose();
+          attachCtrl.dispose();
+        });
 
-      final decoder = MarketplaceSerialDecoder(
-        httpClient: MockClient((_) async => http.Response('{}', 500)),
-      );
-      addTearDown(decoder.dispose);
+        final decoder = MarketplaceSerialDecoder(
+          httpClient: MockClient((_) async => http.Response('{}', 500)),
+        );
+        addTearDown(decoder.dispose);
 
-      await tester.pumpWidget(
-        _Step2TestHarness(
-          catalog: catalog,
-          serialDecoder: decoder,
-          formKey: formKey,
-          category: 'Transport & Hauling',
-          serialController: serialCtrl,
-          customBrandController: customBrandCtrl,
-          manualYearController: manualYearCtrl,
-          manualModelController: manualModelCtrl,
-          engineController: engineCtrl,
-          hoursController: hoursCtrl,
-          attachmentsController: attachCtrl,
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _Step2TestHarness(
+            catalog: catalog,
+            serialDecoder: decoder,
+            formKey: formKey,
+            category: 'Transport & Hauling',
+            serialController: serialCtrl,
+            customBrandController: customBrandCtrl,
+            manualYearController: manualYearCtrl,
+            manualModelController: manualModelCtrl,
+            engineController: engineCtrl,
+            hoursController: hoursCtrl,
+            attachmentsController: attachCtrl,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // 1. Use Step 2 Quick-Search bar to select '2020 Peterbilt 389'
-      await tester.enterText(
-        find.byKey(const Key('step2_catalog_quick_search_field')),
-        '2020 Peterbilt 389',
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.byKey(const Key('step2_catalog_quick_search_results')),
-        findsOneWidget,
-      );
-      await tester.tap(find.descendant(
-        of: find.byKey(const Key('step2_catalog_quick_search_results')),
-        matching: find.textContaining('Peterbilt 389 ('),
-      ));
-      await tester.pumpAndSettle();
+        // 1. Use Step 2 Quick-Search bar to select '2020 Peterbilt 389'
+        await tester.enterText(
+          find.byKey(const Key('step2_catalog_quick_search_field')),
+          '2020 Peterbilt 389',
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('step2_catalog_quick_search_results')),
+          findsOneWidget,
+        );
+        await tester.tap(
+          find.descendant(
+            of: find.byKey(const Key('step2_catalog_quick_search_results')),
+            matching: find.textContaining('Peterbilt 389 ('),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // Multi-engine configuration selector renders for 2020 Peterbilt 389!
-      expect(
-        find.text('Engine / powertrain configuration'),
-        findsOneWidget,
-      );
-      await tester.tap(find.byKey(const Key('step2_engine_config_trigger')));
-      await tester.pumpAndSettle();
-      // Select PACCAR MX-13 option from the modal
-      await tester.tap(find.descendant(
-        of: find.byType(ListView),
-        matching: find.textContaining('MX-13').first,
-      ));
-      await tester.pumpAndSettle();
-      expect(engineCtrl.text, contains('MX-13'));
+        // Multi-engine configuration selector renders for 2020 Peterbilt 389!
+        expect(find.text('Engine / powertrain configuration'), findsOneWidget);
+        await tester.tap(find.byKey(const Key('step2_engine_config_trigger')));
+        await tester.pumpAndSettle();
+        // Select PACCAR MX-13 option from the modal
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.textContaining('MX-13').first,
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(engineCtrl.text, contains('MX-13'));
 
-      // 2. Switch Brand to uncovered trailer OEM 'Trail King' -> requires manual Year & Model #
-      await tester.tap(find.byKey(const Key('step2_brand_select_trigger')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(Dialog),
-          matching: find.byType(TextField),
-        ),
-        'Trail King',
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.descendant(
-        of: find.byType(ListView),
-        matching: find.text('Trail King'),
-      ));
-      await tester.pumpAndSettle();
+        // 2. Switch Brand to uncovered trailer OEM 'Trail King' -> requires manual Year & Model #
+        await tester.tap(find.byKey(const Key('step2_brand_select_trigger')));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.byType(TextField),
+          ),
+          'Trail King',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ListView),
+            matching: find.text('Trail King'),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(
-          find.byKey(const Key('step2_manual_entry_notice')), findsOneWidget);
-      expect(find.byKey(const Key('step2_manual_year_field')), findsOneWidget);
-      expect(find.byKey(const Key('step2_manual_model_field')), findsOneWidget);
+        expect(
+          find.byKey(const Key('step2_manual_entry_notice')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('step2_manual_year_field')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('step2_manual_model_field')),
+          findsOneWidget,
+        );
 
-      // Required validation fails when manual year & model are empty
-      expect(formKey.currentState!.validate(), isFalse);
-      await tester.pump();
+        // Required validation fails when manual year & model are empty
+        expect(formKey.currentState!.validate(), isFalse);
+        await tester.pump();
 
-      await tester.enterText(
-        find.byKey(const Key('step2_manual_year_field')),
-        '2021',
-      );
-      await tester.enterText(
-        find.byKey(const Key('step2_manual_model_field')),
-        'TK110HDG',
-      );
-      await tester.pump();
-      expect(formKey.currentState!.validate(), isTrue);
-    });
+        await tester.enterText(
+          find.byKey(const Key('step2_manual_year_field')),
+          '2021',
+        );
+        await tester.enterText(
+          find.byKey(const Key('step2_manual_model_field')),
+          'TK110HDG',
+        );
+        await tester.pump();
+        expect(formKey.currentState!.validate(), isTrue);
+      },
+    );
   });
 }
