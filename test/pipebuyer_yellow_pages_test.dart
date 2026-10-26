@@ -514,6 +514,16 @@ void main() {
     expect(find.text('Apex Permian Hydrovac'), findsOneWidget);
     expect(find.textContaining('Claim'), findsNothing);
     expect(tester.takeException(), isNull);
+
+    // Verify staged Country -> Province/State + Submit footer on mobile (390x844) has zero overflow
+    await tester.tap(find.text('WORLD REGION & COUNTRY'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Canada').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Submit'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
   });
 
   testWidgets(
@@ -576,6 +586,7 @@ void main() {
         'CA:AB': 2966,
         'CA:BC': 412,
         'CA:SK': 389,
+        'CA:AB T1A0H2': 1,
         'US:TX': 3140,
       },
       'byCategory': {
@@ -627,11 +638,32 @@ void main() {
     expect(find.text('4,017'), findsWidgets);
     expect(find.text('8,737'), findsWidgets);
 
-    // Drill into Canada Regions -> Alberta (AB) shows 2,966
-    await tester.tap(find.text('Canada Regions'));
+    // Select Canada -> modal stays open so user can pick a Province/State before clicking Submit
+    await tester.tap(find.text('Canada').first);
     await tester.pumpAndSettle();
+    expect(
+      find.text('Filter by World Region, Country & State/Province'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Canada Selected — Choose Province / State / Region (Then Click Submit)',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('All Canada'), findsOneWidget);
     expect(find.text('2,966'), findsOneWidget);
+    expect(find.textContaining('T1A0H2'), findsNothing);
+    expect(fakeClient.lastCountryCode, isEmpty);
+
+    // Stage Alberta (AB) -> modal remains open until Submit is clicked
     await tester.tap(find.text('Alberta (AB)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Selected: Alberta (AB), Canada'), findsOneWidget);
+    expect(fakeClient.lastRegionCode, isEmpty);
+
+    // Click Submit -> applies Country + Province filter in a single step
+    await tester.tap(find.text('Submit'));
     await tester.pumpAndSettle();
     expect(fakeClient.lastCountryCode, 'CA');
     expect(fakeClient.lastRegionCode, 'AB');

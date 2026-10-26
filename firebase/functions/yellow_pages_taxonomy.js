@@ -907,6 +907,25 @@ function canonicalizeCityName(rawCity, regionCode = "", countryCode = "") {
   return s.slice(0, 120).trim();
 }
 
+function canonicalizeRegionCode(rawRegion, countryCode = "") {
+  if (!rawRegion) return "";
+  const cc = String(countryCode || "").trim().toUpperCase();
+  const s = String(rawRegion).trim().replace(/\s+/gu, " ").toUpperCase();
+  if (!s || s === cc) return "";
+  // Strip trailing postal/ZIP codes accidentally appended to a 2-3 char region code (e.g. "AB T1A0H2", "TX 79701")
+  const leadingIso = s.match(/^([A-Z]{2,3})(?:[\s,-]+[A-Z0-9-]{3,12})+$/u);
+  if (leadingIso) {
+    return leadingIso[1];
+  }
+  for (const [key, meta] of Object.entries(NORTH_AMERICA_REGIONS)) {
+    const [rCc, rCode] = key.split("-");
+    if ((!cc || rCc === cc) && meta.name && meta.name.toUpperCase() === s) {
+      return rCode;
+    }
+  }
+  return s.slice(0, 12);
+}
+
 function normalizeCityKey(rawCity) {
   return normalizeText(canonicalizeCityName(rawCity));
 }
@@ -920,6 +939,7 @@ module.exports = {
   WORLD_CONTINENTS,
   YELLOW_PAGES_CATEGORIES,
   canonicalizeCityName,
+  canonicalizeRegionCode,
   checkB2BCallingWindow,
   classifyCategoriesFromText,
   countryCodesForContinent,
