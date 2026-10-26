@@ -1,0 +1,1724 @@
+{
+  "startedAt": "2026-10-25T15:19:58.650Z",
+  "updatedAt": "2026-10-25T17:04:51.228Z",
+  "projectId": "flutter-flow-pipe",
+  "applyLive": true,
+  "baselineCompleted": [
+    "CA",
+    "US"
+  ],
+  "sanctionedSkipped": [
+    "CU",
+    "IR",
+    "KP",
+    "SY",
+    "RU",
+    "BY"
+  ],
+  "currentCountry": null,
+  "completedCountries": {
+    "MX": {
+      "name": "Mexico",
+      "continent": "north_america",
+      "wave": "wave1_north_america_popular",
+      "privateSaved": 10,
+      "publicPublished": 10,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:20:19.403Z"
+    },
+    "TT": {
+      "name": "Trinidad and Tobago",
+      "continent": "north_america",
+      "wave": "wave1_north_america_popular",
+      "privateSaved": 8,
+      "publicPublished": 8,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:20:45.668Z"
+    },
+    "AG": {
+      "name": "Antigua and Barbuda",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:03.060Z"
+    },
+    "BS": {
+      "name": "Bahamas",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:22:23.968Z"
+    },
+    "BB": {
+      "name": "Barbados",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:22:52.166Z"
+    },
+    "BZ": {
+      "name": "Belize",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:23:20.564Z"
+    },
+    "CR": {
+      "name": "Costa Rica",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:23:56.392Z"
+    },
+    "DM": {
+      "name": "Dominica",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:03.060Z"
+    },
+    "DO": {
+      "name": "Dominican Republic",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:24:50.019Z"
+    },
+    "SV": {
+      "name": "El Salvador",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:03.060Z"
+    },
+    "GD": {
+      "name": "Grenada",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:03.060Z"
+    },
+    "GT": {
+      "name": "Guatemala",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:03.060Z"
+    },
+    "HT": {
+      "name": "Haiti",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:03.060Z"
+    },
+    "HN": {
+      "name": "Honduras",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:03.060Z"
+    },
+    "JM": {
+      "name": "Jamaica",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:27:25.119Z"
+    },
+    "NI": {
+      "name": "Nicaragua",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:03.060Z"
+    },
+    "PA": {
+      "name": "Panama",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:28:22.299Z"
+    },
+    "KN": {
+      "name": "Saint Kitts and Nevis",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:36.381Z"
+    },
+    "LC": {
+      "name": "Saint Lucia",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:36.381Z"
+    },
+    "VC": {
+      "name": "Saint Vincent and the Grenadines",
+      "continent": "north_america",
+      "wave": "wave1_north_america_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:36.381Z"
+    },
+    "AE": {
+      "name": "United Arab Emirates",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 9,
+      "publicPublished": 9,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:30:11.686Z"
+    },
+    "SA": {
+      "name": "Saudi Arabia",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 7,
+      "publicPublished": 7,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:30:50.713Z"
+    },
+    "QA": {
+      "name": "Qatar",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 4,
+      "publicPublished": 4,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:31:24.522Z"
+    },
+    "KW": {
+      "name": "Kuwait",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:31:57.378Z"
+    },
+    "OM": {
+      "name": "Oman",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:32:27.539Z"
+    },
+    "BH": {
+      "name": "Bahrain",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:32:55.941Z"
+    },
+    "IQ": {
+      "name": "Iraq",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 6,
+      "publicPublished": 4,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:36.381Z"
+    },
+    "GB": {
+      "name": "United Kingdom",
+      "continent": "europe",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 7,
+      "publicPublished": 7,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:33:55.802Z"
+    },
+    "NO": {
+      "name": "Norway",
+      "continent": "europe",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 5,
+      "publicPublished": 5,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:34:31.966Z"
+    },
+    "NL": {
+      "name": "Netherlands",
+      "continent": "europe",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:35:04.470Z"
+    },
+    "DE": {
+      "name": "Germany",
+      "continent": "europe",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:35:37.797Z"
+    },
+    "IT": {
+      "name": "Italy",
+      "continent": "europe",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 2,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:36:13.699Z"
+    },
+    "RO": {
+      "name": "Romania",
+      "continent": "europe",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:36:43.329Z"
+    },
+    "FR": {
+      "name": "France",
+      "continent": "europe",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:37:02.315Z"
+    },
+    "DK": {
+      "name": "Denmark",
+      "continent": "europe",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:37:31.930Z"
+    },
+    "PL": {
+      "name": "Poland",
+      "continent": "europe",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 4,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:36.381Z"
+    },
+    "BR": {
+      "name": "Brazil",
+      "continent": "south_america",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:38:28.426Z"
+    },
+    "GY": {
+      "name": "Guyana",
+      "continent": "south_america",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:39:08.138Z"
+    },
+    "AR": {
+      "name": "Argentina",
+      "continent": "south_america",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 2,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:39:50.109Z"
+    },
+    "CO": {
+      "name": "Colombia",
+      "continent": "south_america",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:40:27.778Z"
+    },
+    "SR": {
+      "name": "Suriname",
+      "continent": "south_america",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:36.381Z"
+    },
+    "EC": {
+      "name": "Ecuador",
+      "continent": "south_america",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:36.381Z"
+    },
+    "PE": {
+      "name": "Peru",
+      "continent": "south_america",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 4,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:13:36.381Z"
+    },
+    "SG": {
+      "name": "Singapore",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:42:52.964Z"
+    },
+    "MY": {
+      "name": "Malaysia",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:43:32.512Z"
+    },
+    "ID": {
+      "name": "Indonesia",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 2,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:44:18.454Z"
+    },
+    "KZ": {
+      "name": "Kazakhstan",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:44:55.266Z"
+    },
+    "AZ": {
+      "name": "Azerbaijan",
+      "continent": "europe",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 7,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:20.213Z"
+    },
+    "IN": {
+      "name": "India",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 14,
+      "publicPublished": 10,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:20.213Z"
+    },
+    "CN": {
+      "name": "China",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 7,
+      "publicPublished": 4,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:20.213Z"
+    },
+    "BN": {
+      "name": "Brunei",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:20.213Z"
+    },
+    "TH": {
+      "name": "Thailand",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:20.213Z"
+    },
+    "VN": {
+      "name": "Vietnam",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 5,
+      "publicPublished": 4,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:20.213Z"
+    },
+    "JP": {
+      "name": "Japan",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 4,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:20.213Z"
+    },
+    "KR": {
+      "name": "South Korea",
+      "continent": "asia",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 5,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:20.213Z"
+    },
+    "AU": {
+      "name": "Australia",
+      "continent": "oceania",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 2,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:50:24.592Z"
+    },
+    "PG": {
+      "name": "Papua New Guinea",
+      "continent": "oceania",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 5,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:59.409Z"
+    },
+    "NZ": {
+      "name": "New Zealand",
+      "continent": "oceania",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 16,
+      "publicPublished": 9,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:59.409Z"
+    },
+    "NG": {
+      "name": "Nigeria",
+      "continent": "africa",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 2,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:52:27.750Z"
+    },
+    "AO": {
+      "name": "Angola",
+      "continent": "africa",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 5,
+      "publicPublished": 4,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:59.409Z"
+    },
+    "DZ": {
+      "name": "Algeria",
+      "continent": "africa",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 5,
+      "publicPublished": 4,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:59.409Z"
+    },
+    "EG": {
+      "name": "Egypt",
+      "continent": "africa",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 2,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T15:54:20.502Z"
+    },
+    "GH": {
+      "name": "Ghana",
+      "continent": "africa",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 4,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:59.409Z"
+    },
+    "MZ": {
+      "name": "Mozambique",
+      "continent": "africa",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:59.409Z"
+    },
+    "NA": {
+      "name": "Namibia",
+      "continent": "africa",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 3,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:59.409Z"
+    },
+    "SN": {
+      "name": "Senegal",
+      "continent": "africa",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:14:59.409Z"
+    },
+    "CI": {
+      "name": "Cote d'Ivoire",
+      "continent": "africa",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:27.306Z"
+    },
+    "ZA": {
+      "name": "South Africa",
+      "continent": "africa",
+      "wave": "wave2_global_oil_hubs",
+      "privateSaved": 6,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:27.306Z"
+    },
+    "AL": {
+      "name": "Albania",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:27.306Z"
+    },
+    "AD": {
+      "name": "Andorra",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:27.306Z"
+    },
+    "AM": {
+      "name": "Armenia",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:27.306Z"
+    },
+    "AT": {
+      "name": "Austria",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 6,
+      "publicPublished": 4,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:27.306Z"
+    },
+    "BE": {
+      "name": "Belgium",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 3,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:27.306Z"
+    },
+    "BA": {
+      "name": "Bosnia and Herzegovina",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 3,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:27.306Z"
+    },
+    "BG": {
+      "name": "Bulgaria",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:52.313Z"
+    },
+    "HR": {
+      "name": "Croatia",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:52.313Z"
+    },
+    "CY": {
+      "name": "Cyprus",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:52.313Z"
+    },
+    "CZ": {
+      "name": "Czechia",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:52.313Z"
+    },
+    "EE": {
+      "name": "Estonia",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:52.313Z"
+    },
+    "FI": {
+      "name": "Finland",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:52.313Z"
+    },
+    "GE": {
+      "name": "Georgia",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:52.313Z"
+    },
+    "GR": {
+      "name": "Greece",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 3,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:15:52.313Z"
+    },
+    "HU": {
+      "name": "Hungary",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 4,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:09.774Z"
+    },
+    "IS": {
+      "name": "Iceland",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 4,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:09.774Z"
+    },
+    "IE": {
+      "name": "Ireland",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:09.774Z"
+    },
+    "XK": {
+      "name": "Kosovo",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:09.774Z"
+    },
+    "LV": {
+      "name": "Latvia",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:09.774Z"
+    },
+    "LI": {
+      "name": "Liechtenstein",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:09.774Z"
+    },
+    "LT": {
+      "name": "Lithuania",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:09.774Z"
+    },
+    "LU": {
+      "name": "Luxembourg",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:09.774Z"
+    },
+    "MT": {
+      "name": "Malta",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:40.120Z"
+    },
+    "MD": {
+      "name": "Moldova",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 4,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:40.120Z"
+    },
+    "MC": {
+      "name": "Monaco",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 0,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:40.120Z"
+    },
+    "ME": {
+      "name": "Montenegro",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 0,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:40.120Z"
+    },
+    "MK": {
+      "name": "North Macedonia",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:40.120Z"
+    },
+    "PT": {
+      "name": "Portugal",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 4,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:40.120Z"
+    },
+    "SM": {
+      "name": "San Marino",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 0,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:40.120Z"
+    },
+    "RS": {
+      "name": "Serbia",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 6,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:16:40.120Z"
+    },
+    "SK": {
+      "name": "Slovakia",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 5,
+      "publicPublished": 3,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:06.263Z"
+    },
+    "SI": {
+      "name": "Slovenia",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:06.263Z"
+    },
+    "ES": {
+      "name": "Spain",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 9,
+      "publicPublished": 4,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:06.263Z"
+    },
+    "SE": {
+      "name": "Sweden",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:06.263Z"
+    },
+    "CH": {
+      "name": "Switzerland",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:06.263Z"
+    },
+    "UA": {
+      "name": "Ukraine",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 6,
+      "publicPublished": 4,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:06.263Z"
+    },
+    "VA": {
+      "name": "Vatican City",
+      "continent": "europe",
+      "wave": "wave3_europe_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:06.263Z"
+    },
+    "AF": {
+      "name": "Afghanistan",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:06.263Z"
+    },
+    "BD": {
+      "name": "Bangladesh",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:33.635Z"
+    },
+    "BT": {
+      "name": "Bhutan",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 0,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:33.635Z"
+    },
+    "KH": {
+      "name": "Cambodia",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:33.635Z"
+    },
+    "IL": {
+      "name": "Israel",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 12,
+      "publicPublished": 8,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:33.635Z"
+    },
+    "JO": {
+      "name": "Jordan",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 3,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:33.635Z"
+    },
+    "KG": {
+      "name": "Kyrgyzstan",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:33.635Z"
+    },
+    "LA": {
+      "name": "Laos",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:33.635Z"
+    },
+    "LB": {
+      "name": "Lebanon",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:17:33.635Z"
+    },
+    "MV": {
+      "name": "Maldives",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:05.000Z"
+    },
+    "MN": {
+      "name": "Mongolia",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 3,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:05.000Z"
+    },
+    "MM": {
+      "name": "Myanmar",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:05.000Z"
+    },
+    "NP": {
+      "name": "Nepal",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 0,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:05.000Z"
+    },
+    "PK": {
+      "name": "Pakistan",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 7,
+      "publicPublished": 4,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:05.000Z"
+    },
+    "PS": {
+      "name": "Palestine",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 0,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:05.000Z"
+    },
+    "PH": {
+      "name": "Philippines",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:05.000Z"
+    },
+    "LK": {
+      "name": "Sri Lanka",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:05.000Z"
+    },
+    "TW": {
+      "name": "Taiwan",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:44.264Z"
+    },
+    "TJ": {
+      "name": "Tajikistan",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:44.264Z"
+    },
+    "TL": {
+      "name": "Timor-Leste",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:44.264Z"
+    },
+    "TR": {
+      "name": "Turkey",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 15,
+      "publicPublished": 8,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:44.264Z"
+    },
+    "TM": {
+      "name": "Turkmenistan",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:44.264Z"
+    },
+    "UZ": {
+      "name": "Uzbekistan",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:44.264Z"
+    },
+    "YE": {
+      "name": "Yemen",
+      "continent": "asia",
+      "wave": "wave3_asia_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:44.264Z"
+    },
+    "BO": {
+      "name": "Bolivia",
+      "continent": "south_america",
+      "wave": "wave3_south_america_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:18:44.264Z"
+    },
+    "CL": {
+      "name": "Chile",
+      "continent": "south_america",
+      "wave": "wave3_south_america_az",
+      "privateSaved": 3,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:03.036Z"
+    },
+    "PY": {
+      "name": "Paraguay",
+      "continent": "south_america",
+      "wave": "wave3_south_america_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:03.036Z"
+    },
+    "UY": {
+      "name": "Uruguay",
+      "continent": "south_america",
+      "wave": "wave3_south_america_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:03.036Z"
+    },
+    "VE": {
+      "name": "Venezuela",
+      "continent": "south_america",
+      "wave": "wave3_south_america_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:03.036Z"
+    },
+    "FJ": {
+      "name": "Fiji",
+      "continent": "oceania",
+      "wave": "wave3_oceania_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:03.036Z"
+    },
+    "KI": {
+      "name": "Kiribati",
+      "continent": "oceania",
+      "wave": "wave3_oceania_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:03.036Z"
+    },
+    "MH": {
+      "name": "Marshall Islands",
+      "continent": "oceania",
+      "wave": "wave3_oceania_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:03.036Z"
+    },
+    "FM": {
+      "name": "Micronesia",
+      "continent": "oceania",
+      "wave": "wave3_oceania_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:03.036Z"
+    },
+    "NR": {
+      "name": "Nauru",
+      "continent": "oceania",
+      "wave": "wave3_oceania_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:14.095Z"
+    },
+    "PW": {
+      "name": "Palau",
+      "continent": "oceania",
+      "wave": "wave3_oceania_az",
+      "privateSaved": 0,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:14.095Z"
+    },
+    "WS": {
+      "name": "Samoa",
+      "continent": "oceania",
+      "wave": "wave3_oceania_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:14.095Z"
+    },
+    "SB": {
+      "name": "Solomon Islands",
+      "continent": "oceania",
+      "wave": "wave3_oceania_az",
+      "privateSaved": 0,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:14.095Z"
+    },
+    "TO": {
+      "name": "Tonga",
+      "continent": "oceania",
+      "wave": "wave3_oceania_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:14.095Z"
+    },
+    "TV": {
+      "name": "Tuvalu",
+      "continent": "oceania",
+      "wave": "wave3_oceania_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:14.095Z"
+    },
+    "VU": {
+      "name": "Vanuatu",
+      "continent": "oceania",
+      "wave": "wave3_oceania_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:14.095Z"
+    },
+    "BJ": {
+      "name": "Benin",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:14.095Z"
+    },
+    "BW": {
+      "name": "Botswana",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:28.740Z"
+    },
+    "BF": {
+      "name": "Burkina Faso",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 0,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:28.740Z"
+    },
+    "BI": {
+      "name": "Burundi",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:28.740Z"
+    },
+    "CV": {
+      "name": "Cabo Verde",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:28.740Z"
+    },
+    "CM": {
+      "name": "Cameroon",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:28.740Z"
+    },
+    "CF": {
+      "name": "Central African Republic",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:28.740Z"
+    },
+    "TD": {
+      "name": "Chad",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:28.740Z"
+    },
+    "KM": {
+      "name": "Comoros",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:28.740Z"
+    },
+    "CG": {
+      "name": "Congo (Republic of the)",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:45.781Z"
+    },
+    "CD": {
+      "name": "Congo (Democratic Republic)",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:45.781Z"
+    },
+    "DJ": {
+      "name": "Djibouti",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 3,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:45.781Z"
+    },
+    "GQ": {
+      "name": "Equatorial Guinea",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 4,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:45.781Z"
+    },
+    "ER": {
+      "name": "Eritrea",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:45.781Z"
+    },
+    "SZ": {
+      "name": "Eswatini",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:45.781Z"
+    },
+    "ET": {
+      "name": "Ethiopia",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:45.781Z"
+    },
+    "GA": {
+      "name": "Gabon",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:19:45.781Z"
+    },
+    "GM": {
+      "name": "Gambia",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:07.339Z"
+    },
+    "GN": {
+      "name": "Guinea",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:07.339Z"
+    },
+    "GW": {
+      "name": "Guinea-Bissau",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 0,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:07.339Z"
+    },
+    "KE": {
+      "name": "Kenya",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 3,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:07.339Z"
+    },
+    "LS": {
+      "name": "Lesotho",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:07.339Z"
+    },
+    "LR": {
+      "name": "Liberia",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:07.339Z"
+    },
+    "LY": {
+      "name": "Libya",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 6,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:07.339Z"
+    },
+    "MG": {
+      "name": "Madagascar",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:07.339Z"
+    },
+    "MW": {
+      "name": "Malawi",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:20.981Z"
+    },
+    "ML": {
+      "name": "Mali",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:20.981Z"
+    },
+    "MR": {
+      "name": "Mauritania",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:20.981Z"
+    },
+    "MU": {
+      "name": "Mauritius",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:20.981Z"
+    },
+    "MA": {
+      "name": "Morocco",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 3,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:20.981Z"
+    },
+    "NE": {
+      "name": "Niger",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:20.981Z"
+    },
+    "RW": {
+      "name": "Rwanda",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:20.981Z"
+    },
+    "ST": {
+      "name": "Sao Tome and Principe",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:20.981Z"
+    },
+    "SC": {
+      "name": "Seychelles",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:44.721Z"
+    },
+    "SL": {
+      "name": "Sierra Leone",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 2,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:44.721Z"
+    },
+    "SO": {
+      "name": "Somalia",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:44.721Z"
+    },
+    "SS": {
+      "name": "South Sudan",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:44.721Z"
+    },
+    "SD": {
+      "name": "Sudan",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:44.721Z"
+    },
+    "TZ": {
+      "name": "Tanzania",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:44.721Z"
+    },
+    "TG": {
+      "name": "Togo",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 0,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:44.721Z"
+    },
+    "TN": {
+      "name": "Tunisia",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 2,
+      "publicPublished": 1,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:20:44.721Z"
+    },
+    "UG": {
+      "name": "Uganda",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 3,
+      "publicPublished": 2,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:21:07.649Z"
+    },
+    "ZM": {
+      "name": "Zambia",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:21:07.649Z"
+    },
+    "ZW": {
+      "name": "Zimbabwe",
+      "continent": "africa",
+      "wave": "wave3_africa_az",
+      "privateSaved": 1,
+      "publicPublished": 0,
+      "publishedLive": true,
+      "completedAt": "2026-10-25T16:21:07.649Z"
+    }
+  },
+  "deepFillPublicPublished": 466,
+  "deepFillPrivateSaved": 839
+}

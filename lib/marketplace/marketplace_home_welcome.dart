@@ -39,12 +39,11 @@ class MarketplaceHomeWelcome extends StatelessWidget {
           user.displayName,
           user.email?.split('@').first,
         ];
-        final name = candidates
-            .map((value) => '${value ?? ''}'.trim())
-            .firstWhere(
-              (value) => value.isNotEmpty,
-              orElse: () => 'Pipe Buyer member',
-            );
+        final name =
+            candidates.map((value) => '${value ?? ''}'.trim()).firstWhere(
+                  (value) => value.isNotEmpty,
+                  orElse: () => 'Pipe Buyer member',
+                );
         final accountType = '${data['accountType'] ?? 'personal'}';
         return MarketplaceHomeDiscoveryHero(
           name: name,
@@ -193,16 +192,16 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                 Text(
                   'What do you want to do?',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Start with one simple action. Pipe Buyer will guide the rest of the workflow.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: PipeBuyerColors.muted,
-                    fontWeight: FontWeight.w600,
-                  ),
+                        color: PipeBuyerColors.muted,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -233,7 +232,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                         icon: Icons.manage_search_rounded,
                         title: 'Search for services',
                         subtitle:
-                            'Smart search verified Global & North America Oil & Gas companies.',
+                            'Search 13,480+ verified Oil & Gas providers across 197 countries.',
                         onTap: onSearchServices,
                       ),
                     ),
@@ -521,8 +520,8 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
                                   : Icons.public_rounded,
                               label: signedIn
                                   ? accountType == 'business'
-                                        ? 'Business account'
-                                        : 'Marketplace account'
+                                      ? 'Business account'
+                                      : 'Marketplace account'
                                   : 'North America first',
                             ),
                             const _HeroChip(

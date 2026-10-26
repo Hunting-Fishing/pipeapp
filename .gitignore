@@ -53,3 +53,9 @@ Desktop.ini
 
 # Emulator-only payment secrets used by local callable integration runs
 firebase/functions/.secret.local
+
+
+# Yellow Pages local crawl ledgers (private Contact Center data)
+data/yellow_pages/ledger/*.json
+data/yellow_pages/ledger/*.jsonl
+!data/yellow_pages/ledger/09_global_crawl_checkpoint.json

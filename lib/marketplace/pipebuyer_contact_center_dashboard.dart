@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
+import 'pipebuyer_country_flag_icon.dart';
 import 'pipebuyer_yellow_pages_client.dart';
 import 'pipebuyer_yellow_pages_taxonomy.dart';
 
@@ -377,7 +378,8 @@ class _PipeBuyerContactCenterDashboardState
     }
   }
 
-  Future<void> _openUpsertCompanyDialog({Map<String, dynamic>? existing}) async {
+  Future<void> _openUpsertCompanyDialog(
+      {Map<String, dynamic>? existing}) async {
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => _CompanyUpsertDialog(
@@ -479,7 +481,8 @@ class _PipeBuyerContactCenterDashboardState
                   color: Colors.white, size: 18),
               label: const Text(
                 'Add Company',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                style:
+                    TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
               ),
             ),
           if (access != null && access.isManager)
@@ -821,9 +824,21 @@ class _PipeBuyerContactCenterDashboardState
                   'Contact: ${req['contactName'] ?? '—'} • Phone: ${req['phone'] ?? '—'} • Email: ${req['email'] ?? '—'}',
                   style: const TextStyle(color: PipeBuyerColors.slate),
                 ),
-                Text(
-                  'Location: ${req['city'] ?? ''}, ${req['regionCode'] ?? ''} (${req['countryCode'] ?? 'CA'}) • Website: ${req['website'] ?? '—'}',
-                  style: const TextStyle(color: PipeBuyerColors.slate),
+                Row(
+                  children: [
+                    PipeBuyerCountryFlagIcon(
+                      countryCode: '${req['countryCode'] ?? 'CA'}',
+                      width: 17,
+                      height: 12,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Location: ${req['city'] ?? ''}, ${req['regionCode'] ?? ''} (${req['countryCode'] ?? 'CA'}) • Website: ${req['website'] ?? '—'}',
+                        style: const TextStyle(color: PipeBuyerColors.slate),
+                      ),
+                    ),
+                  ],
                 ),
                 if (isPending && _access?.isAdministrator == true) ...[
                   const SizedBox(height: 12),
@@ -974,7 +989,8 @@ class _PipeBuyerContactCenterDashboardState
   }
 
   static String _accessReasonCopy(String? reason) => switch (reason) {
-        'signed_out' => 'Sign in with your PipeBuyer Admin or Contact Center account.',
+        'signed_out' =>
+          'Sign in with your PipeBuyer Admin or Contact Center account.',
         'email_unverified' =>
           'Verify your email address before opening the Oilfield Directory Contact Center.',
         'mfa_required' =>
@@ -1005,13 +1021,18 @@ class _AdminCompanyRowCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final flagged = company['isFlaggedProhibited'] == true;
     final viewingEnabled = company['adminViewingEnabled'] != false && !flagged;
-    final published = company['publicationStatus'] == 'published' && viewingEnabled;
-    final tier = '${company['effectiveTier'] ?? company['listingTier'] ?? 'free_verified'}';
+    final published =
+        company['publicationStatus'] == 'published' && viewingEnabled;
+    final tier =
+        '${company['effectiveTier'] ?? company['listingTier'] ?? 'free_verified'}';
     final opStatus = '${company['operationalStatus'] ?? 'unverified'}';
-    final mainPhone = '${company['mainPhone'] ?? company['publicPhone'] ?? ''}'.trim();
+    final mainPhone =
+        '${company['mainPhone'] ?? company['publicPhone'] ?? ''}'.trim();
     final tollFree = '${company['tollFreePhone'] ?? ''}'.trim();
     final legacyPhones = (company['legacyPhones'] is List)
-        ? (company['legacyPhones'] as List).map((e) => '$e').toList(growable: false)
+        ? (company['legacyPhones'] as List)
+            .map((e) => '$e')
+            .toList(growable: false)
         : const <String>[];
     final callingWindow = company['callingWindow'] is Map
         ? Map<String, dynamic>.from(company['callingWindow'] as Map)
@@ -1034,7 +1055,9 @@ class _AdminCompanyRowCard extends StatelessWidget {
             border: Border.all(
               color: flagged
                   ? PipeBuyerColors.danger
-                  : (published ? PipeBuyerColors.success.withValues(alpha: 0.45) : PipeBuyerColors.line),
+                  : (published
+                      ? PipeBuyerColors.success.withValues(alpha: 0.45)
+                      : PipeBuyerColors.line),
               width: flagged ? 1.6 : 1.0,
             ),
           ),
@@ -1066,10 +1089,14 @@ class _AdminCompanyRowCard extends StatelessWidget {
                         _PillBadge(
                           label: published
                               ? 'LIVE ON WEBSITE'
-                              : (viewingEnabled ? 'VIEWING ALLOWED (DRAFT)' : 'VIEWING OFF / HIDDEN'),
+                              : (viewingEnabled
+                                  ? 'VIEWING ALLOWED (DRAFT)'
+                                  : 'VIEWING OFF / HIDDEN'),
                           color: published
                               ? PipeBuyerColors.success
-                              : (viewingEnabled ? PipeBuyerColors.slate : PipeBuyerColors.danger),
+                              : (viewingEnabled
+                                  ? PipeBuyerColors.slate
+                                  : PipeBuyerColors.danger),
                         ),
                         _PillBadge(
                           label: switch (tier) {
@@ -1105,12 +1132,25 @@ class _AdminCompanyRowCard extends StatelessWidget {
                       spacing: 16,
                       runSpacing: 6,
                       children: [
-                        Text(
-                          'Location: ${company['city'] ?? '—'}, ${company['regionCode'] ?? '—'} (${company['countryCode'] ?? 'CA'})',
-                          style: const TextStyle(
-                            color: PipeBuyerColors.slate,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            PipeBuyerCountryFlagIcon(
+                              countryCode: '${company['countryCode'] ?? 'CA'}',
+                              width: 16,
+                              height: 11,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                'Location: ${company['city'] ?? '—'}, ${company['regionCode'] ?? '—'} (${company['countryCode'] ?? 'CA'})',
+                                style: const TextStyle(
+                                  color: PipeBuyerColors.slate,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         Text(
                           'Current Phone: ${mainPhone.isEmpty ? 'None' : mainPhone}'
@@ -1130,7 +1170,8 @@ class _AdminCompanyRowCard extends StatelessWidget {
                           ),
                       ],
                     ),
-                    if (flagged && '${company['flagReason'] ?? ''}'.isNotEmpty) ...[
+                    if (flagged &&
+                        '${company['flagReason'] ?? ''}'.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(
                         'Flag Reason: ${company['flagReason']}',
@@ -1431,7 +1472,8 @@ class _CompanyControlSheetState extends State<_CompanyControlSheet> {
                                     ),
                                   ),
                           icon: const Icon(Icons.workspace_premium_outlined),
-                          label: const Text('Set Tier 1: Featured Partner (1 Yr)'),
+                          label:
+                              const Text('Set Tier 1: Featured Partner (1 Yr)'),
                         ),
                         OutlinedButton.icon(
                           onPressed: _mutating
@@ -1648,18 +1690,15 @@ class _CompanyUpsertDialogState extends State<_CompanyUpsertDialog> {
     _websiteCtrl = TextEditingController(text: '${ex?['website'] ?? ''}');
     _emailCtrl = TextEditingController(text: '${ex?['generalEmail'] ?? ''}');
     _cityCtrl = TextEditingController(text: '${ex?['city'] ?? ''}');
-    final services = (ex?['services'] is List)
-        ? (ex!['services'] as List).join(', ')
-        : '';
+    final services =
+        (ex?['services'] is List) ? (ex!['services'] as List).join(', ') : '';
     _servicesCtrl = TextEditingController(text: services);
     _countryCode = '${ex?['countryCode'] ?? 'CA'}'.isEmpty
         ? 'CA'
         : '${ex?['countryCode']}';
-    _regionCode = '${ex?['regionCode'] ?? 'AB'}'.isEmpty
-        ? 'AB'
-        : '${ex?['regionCode']}';
-    _operationalStatus =
-        '${ex?['operationalStatus'] ?? 'active_in_operation'}';
+    _regionCode =
+        '${ex?['regionCode'] ?? 'AB'}'.isEmpty ? 'AB' : '${ex?['regionCode']}';
+    _operationalStatus = '${ex?['operationalStatus'] ?? 'active_in_operation'}';
     _selectedCategories = (ex?['categoryCodes'] is List)
         ? (ex!['categoryCodes'] as List).map((e) => '$e').toSet()
         : <String>{};
@@ -1796,7 +1835,8 @@ class _CompanyUpsertDialogState extends State<_CompanyUpsertDialog> {
               TextField(
                 controller: _legacyPhonesCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Old 2015/2016 Book Phone Numbers (comma-separated)',
+                  labelText:
+                      'Old 2015/2016 Book Phone Numbers (comma-separated)',
                   hintText:
                       'Automatically tracked when numbers change; searchable by Admin',
                 ),
@@ -1806,36 +1846,94 @@ class _CompanyUpsertDialogState extends State<_CompanyUpsertDialog> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      initialValue: _countryCode,
+                      key: ValueKey('crm-country-$_countryCode'),
+                      initialValue: PipeBuyerYellowPagesTaxonomy.countryByCode(
+                                _countryCode,
+                              ) !=
+                              null
+                          ? _countryCode
+                          : 'CA',
+                      isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Country'),
-                      items: const [
-                        DropdownMenuItem(value: 'CA', child: Text('Canada')),
-                        DropdownMenuItem(
-                            value: 'US', child: Text('United States')),
-                      ],
+                      items: PipeBuyerYellowPagesTaxonomy.countries
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c.code,
+                              child: Row(
+                                children: [
+                                  PipeBuyerCountryFlagIcon(
+                                    countryCode: c.code,
+                                    width: 19,
+                                    height: 13,
+                                  ),
+                                  const SizedBox(width: 7),
+                                  Expanded(
+                                    child: Text(
+                                      '${c.name} (${c.code})',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(growable: false),
                       onChanged: (val) {
-                        if (val != null) setState(() => _countryCode = val);
+                        if (val != null) {
+                          final nextRegions =
+                              PipeBuyerYellowPagesTaxonomy.regionsForCountry(
+                                  val);
+                          setState(() {
+                            _countryCode = val;
+                            _regionCode = nextRegions.isNotEmpty
+                                ? nextRegions.first.regionCode
+                                : '';
+                          });
+                        }
                       },
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _regionCode,
-                      decoration:
-                          const InputDecoration(labelText: 'Province / State'),
-                      items: regionOptions
-                          .map(
-                            (r) => DropdownMenuItem(
-                              value: r.regionCode,
-                              child: Text(r.displayLabel),
+                    child: regionOptions.isNotEmpty
+                        ? DropdownButtonFormField<String>(
+                            key: ValueKey(
+                              'crm-region-$_countryCode-$_regionCode',
                             ),
+                            initialValue: regionOptions.any(
+                              (r) => r.regionCode == _regionCode,
+                            )
+                                ? _regionCode
+                                : regionOptions.first.regionCode,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Province / State / Region',
+                            ),
+                            items: regionOptions
+                                .map(
+                                  (r) => DropdownMenuItem(
+                                    value: r.regionCode,
+                                    child: Text(
+                                      r.displayLabel,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _regionCode = val);
+                              }
+                            },
                           )
-                          .toList(growable: false),
-                      onChanged: (val) {
-                        if (val != null) setState(() => _regionCode = val);
-                      },
-                    ),
+                        : TextFormField(
+                            key: ValueKey('crm-custom-region-$_countryCode'),
+                            initialValue: _regionCode,
+                            decoration: const InputDecoration(
+                              labelText: 'State / Region (Optional)',
+                            ),
+                            onChanged: (val) => _regionCode = val.trim(),
+                          ),
                   ),
                 ],
               ),
@@ -1910,7 +2008,8 @@ class _CompanyUpsertDialogState extends State<_CompanyUpsertDialog> {
                 controller: _servicesCtrl,
                 decoration: const InputDecoration(
                   labelText: 'Services Provided (comma-separated)',
-                  hintText: 'Hydrovac, Winch Trucks, Rig Moving, OCTG Inspection',
+                  hintText:
+                      'Hydrovac, Winch Trucks, Rig Moving, OCTG Inspection',
                 ),
               ),
               const SizedBox(height: 12),
@@ -2098,7 +2197,8 @@ class _BlockedNumbersDialogState extends State<_BlockedNumbersDialog> {
                                   ? TextButton(
                                       onPressed: () async {
                                         await widget.client.manageBlockedNumber(
-                                          phone: '${item['digits10'] ?? item['id']}',
+                                          phone:
+                                              '${item['digits10'] ?? item['id']}',
                                           active: false,
                                         );
                                         await _load();

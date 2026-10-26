@@ -7,6 +7,7 @@ import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_auth_page.dart';
 import 'marketplace_subscription_billing_policy.dart';
+import 'pipebuyer_country_flag_icon.dart';
 import 'pipebuyer_yellow_pages_client.dart';
 import 'pipebuyer_yellow_pages_taxonomy.dart';
 
@@ -22,6 +23,7 @@ const Set<String> _kSanctionedStripeCountries = <String>{
 class PipeBuyerListServicesPage extends StatefulWidget {
   const PipeBuyerListServicesPage({
     super.key,
+    this.client,
     this.claimedCompanyId,
     this.initialCompanyName = '',
     this.initialCity = '',
@@ -31,6 +33,7 @@ class PipeBuyerListServicesPage extends StatefulWidget {
     this.initialTier = 'paid_verified',
   });
 
+  final PipeBuyerYellowPagesClient? client;
   final String? claimedCompanyId;
   final String initialCompanyName;
   final String initialCity;
@@ -45,7 +48,8 @@ class PipeBuyerListServicesPage extends StatefulWidget {
 }
 
 class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
-  final PipeBuyerYellowPagesClient _client = PipeBuyerYellowPagesClient();
+  late final PipeBuyerYellowPagesClient _client =
+      widget.client ?? PipeBuyerYellowPagesClient();
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _companyNameController;
@@ -97,10 +101,14 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
         : (widget.initialCountryCode == 'CA' ? '' : widget.initialRegionCode);
     _customRegionController.text = _regionCode;
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      _emailController.text = user.email ?? '';
-      _contactNameController.text = user.displayName ?? '';
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        _emailController.text = user.email ?? '';
+        _contactNameController.text = user.displayName ?? '';
+      }
+    } catch (_) {
+      // Firebase may not be initialized in standalone widget tests.
     }
   }
 
@@ -519,15 +527,49 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                               const SizedBox(height: 12),
                               LayoutBuilder(
                                 builder: (context, rowConstraints) {
+                                  final selectedCountryMeta =
+                                      PipeBuyerYellowPagesTaxonomy
+                                          .countryByCode(_countryCode);
+                                  final dialHint =
+                                      selectedCountryMeta?.dialCode ?? '+1';
                                   final phoneField = TextFormField(
                                     controller: _phoneController,
                                     keyboardType: TextInputType.phone,
-                                    decoration: const InputDecoration(
+                                    decoration: InputDecoration(
                                       labelText:
                                           'Main Dispatch / Office Phone *',
-                                      hintText:
-                                          '+1 (780) 555-0199 or +44 / +971',
-                                      border: OutlineInputBorder(),
+                                      hintText: dialHint == '+1'
+                                          ? '+1 (780) 555-0199'
+                                          : '$dialHint 20 7946 0958',
+                                      prefixIcon: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            PipeBuyerCountryFlagIcon(
+                                              countryCode: _countryCode,
+                                              width: 20,
+                                              height: 14,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              dialHint,
+                                              style: const TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      prefixIconConstraints:
+                                          const BoxConstraints(
+                                        minWidth: 0,
+                                        minHeight: 0,
+                                      ),
+                                      border: const OutlineInputBorder(),
                                     ),
                                     validator: (v) {
                                       final digits = (v ?? '')
@@ -604,6 +646,11 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                   final selected = _countryCode == c.code;
                                   return ChoiceChip(
                                     visualDensity: VisualDensity.compact,
+                                    avatar: PipeBuyerCountryFlagIcon(
+                                      countryCode: c.code,
+                                      width: 17,
+                                      height: 12,
+                                    ),
                                     label: Text('${c.name} (${c.code})'),
                                     selected: selected,
                                     onSelected: (_) {
@@ -648,9 +695,22 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                         .map(
                                           (c) => DropdownMenuItem(
                                             value: c.code,
-                                            child: Text(
-                                              '${c.name} (${c.code})',
-                                              overflow: TextOverflow.ellipsis,
+                                            child: Row(
+                                              children: [
+                                                PipeBuyerCountryFlagIcon(
+                                                  countryCode: c.code,
+                                                  width: 20,
+                                                  height: 14,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    '${c.name} (${c.code}) • ${c.dialCode}',
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         )
