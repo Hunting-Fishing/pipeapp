@@ -97,9 +97,11 @@ void main() {
     expect(html, contains('role="progressbar"'));
     expect(html, contains('id="pipe-startup"'));
     expect(html, contains('id="pipe-startup-progress"'));
-    expect(html, contains('id="pipe-service-truck"'));
-    expect(html, contains('id="pipe-pumpjack"'));
+    expect(html, contains('class="pipe-startup-card"'));
+    expect(html, contains('id="pipe-startup-status"'));
     expect(html, contains('id="pipe-startup-error"'));
+    expect(html, isNot(contains('id="pipe-service-truck"')));
+    expect(html, isNot(contains('id="pipe-pumpjack"')));
     expect(html, contains('onEntrypointLoaded'));
     expect(
       html,
