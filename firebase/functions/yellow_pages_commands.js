@@ -30,6 +30,7 @@ const {
   isPublicEntryCurrent,
   isPublicationEligible,
   normalizeGlobalPhone,
+  normalizeLogoUrl,
   normalizePhoneHistory,
   normalizedCompanyName,
   stringList,
@@ -800,6 +801,10 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       const categories = stringList(data.categories, 20, 120);
       const services = stringList(data.services, 40, 160);
       const categoryCodes = classifyCategoriesFromText([...categories, ...services], data.description || "");
+      const logoUrl = normalizeLogoUrl(data.logoUrl, {
+        ErrorClass: HttpsError,
+        fieldName: "logoUrl",
+      });
 
       const docRef = await db().collection(LISTING_REQUESTS).add({
         schemaVersion: 2,
@@ -813,6 +818,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         tollFreePhone: text(data.tollFreePhone, 80),
         email,
         website: text(data.website, 500),
+        logoUrl,
         countryCode: geo.countryCode,
         regionCode: geo.regionCode,
         city,
@@ -1139,6 +1145,12 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         companyName,
         normalizedCompanyName: normalizedCompanyName(companyName),
         website: text(payload.website ?? existingData.website, 500),
+        logoUrl: payload.logoUrl !== undefined ?
+          normalizeLogoUrl(payload.logoUrl, {
+            ErrorClass: HttpsError,
+            fieldName: "logoUrl",
+          }) :
+          normalizeLogoUrl(existingData.logoUrl),
         countryCode: geo.countryCode,
         regionCode: geo.regionCode,
         city: text(payload.city ?? existingData.city, 120),
@@ -1606,6 +1618,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
           companyName: reqData.companyName,
           normalizedCompanyName: reqData.normalizedCompanyName || normalizedCompanyName(reqData.companyName),
           website: reqData.website || "",
+          ...(normalizeLogoUrl(reqData.logoUrl) ? {logoUrl: normalizeLogoUrl(reqData.logoUrl)} : {}),
           countryCode: reqData.countryCode || "CA",
           regionCode: reqData.regionCode || "",
           city: reqData.city || "",

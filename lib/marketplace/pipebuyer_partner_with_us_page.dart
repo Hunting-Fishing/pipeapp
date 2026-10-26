@@ -5,6 +5,8 @@ import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_navigation.dart';
+import 'pipebuyer_business_logo_uploader.dart';
+import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_partner_client.dart';
 import 'pipebuyer_partner_taxonomy.dart';
 import 'pipebuyer_site_footer.dart';
@@ -21,12 +23,14 @@ class PipeBuyerPartnerWithUsPage extends StatefulWidget {
     this.initialSection = PartnerPageSection.overview,
     this.initialCategoryFilter = '',
     this.client,
+    this.logoUploader,
     this.includeDefaultShowcases = true,
   });
 
   final PartnerPageSection initialSection;
   final String initialCategoryFilter;
   final PipeBuyerPartnerClient? client;
+  final PipeBuyerBusinessLogoUploader? logoUploader;
   final bool includeDefaultShowcases;
 
   @override
@@ -34,7 +38,8 @@ class PipeBuyerPartnerWithUsPage extends StatefulWidget {
       _PipeBuyerPartnerWithUsPageState();
 }
 
-class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage> {
+class _PipeBuyerPartnerWithUsPageState
+    extends State<PipeBuyerPartnerWithUsPage> {
   late final PipeBuyerPartnerClient _client;
   final _scrollController = ScrollController();
   final _showcaseSectionKey = GlobalKey();
@@ -57,6 +62,7 @@ class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage>
   late String _showcaseCategoryFilter;
   String _selectedBrandCategory = 'oem_fleet_crew_trucks';
   String _selectedCommercialModel = 'sponsored_showcase';
+  String _logoUrl = '';
   final Set<String> _selectedProgramTypes = <String>{
     'promote_brand',
     'showcase_sell_products',
@@ -243,6 +249,7 @@ class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage>
         email: _emailController.text.trim(),
         phone: _phoneController.text.trim(),
         website: _websiteController.text.trim(),
+        logoUrl: _logoUrl.trim(),
         notes: _notesController.text.trim(),
       );
 
@@ -456,9 +463,11 @@ class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage>
                 final companyField = TextFormField(
                   key: const Key('partner-company-name-input'),
                   controller: _companyNameController,
+                  onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                     labelText: 'Company / Brand Name *',
-                    hintText: 'e.g., Ford Pro Commercial Fleet / Regional Dealer Group',
+                    hintText:
+                        'e.g., Ford Pro Commercial Fleet / Regional Dealer Group',
                     prefixIcon: Icon(Icons.business_outlined),
                   ),
                   validator: (value) {
@@ -510,6 +519,18 @@ class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage>
                   ],
                 );
               },
+            ),
+            const SizedBox(height: 14),
+            PipeBuyerBusinessLogoField(
+              fieldKeyPrefix: 'partner_brand_logo',
+              logoUrl: _logoUrl,
+              companyName: _companyNameController.text,
+              purpose: 'partner_brand',
+              uploader: widget.logoUploader,
+              title: 'Company / Brand Logo (Optional — Recommended)',
+              subtitle:
+                  'Displayed on your Partner Showcase & Oilfield Deal card • PNG, JPG, or WebP (max 2 MB)',
+              onChanged: (url) => setState(() => _logoUrl = url),
             ),
             const SizedBox(height: 14),
             const Text(
@@ -571,7 +592,8 @@ class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage>
             const SizedBox(height: 22),
             const _FormStepTitle(
               step: '2',
-              title: 'Products, Crew Truck / Equipment Showcase & Oilfield Deals',
+              title:
+                  'Products, Crew Truck / Equipment Showcase & Oilfield Deals',
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -598,8 +620,10 @@ class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage>
                   key: const Key('partner-deal-offer-input'),
                   controller: _dealOfferController,
                   decoration: const InputDecoration(
-                    labelText: 'Oilfield Deal, Fleet Rebate, or Member Discount (Optional)',
-                    hintText: 'e.g., Up to \$3,500 upfit allowance or 15% crew discount',
+                    labelText:
+                        'Oilfield Deal, Fleet Rebate, or Member Discount (Optional)',
+                    hintText:
+                        'e.g., Up to \$3,500 upfit allowance or 15% crew discount',
                     prefixIcon: Icon(Icons.local_offer_outlined),
                   ),
                 );
@@ -607,7 +631,8 @@ class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage>
                   controller: _budgetController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'Estimated Monthly Ad / Campaign Budget USD (Optional)',
+                    labelText:
+                        'Estimated Monthly Ad / Campaign Budget USD (Optional)',
                     hintText: 'e.g., 5000',
                     prefixIcon: Icon(Icons.attach_money_rounded),
                   ),
@@ -638,7 +663,8 @@ class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage>
               minLines: 3,
               maxLines: 5,
               decoration: const InputDecoration(
-                labelText: 'Products, Fleet Models, or Promotions to Showcase *',
+                labelText:
+                    'Products, Fleet Models, or Promotions to Showcase *',
                 hintText:
                     'Describe the vehicles, equipment, tools, or oilfield deals you want to promote, advertise, or sell on Pipe Buyer...',
                 alignLabelWithHint: true,
@@ -663,7 +689,8 @@ class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage>
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: PipeBuyerPartnerTaxonomy.targetRegionOptions.map((region) {
+              children:
+                  PipeBuyerPartnerTaxonomy.targetRegionOptions.map((region) {
                 final selected = _selectedTargetRegions.contains(region);
                 return FilterChip(
                   selected: selected,
@@ -739,8 +766,7 @@ class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage>
                     prefixIcon: Icon(Icons.phone_outlined),
                   ),
                   validator: (value) {
-                    final digits =
-                        (value ?? '').replaceAll(RegExp(r'\D'), '');
+                    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
                     if (digits.length < 7) {
                       return 'Enter a valid phone number.';
                     }
@@ -799,7 +825,8 @@ class _PipeBuyerPartnerWithUsPageState extends State<PipeBuyerPartnerWithUsPage>
               minLines: 2,
               maxLines: 4,
               decoration: const InputDecoration(
-                labelText: 'Timeline, Dealer Network, or Additional Notes (Optional)',
+                labelText:
+                    'Timeline, Dealer Network, or Additional Notes (Optional)',
                 alignLabelWithHint: true,
               ),
             ),
@@ -892,7 +919,8 @@ class _PartnerHeroBanner extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: PipeBuyerColors.orange,
                   borderRadius: BorderRadius.circular(999),
@@ -908,7 +936,8 @@ class _PartnerHeroBanner extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(999),
@@ -1287,7 +1316,8 @@ class _PartnerShowcaseSection extends StatelessWidget {
                 final columns = constraints.maxWidth >= 820 ? 2 : 1;
                 const spacing = 14.0;
                 final width =
-                    (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+                    (constraints.maxWidth - (spacing * (columns - 1))) /
+                        columns;
                 return Wrap(
                   spacing: spacing,
                   runSpacing: spacing,
@@ -1322,7 +1352,8 @@ class _PartnerShowcaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final category = PipeBuyerPartnerTaxonomy.categoryByCode(deal.brandCategory);
+    final category =
+        PipeBuyerPartnerTaxonomy.categoryByCode(deal.brandCategory);
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -1343,23 +1374,18 @@ class _PartnerShowcaseCard extends StatelessWidget {
             runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(
-                  color: deal.featured
-                      ? PipeBuyerColors.orange
-                      : PipeBuyerColors.industrialBlue,
-                  borderRadius: BorderRadius.circular(999),
+              if (deal.isProgramPreview)
+                const PipeBuyerVisualBadge(
+                  variant: PipeBuyerBadgeVariant.programPreview,
                 ),
-                child: Text(
-                  deal.offerBadge.toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
-                  ),
+              if (deal.featured)
+                const PipeBuyerVisualBadge(
+                  variant: PipeBuyerBadgeVariant.featured,
                 ),
+              PipeBuyerVisualBadge(
+                variant: PipeBuyerBadgeVariant.verifiedPro,
+                label: deal.offerBadge.toUpperCase(),
+                customIcon: category?.icon ?? Icons.storefront_outlined,
               ),
               if (category != null)
                 Container(
@@ -1394,24 +1420,44 @@ class _PartnerShowcaseCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            deal.partnerName,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: PipeBuyerColors.muted,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            deal.headline,
-            style: const TextStyle(
-              fontSize: 16.5,
-              height: 1.25,
-              fontWeight: FontWeight.w900,
-              color: PipeBuyerColors.ink,
-            ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              PipeBuyerCompanyLogoBadge(
+                logoUrl: deal.logoUrl,
+                companyName: deal.partnerName,
+                size: 46,
+                featured: deal.featured,
+                fallbackIcon: category?.icon ?? Icons.storefront_outlined,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      deal.partnerName,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: PipeBuyerColors.muted,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      deal.headline,
+                      style: const TextStyle(
+                        fontSize: 16.5,
+                        height: 1.25,
+                        fontWeight: FontWeight.w900,
+                        color: PipeBuyerColors.ink,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           if (deal.discountDetails.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -1692,7 +1738,8 @@ class _PartnerDealInterestDialog extends StatefulWidget {
       _PartnerDealInterestDialogState();
 }
 
-class _PartnerDealInterestDialogState extends State<_PartnerDealInterestDialog> {
+class _PartnerDealInterestDialogState
+    extends State<_PartnerDealInterestDialog> {
   final _formKey = GlobalKey<FormState>();
   final _companyController = TextEditingController();
   final _contactController = TextEditingController();

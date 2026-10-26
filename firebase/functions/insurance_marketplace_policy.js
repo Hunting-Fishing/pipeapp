@@ -1,5 +1,7 @@
 "use strict";
 
+const {normalizeLogoUrl} = require("./business_logo_upload");
+
 const INSURANCE_COVERAGE_LINES = Object.freeze([
   Object.freeze({
     code: "commercial_auto_fleet",
@@ -576,6 +578,10 @@ function validateInsuranceProviderApplication(input) {
   const email = validateEmail(input.email, "email");
   const phone = validatePhone(input.phone, "phone");
   const website = normalizeWebsite(input.website);
+  const logoUrl = normalizeLogoUrl(input.logoUrl, {
+    ErrorClass: InsurancePolicyError,
+    fieldName: "logoUrl",
+  });
   const licenseSummary = requiredText(input, "licenseSummary", 1000, 3);
   const licensedCountries = normalizeCountryList(input.licensedCountries, ["US"]);
   const licensedRegions = normalizeRegionList(input.licensedRegions);
@@ -614,6 +620,7 @@ function validateInsuranceProviderApplication(input) {
     email,
     phone,
     website,
+    logoUrl,
     licenseSummary,
     countryCode,
     regionCode,
@@ -678,6 +685,7 @@ function computeProviderPriorityScore(record) {
   if (record.msaCompliant === true) score += 20;
   if (record.fastCoi24x7 === true) score += 15;
   if (record.amBestRating) score += 10;
+  if (record.logoUrl) score += 5;
   score += Math.min(24, (record.coverageLines || []).length * 3);
   return score;
 }
@@ -751,6 +759,10 @@ function normalizeInsuranceProviderRecord(input) {
     publicEmail,
     publicPhone,
     website: normalizeWebsite(input.website),
+    logoUrl: normalizeLogoUrl(input.logoUrl, {
+      ErrorClass: InsurancePolicyError,
+      fieldName: "logoUrl",
+    }),
     countryCode,
     regionCode,
     headquartersCity,
@@ -810,6 +822,7 @@ function toPublicInsuranceProvider(record) {
     publicEmail: normalized.publicEmail,
     publicPhone: normalized.publicPhone,
     website: normalized.website,
+    logoUrl: normalized.logoUrl,
     countryCode: normalized.countryCode,
     regionCode: normalized.regionCode,
     headquartersCity: normalized.headquartersCity,

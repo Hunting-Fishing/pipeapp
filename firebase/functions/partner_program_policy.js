@@ -1,5 +1,7 @@
 "use strict";
 
+const {normalizeLogoUrl} = require("./business_logo_upload");
+
 const PARTNER_BRAND_CATEGORIES = Object.freeze([
   Object.freeze({
     code: "oem_fleet_crew_trucks",
@@ -317,6 +319,10 @@ function validatePartnerInquiryInput(input = {}) {
   const email = validateEmail(input.email, "Corporate email");
   const phone = validatePhone(input.phone, {required: true});
   const website = normalizeWebsiteUrl(input.website, {required: false});
+  const logoUrl = normalizeLogoUrl(input.logoUrl, {
+    ErrorClass: PartnerProgramPolicyError,
+    fieldName: "logoUrl",
+  });
   const notes = cleanMultilineText(input.notes, 2000);
 
   return {
@@ -334,6 +340,7 @@ function validatePartnerInquiryInput(input = {}) {
     email,
     phone,
     website,
+    logoUrl,
     notes,
   };
 }
@@ -371,6 +378,10 @@ function normalizePartnerShowcaseDeal(input = {}) {
   });
   const ctaLabel = cleanText(input.ctaLabel, 48) || "Request Fleet / Deal Info";
   const ctaUrl = normalizeWebsiteUrl(input.ctaUrl, {required: false});
+  const logoUrl = normalizeLogoUrl(input.logoUrl, {
+    ErrorClass: PartnerProgramPolicyError,
+    fieldName: "logoUrl",
+  });
   const contactEmail = input.contactEmail ?
     validateEmail(input.contactEmail, "Partner contact email") : "";
   const contactPhone = validatePhone(input.contactPhone, {required: false});
@@ -393,6 +404,7 @@ function normalizePartnerShowcaseDeal(input = {}) {
     targetRegions: targetRegions.length > 0 ? targetRegions : ["North America"],
     ctaLabel,
     ctaUrl,
+    logoUrl,
     contactEmail,
     contactPhone,
     featured,
@@ -424,6 +436,7 @@ function toPublicPartnerShowcaseDeal(showcaseId, record = {}) {
     }),
     ctaLabel: cleanText(record.ctaLabel, 48) || "Request Fleet / Deal Info",
     ctaUrl: cleanText(record.ctaUrl, 300),
+    logoUrl: normalizeLogoUrl(record.logoUrl),
     featured: record.featured === true,
     active: record.active !== false,
     priorityRank: Number.isFinite(Number(record.priorityRank)) ?

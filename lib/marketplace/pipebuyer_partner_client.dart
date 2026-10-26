@@ -48,7 +48,8 @@ class PipeBuyerPartnerClient {
           )
           .call(payload);
       if (response.data is! Map) {
-        throw StateError('The Partner Program service returned an invalid response.');
+        throw StateError(
+            'The Partner Program service returned an invalid response.');
       }
       return Map<String, dynamic>.from(response.data as Map);
     } on FirebaseFunctionsException catch (error) {
@@ -68,7 +69,8 @@ class PipeBuyerPartnerClient {
           'Too many requests were submitted recently. Please wait a moment and try again.',
         'invalid-argument' =>
           'Check the partnership details and contact fields, then try again.',
-        _ => 'The Pipe Buyer Partner Program service is temporarily unavailable.',
+        _ =>
+          'The Pipe Buyer Partner Program service is temporarily unavailable.',
       });
     }
   }
@@ -94,7 +96,8 @@ class PipeBuyerPartnerClient {
     if (rawItems is! List) return const <PartnerShowcaseDeal>[];
     return rawItems
         .whereType<Map>()
-        .map((item) => PartnerShowcaseDeal.fromJson(Map<String, dynamic>.from(item)))
+        .map((item) =>
+            PartnerShowcaseDeal.fromJson(Map<String, dynamic>.from(item)))
         .toList(growable: false);
   }
 
@@ -113,6 +116,7 @@ class PipeBuyerPartnerClient {
     required String email,
     required String phone,
     String website = '',
+    String logoUrl = '',
     String notes = '',
   }) {
     return _call(
@@ -133,6 +137,7 @@ class PipeBuyerPartnerClient {
         'email': email,
         'phone': phone,
         'website': website,
+        'logoUrl': logoUrl,
         'notes': notes,
       },
     );

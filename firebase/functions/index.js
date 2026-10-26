@@ -62,6 +62,9 @@ const {createPartnerProgramCommands} = require("./partner_program_commands");
 const {
   createInsuranceMarketplaceCommands,
 } = require("./insurance_marketplace_commands");
+const {
+  createBusinessLogoUploadCommands,
+} = require("./business_logo_upload");
 const admin = createAdminRuntime();
 
 async function notifyActiveAdministrators(notification) {
@@ -136,6 +139,7 @@ const partnerProgramCommands = createPartnerProgramCommands(admin, {
 const insuranceMarketplaceCommands = createInsuranceMarketplaceCommands(admin, {
   notifyAdministrators: notifyActiveAdministrators,
 });
+const businessLogoUploadCommands = createBusinessLogoUploadCommands(admin);
 exports.syncDispatchDirectoryFromPublicProfile = onDocumentWritten(
   {
     document: "public_business_profiles/{companyId}",
@@ -1361,4 +1365,8 @@ exports.upsertInsuranceProvider = onCall(
 exports.updateInsuranceRateApplicationStatus = onCall(
   protectedCallableOptions,
   insuranceMarketplaceCommands.updateInsuranceRateApplicationStatus,
+);
+exports.uploadBusinessLogo = onCall(
+  protectedCallableOptions,
+  businessLogoUploadCommands.uploadBusinessLogo,
 );

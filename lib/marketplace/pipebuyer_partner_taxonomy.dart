@@ -64,9 +64,11 @@ class PartnerShowcaseDeal {
     this.targetRegions = const <String>['North America'],
     this.ctaLabel = 'Request Fleet / Deal Info',
     this.ctaUrl = '',
+    this.logoUrl = '',
     this.featured = false,
     this.active = true,
     this.priorityRank = 100,
+    this.isProgramPreview = false,
   });
 
   final String showcaseId;
@@ -81,9 +83,11 @@ class PartnerShowcaseDeal {
   final List<String> targetRegions;
   final String ctaLabel;
   final String ctaUrl;
+  final String logoUrl;
   final bool featured;
   final bool active;
   final int priorityRank;
+  final bool isProgramPreview;
 
   factory PartnerShowcaseDeal.fromJson(Map<String, dynamic> json) {
     List<String> readList(Object? raw) {
@@ -97,7 +101,8 @@ class PartnerShowcaseDeal {
     return PartnerShowcaseDeal(
       showcaseId: '${json['showcaseId'] ?? json['id'] ?? ''}'.trim(),
       partnerName: '${json['partnerName'] ?? ''}'.trim(),
-      brandCategory: '${json['brandCategory'] ?? 'oem_fleet_crew_trucks'}'.trim(),
+      brandCategory:
+          '${json['brandCategory'] ?? 'oem_fleet_crew_trucks'}'.trim(),
       programTypes: readList(json['programTypes']),
       headline: '${json['headline'] ?? ''}'.trim(),
       summary: '${json['summary'] ?? ''}'.trim(),
@@ -109,9 +114,11 @@ class PartnerShowcaseDeal {
           : readList(json['targetRegions']),
       ctaLabel: '${json['ctaLabel'] ?? 'Request Fleet / Deal Info'}'.trim(),
       ctaUrl: '${json['ctaUrl'] ?? ''}'.trim(),
+      logoUrl: '${json['logoUrl'] ?? ''}'.trim(),
       featured: json['featured'] == true,
       active: json['active'] != false,
       priorityRank: int.tryParse('${json['priorityRank'] ?? 100}') ?? 100,
+      isProgramPreview: json['isProgramPreview'] == true,
     );
   }
 
@@ -128,9 +135,11 @@ class PartnerShowcaseDeal {
         'targetRegions': targetRegions,
         'ctaLabel': ctaLabel,
         'ctaUrl': ctaUrl,
+        'logoUrl': logoUrl,
         'featured': featured,
         'active': active,
         'priorityRank': priorityRank,
+        'isProgramPreview': isProgramPreview,
       };
 }
 
@@ -332,7 +341,8 @@ abstract final class PipeBuyerPartnerTaxonomy {
         'showcase_sell_products',
         'oilfield_deals_discounts',
       ],
-      headline: 'New 4x4 Crew Trucks, Super Duty Chassis Cabs & Oilfield Upfits',
+      headline:
+          'New 4x4 Crew Trucks, Super Duty Chassis Cabs & Oilfield Upfits',
       summary:
           'Explore factory fleet allocations for F-250 / F-350 / F-550 class crew trucks, mechanic crane bodies, and pipeline welding rigs built for lease-road duty.',
       offerBadge: 'OEM Fleet & Upfit Showcase',
@@ -343,21 +353,28 @@ abstract final class PipeBuyerPartnerTaxonomy {
         'Service & Crane Upfits',
         'Multi-Unit Fleet Pricing',
       ],
-      targetRegions: ['North America', 'Permian Basin', 'WCSB (Alberta / SK / BC)'],
+      targetRegions: [
+        'North America',
+        'Permian Basin',
+        'WCSB (Alberta / SK / BC)'
+      ],
       ctaLabel: 'Inquire on Fleet Allocation',
       featured: true,
       priorityRank: 1,
+      isProgramPreview: true,
     ),
     PartnerShowcaseDeal(
       showcaseId: 'oilfield-diesel-fleet-discounts',
       partnerName: 'Basin Commercial Fuel & Tire Network',
       brandCategory: 'oilfield_deals_discounts',
       programTypes: ['oilfield_deals_discounts', 'promote_brand'],
-      headline: 'Oilfield Crew Diesel Rebates & Heavy-Duty Mud/All-Terrain Tires',
+      headline:
+          'Oilfield Crew Diesel Rebates & Heavy-Duty Mud/All-Terrain Tires',
       summary:
           'Commercial cardlock fuel savings, roadside heavy truck support, and national account pricing on 10-ply LT and 22.5" commercial truck tires.',
       offerBadge: 'Oilfield Crew Deal',
-      discountDetails: 'Fleet Per-Gallon Rebates + National Tire Account Pricing',
+      discountDetails:
+          'Fleet Per-Gallon Rebates + National Tire Account Pricing',
       productHighlights: [
         'Cardlock & Truck Stop Access',
         '10-Ply Crew Truck Tires',
@@ -367,6 +384,7 @@ abstract final class PipeBuyerPartnerTaxonomy {
       ctaLabel: 'Request Crew Discount Terms',
       featured: true,
       priorityRank: 2,
+      isProgramPreview: true,
     ),
     PartnerShowcaseDeal(
       showcaseId: 'rig-safety-fr-ppe-bundle',
@@ -377,7 +395,8 @@ abstract final class PipeBuyerPartnerTaxonomy {
       summary:
           'Outfit drilling, completions, and pipeline crews directly with compliant FR coveralls, winter parkas, impact gloves, and calibrated multi-gas detectors.',
       offerBadge: 'Direct Crew Bundle',
-      discountDetails: 'Volume Crew Outfitting & Corporate Safety Account Rates',
+      discountDetails:
+          'Volume Crew Outfitting & Corporate Safety Account Rates',
       productHighlights: [
         'NFPA 2112 / CGSB 155.20 FR',
         '4-Gas H2S Monitors',
@@ -387,17 +406,20 @@ abstract final class PipeBuyerPartnerTaxonomy {
       ctaLabel: 'Request Crew Bundle Quote',
       featured: false,
       priorityRank: 3,
+      isProgramPreview: true,
     ),
     PartnerShowcaseDeal(
       showcaseId: 'wellsite-modular-command-skids',
       partnerName: 'Modular Wellsite Offices & Workforce Skids',
       brandCategory: 'modular_site_buildings',
       programTypes: ['showcase_sell_products', 'advertise_campaigns'],
-      headline: 'All-Season Wheeled & Skidded Crew Offices, Dry Shacks & Guard Booths',
+      headline:
+          'All-Season Wheeled & Skidded Crew Offices, Dry Shacks & Guard Booths',
       summary:
           'Factory-direct modular offices, mud labs, and artic-insulated crew quarters ready for rapid mobilization across active drilling corridors.',
       offerBadge: 'Product Showcase',
-      discountDetails: 'Direct Factory Purchase & Seasonal Fleet Lease Packages',
+      discountDetails:
+          'Direct Factory Purchase & Seasonal Fleet Lease Packages',
       productHighlights: [
         'Arctic & Desert Rated',
         'Plug-and-Play Generator Prep',
@@ -407,6 +429,7 @@ abstract final class PipeBuyerPartnerTaxonomy {
       ctaLabel: 'Request Spec Sheet & Pricing',
       featured: false,
       priorityRank: 4,
+      isProgramPreview: true,
     ),
   ];
 }

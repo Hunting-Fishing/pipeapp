@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,11 +7,13 @@ import 'package:pipe_app/flutter_flow/nav/nav.dart';
 import 'package:pipe_app/marketplace/marketplace_deep_links.dart';
 import 'package:pipe_app/marketplace/marketplace_grouped_navigation.dart';
 import 'package:pipe_app/marketplace/marketplace_home_welcome.dart';
+import 'package:pipe_app/marketplace/pipebuyer_business_logo_uploader.dart';
 import 'package:pipe_app/marketplace/pipebuyer_insurance_admin_page.dart';
 import 'package:pipe_app/marketplace/pipebuyer_insurance_client.dart';
 import 'package:pipe_app/marketplace/pipebuyer_insurance_hub_page.dart';
 import 'package:pipe_app/marketplace/pipebuyer_insurance_provider_apply_page.dart';
 import 'package:pipe_app/marketplace/pipebuyer_insurance_taxonomy.dart';
+import 'package:pipe_app/marketplace/pipebuyer_list_services_page.dart';
 
 class _FakeInsuranceClient extends PipeBuyerInsuranceClient {
   _FakeInsuranceClient({
@@ -18,64 +21,67 @@ class _FakeInsuranceClient extends PipeBuyerInsuranceClient {
     this.isAdmin = false,
     List<InsuranceProviderListing>? providers,
   }) : _providers = List<InsuranceProviderListing>.from(
-         providers ??
-             const <InsuranceProviderListing>[
-               InsuranceProviderListing(
-                 providerId: 'prov_permian_mga',
-                 companyName: 'Lone Star Basin Risk MGA',
-                 providerType: 'mga',
-                 publicEmail: 'quotes@lonestarrisk.example.com',
-                 publicPhone: '(432) 555-0177',
-                 countryCode: 'US',
-                 regionCode: 'TX',
-                 headquartersCity: 'Midland',
-                 licensedCountries: <String>['US'],
-                 licensedRegions: <String>['TX', 'NM', 'OK', 'ND'],
-                 operatingBasins: <String>['Permian Basin', 'Anadarko / SCOOP-STACK'],
-                 coverageLines: <String>[
-                   'commercial_auto_fleet',
-                   'oilfield_general_liability',
-                   'motor_truck_cargo_hazmat',
-                   'umbrella_excess_liability',
-                 ],
-                 licenseSummary: 'Texas TDI MGA #884120',
-                 amBestRating: 'A+ (Superior)',
-                 maxLimitUsd: 25000000,
-                 minimumPremiumUsd: 7500,
-                 fastCoi24x7: true,
-                 msaCompliant: true,
-                 featured: true,
-                 summary:
-                     'ISNetworld & Veriforce ready oilfield fleet, cargo, and MSA excess programs.',
-               ),
-               InsuranceProviderListing(
-                 providerId: 'prov_wcsb_broker',
-                 companyName: 'Prairie Foothills Energy Insurance',
-                 providerType: 'specialty_broker',
-                 publicEmail: 'desk@prairieenergy.example.ca',
-                 publicPhone: '(403) 555-0133',
-                 countryCode: 'CA',
-                 regionCode: 'AB',
-                 headquartersCity: 'Calgary',
-                 licensedCountries: <String>['CA'],
-                 licensedRegions: <String>['AB', 'SK', 'BC'],
-                 operatingBasins: <String>['WCSB (Alberta / BC / SK)'],
-                 coverageLines: <String>[
-                   'rig_equipment_inland_marine',
-                   'pollution_environmental',
-                 ],
-                 licenseSummary: 'Alberta AIC #55219',
-                 amBestRating: 'A (Excellent)',
-                 maxLimitUsd: 15000000,
-                 minimumPremiumUsd: 5000,
-                 fastCoi24x7: false,
-                 msaCompliant: true,
-                 featured: false,
-                 summary:
-                     'Canadian rig equipment, inland marine, and environmental liability desk.',
-               ),
-             ],
-       );
+          providers ??
+              const <InsuranceProviderListing>[
+                InsuranceProviderListing(
+                  providerId: 'prov_permian_mga',
+                  companyName: 'Lone Star Basin Risk MGA',
+                  providerType: 'mga',
+                  publicEmail: 'quotes@lonestarrisk.example.com',
+                  publicPhone: '(432) 555-0177',
+                  countryCode: 'US',
+                  regionCode: 'TX',
+                  headquartersCity: 'Midland',
+                  licensedCountries: <String>['US'],
+                  licensedRegions: <String>['TX', 'NM', 'OK', 'ND'],
+                  operatingBasins: <String>[
+                    'Permian Basin',
+                    'Anadarko / SCOOP-STACK'
+                  ],
+                  coverageLines: <String>[
+                    'commercial_auto_fleet',
+                    'oilfield_general_liability',
+                    'motor_truck_cargo_hazmat',
+                    'umbrella_excess_liability',
+                  ],
+                  licenseSummary: 'Texas TDI MGA #884120',
+                  amBestRating: 'A+ (Superior)',
+                  maxLimitUsd: 25000000,
+                  minimumPremiumUsd: 7500,
+                  fastCoi24x7: true,
+                  msaCompliant: true,
+                  featured: true,
+                  summary:
+                      'ISNetworld & Veriforce ready oilfield fleet, cargo, and MSA excess programs.',
+                ),
+                InsuranceProviderListing(
+                  providerId: 'prov_wcsb_broker',
+                  companyName: 'Prairie Foothills Energy Insurance',
+                  providerType: 'specialty_broker',
+                  publicEmail: 'desk@prairieenergy.example.ca',
+                  publicPhone: '(403) 555-0133',
+                  countryCode: 'CA',
+                  regionCode: 'AB',
+                  headquartersCity: 'Calgary',
+                  licensedCountries: <String>['CA'],
+                  licensedRegions: <String>['AB', 'SK', 'BC'],
+                  operatingBasins: <String>['WCSB (Alberta / BC / SK)'],
+                  coverageLines: <String>[
+                    'rig_equipment_inland_marine',
+                    'pollution_environmental',
+                  ],
+                  licenseSummary: 'Alberta AIC #55219',
+                  amBestRating: 'A (Excellent)',
+                  maxLimitUsd: 15000000,
+                  minimumPremiumUsd: 5000,
+                  fastCoi24x7: false,
+                  msaCompliant: true,
+                  featured: false,
+                  summary:
+                      'Canadian rig equipment, inland marine, and environmental liability desk.',
+                ),
+              ],
+        );
 
   final bool signedIn;
   final bool isAdmin;
@@ -114,25 +120,25 @@ class _FakeInsuranceClient extends PipeBuyerInsuranceClient {
 
   final List<InsuranceRateApplicationSummary> adminRateApps =
       <InsuranceRateApplicationSummary>[
-        const InsuranceRateApplicationSummary(
-          applicationId: 'rapp_201',
-          companyName: 'Redwater Tubular & Hotshot LLC',
-          contactName: 'Casey Miller',
-          email: 'safety@redwaterhotshot.example.com',
-          phone: '(432) 555-0148',
-          countryCode: 'US',
-          regionCode: 'TX',
-          city: 'Odessa',
-          coverageLines: <String>[
-            'commercial_auto_fleet',
-            'motor_truck_cargo_hazmat',
-          ],
-          fleetVehicleCount: 14,
-          equipmentValueUsd: 950000,
-          annualRevenueBand: '2m_10m',
-          status: 'new',
-        ),
-      ];
+    const InsuranceRateApplicationSummary(
+      applicationId: 'rapp_201',
+      companyName: 'Redwater Tubular & Hotshot LLC',
+      contactName: 'Casey Miller',
+      email: 'safety@redwaterhotshot.example.com',
+      phone: '(432) 555-0148',
+      countryCode: 'US',
+      regionCode: 'TX',
+      city: 'Odessa',
+      coverageLines: <String>[
+        'commercial_auto_fleet',
+        'motor_truck_cargo_hazmat',
+      ],
+      fleetVehicleCount: 14,
+      equipmentValueUsd: 950000,
+      annualRevenueBand: '2m_10m',
+      status: 'new',
+    ),
+  ];
 
   @override
   bool get isSignedIn => signedIn;
@@ -265,6 +271,7 @@ class _FakeInsuranceClient extends PipeBuyerInsuranceClient {
     required String email,
     required String phone,
     String website = '',
+    String logoUrl = '',
     required String licenseSummary,
     String countryCode = 'US',
     String regionCode = '',
@@ -286,6 +293,7 @@ class _FakeInsuranceClient extends PipeBuyerInsuranceClient {
       'contactName': contactName,
       'email': email,
       'phone': phone,
+      'logoUrl': logoUrl,
       'licenseSummary': licenseSummary,
       'licensedCountries': licensedCountries,
       'coverageLines': coverageLines,
@@ -325,8 +333,7 @@ class _FakeInsuranceClient extends PipeBuyerInsuranceClient {
         'pendingProviderApps': adminProviderApps
             .where((a) => a['status'] == 'pending_review')
             .length,
-        'newRateApps':
-            adminRateApps.where((a) => a.status == 'new').length,
+        'newRateApps': adminRateApps.where((a) => a.status == 'new').length,
         'totalRateApps': adminRateApps.length,
         'activeProviders': _providers.where((p) => p.active).length,
       },
@@ -389,8 +396,7 @@ class _FakeInsuranceClient extends PipeBuyerInsuranceClient {
         status: status,
         matchedProviderNames:
             matchedProviderNames ?? current.matchedProviderNames,
-        brokerResponseNotes:
-            brokerResponseNotes ?? current.brokerResponseNotes,
+        brokerResponseNotes: brokerResponseNotes ?? current.brokerResponseNotes,
       );
     }
   }
@@ -400,7 +406,8 @@ class _FakeInsuranceClient extends PipeBuyerInsuranceClient {
     String? providerId,
     required Map<String, Object?> provider,
   }) async {
-    final resolvedId = providerId ?? 'prov_added_${upsertedProviders.length + 1}';
+    final resolvedId =
+        providerId ?? 'prov_added_${upsertedProviders.length + 1}';
     upsertedProviders.add(<String, Object?>{
       'providerId': resolvedId,
       ...provider,
@@ -658,9 +665,22 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(390, 844));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
+      final uploader = PipeBuyerBusinessLogoUploader(
+        pickBytesOverride: () async => Uint8List.fromList(
+          List<int>.filled(64, 0x89),
+        ),
+        uploadBytesOverride: ({required bytes, required purpose}) async {
+          expect(purpose, 'insurance_provider');
+          return 'https://cdn.pipebuyer.example.com/logos/brazos-logo.png';
+        },
+      );
+
       await tester.pumpWidget(
         MaterialApp(
-          home: PipeBuyerInsuranceProviderApplyPage(client: client),
+          home: PipeBuyerInsuranceProviderApplyPage(
+            client: client,
+            logoUploader: uploader,
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -669,6 +689,10 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1280, 900));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+      expect(
+        find.byKey(const Key('provider_apply_live_preview')),
+        findsOneWidget,
+      );
 
       // Attempt empty submit -> triggers validation without calling backend
       final submitBtn = find.byKey(const Key('provider_apply_submit_button'));
@@ -677,6 +701,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(client.submittedProviderPayloads, isEmpty);
       expect(find.text('Enter your company name.'), findsOneWidget);
+
+      // Upload Business Logo
+      final uploadLogoBtn = find.byKey(
+        const Key('insurance_provider_logo_upload_button'),
+      );
+      await tester.ensureVisible(uploadLogoBtn);
+      await tester.tap(uploadLogoBtn);
+      await tester.pumpAndSettle();
+      expect(find.text('Replace Logo'), findsOneWidget);
 
       // Fill required carrier credentials
       await tester.enterText(
@@ -710,9 +743,107 @@ void main() {
         'Brazos Oilfield Risk MGA LLC',
       );
       expect(
+        client.submittedProviderPayloads.single['logoUrl'],
+        'https://cdn.pipebuyer.example.com/logos/brazos-logo.png',
+      );
+      expect(
         find.text('Provider Onboarding Application Received'),
         findsOneWidget,
       );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Insurance Hub hides unverified sample insurance companies by default and renders coverage lane previews + upgraded badges',
+    (tester) async {
+      final emptyClient = _FakeInsuranceClient(
+        providers: const <InsuranceProviderListing>[],
+      );
+
+      for (final viewport in const <Size>[Size(390, 844), Size(1280, 900)]) {
+        await tester.binding.setSurfaceSize(viewport);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: PipeBuyerInsuranceHubPage(client: emptyClient),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+
+        // Must NOT display fictional/unsigned-up insurance companies
+        for (final sample in PipeBuyerInsuranceTaxonomy.showcaseProviders) {
+          expect(find.text(sample.companyName), findsNothing);
+        }
+
+        // Renders honest Coverage Lanes & upgraded visual badges
+        expect(
+          find.byKey(const Key('insurance_onboarding_program_banner')),
+          findsOneWidget,
+        );
+        expect(find.text('PROGRAM PREVIEW'), findsWidgets);
+        expect(find.text('OILFIELD BROKER'), findsWidgets);
+        expect(find.text('24/7 COI'), findsWidgets);
+        expect(find.text('MSA-READY'), findsWidgets);
+      }
+
+      // Clicking "Apply for Rates" on a coverage lane opens the rate form pre-selected
+      final autoLaneBtn = find.byKey(
+        const Key('apply_lane_commercial_auto_fleet'),
+      );
+      await tester.ensureVisible(autoLaneBtn);
+      await tester.tap(autoLaneBtn);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Multi-Carrier Commercial Rate Matching'),
+        findsOneWidget,
+      );
+
+      await tester.binding.setSurfaceSize(null);
+    },
+  );
+
+  testWidgets(
+    'Business Directory List Services page supports uploading a Business Logo without overflow',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      var uploadedPurpose = '';
+      final uploader = PipeBuyerBusinessLogoUploader(
+        pickBytesOverride: () async => Uint8List.fromList(
+          List<int>.filled(64, 0x89),
+        ),
+        uploadBytesOverride: ({required bytes, required purpose}) async {
+          uploadedPurpose = purpose;
+          return 'https://cdn.pipebuyer.example.com/logos/apex-tubular.png';
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PipeBuyerListServicesPage(logoUploader: uploader),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      final uploadBtn = find.byKey(
+        const Key('business_directory_logo_upload_button'),
+      );
+      await tester.drag(find.byType(ListView), const Offset(0, -520));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(uploadBtn);
+      await tester.pumpAndSettle();
+      await tester.tap(uploadBtn);
+      await tester.pumpAndSettle();
+
+      expect(uploadedPurpose, 'business_directory');
+      expect(find.text('Replace Logo'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
   );
