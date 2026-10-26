@@ -1,6 +1,182 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'pipebuyer_yellow_pages_taxonomy.dart';
+
+class YellowPagesTownCount {
+  const YellowPagesTownCount({
+    required this.city,
+    required this.regionCode,
+    required this.countryCode,
+    this.count,
+  });
+
+  final String city;
+  final String regionCode;
+  final String countryCode;
+  final int? count;
+}
+
+class PipeBuyerYellowPagesDirectoryCounts {
+  const PipeBuyerYellowPagesDirectoryCounts({
+    this.totalBusinesses = 0,
+    this.byContinent = const <String, int>{},
+    this.byCountry = const <String, int>{},
+    this.byRegion = const <String, int>{},
+    this.byCategory = const <String, int>{},
+    this.towns = const <YellowPagesTownCount>[],
+  });
+
+  static const empty = PipeBuyerYellowPagesDirectoryCounts();
+
+  final int totalBusinesses;
+  final Map<String, int> byContinent;
+  final Map<String, int> byCountry;
+  final Map<String, int> byRegion;
+  final Map<String, int> byCategory;
+  final List<YellowPagesTownCount> towns;
+
+  bool get hasCounts => totalBusinesses > 0;
+
+  int countForContinent(String continentCode) {
+    final norm = continentCode.trim().toLowerCase();
+    if (norm.isEmpty) return totalBusinesses;
+    return byContinent[norm] ?? 0;
+  }
+
+  int countForCountry(String countryCode) {
+    final norm = countryCode.trim().toUpperCase();
+    if (norm.isEmpty) return totalBusinesses;
+    return byCountry[norm] ?? 0;
+  }
+
+  int countForRegion(String countryCode, String regionCode) {
+    final cc = countryCode.trim().toUpperCase();
+    final rc = regionCode.trim().toUpperCase();
+    if (rc.isEmpty) return countForCountry(cc);
+    return byRegion['$cc:$rc'] ?? 0;
+  }
+
+  int countForLocation({
+    String continentCode = '',
+    String countryCode = '',
+    String regionCode = '',
+  }) {
+    if (regionCode.trim().isNotEmpty && countryCode.trim().isNotEmpty) {
+      return countForRegion(countryCode, regionCode);
+    }
+    if (countryCode.trim().isNotEmpty) {
+      return countForCountry(countryCode);
+    }
+    return countForContinent(continentCode);
+  }
+
+  int countForCategory(String categoryCode) {
+    final norm = categoryCode.trim();
+    if (norm.isEmpty) return totalBusinesses;
+    return byCategory[norm] ?? 0;
+  }
+
+  List<YellowPagesTownCount> townsForLocation({
+    String continentCode = '',
+    String countryCode = '',
+    String regionCode = '',
+  }) {
+    final cont = continentCode.trim().toLowerCase();
+    final cc = countryCode.trim().toUpperCase();
+    final rc = regionCode.trim().toUpperCase();
+    final allowedCountries = cont.isEmpty
+        ? null
+        : PipeBuyerYellowPagesTaxonomy.countriesForContinent(cont)
+            .map((item) => item.code)
+            .toSet();
+    return towns.where((town) {
+      if (allowedCountries != null &&
+          !allowedCountries.contains(town.countryCode)) {
+        return false;
+      }
+      if (cc.isNotEmpty && town.countryCode != cc) return false;
+      if (rc.isNotEmpty && town.regionCode != rc) return false;
+      return true;
+    }).toList(growable: false);
+  }
+
+  factory PipeBuyerYellowPagesDirectoryCounts.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    Map<String, int> parseIntMap(Object? raw) {
+      if (raw is! Map) return const <String, int>{};
+      final out = <String, int>{};
+      for (final entry in raw.entries) {
+        final key = entry.key.toString().trim();
+        final val = (entry.value as num?)?.toInt() ??
+            int.tryParse('${entry.value}') ??
+            0;
+        if (key.isNotEmpty && val > 0) {
+          out[key] = val;
+        }
+      }
+      return Map<String, int>.unmodifiable(out);
+    }
+
+    final parsedTowns = <YellowPagesTownCount>[];
+    final rawTowns = json['towns'];
+    if (rawTowns is List) {
+      for (final item in rawTowns) {
+        if (item is List && item.length >= 4) {
+          final city = '${item[0] ?? ''}'.trim();
+          final regionCode = '${item[1] ?? ''}'.trim().toUpperCase();
+          final countryCode = '${item[2] ?? ''}'.trim().toUpperCase();
+          final count =
+              (item[3] as num?)?.toInt() ?? int.tryParse('${item[3]}') ?? 0;
+          if (city.isNotEmpty && countryCode.isNotEmpty && count > 0) {
+            parsedTowns.add(
+              YellowPagesTownCount(
+                city: city,
+                regionCode: regionCode,
+                countryCode: countryCode,
+                count: count,
+              ),
+            );
+          }
+        } else if (item is Map) {
+          final city = '${item['city'] ?? ''}'.trim();
+          final regionCode = '${item['regionCode'] ?? ''}'.trim().toUpperCase();
+          final countryCode =
+              '${item['countryCode'] ?? ''}'.trim().toUpperCase();
+          final count = (item['count'] as num?)?.toInt() ??
+              int.tryParse('${item['count']}') ??
+              0;
+          if (city.isNotEmpty && countryCode.isNotEmpty && count > 0) {
+            parsedTowns.add(
+              YellowPagesTownCount(
+                city: city,
+                regionCode: regionCode,
+                countryCode: countryCode,
+                count: count,
+              ),
+            );
+          }
+        }
+      }
+    }
+    parsedTowns.sort(
+      (a, b) => a.city.toLowerCase().compareTo(b.city.toLowerCase()),
+    );
+
+    return PipeBuyerYellowPagesDirectoryCounts(
+      totalBusinesses: (json['totalBusinesses'] as num?)?.toInt() ??
+          int.tryParse('${json['totalBusinesses']}') ??
+          0,
+      byContinent: parseIntMap(json['byContinent']),
+      byCountry: parseIntMap(json['byCountry']),
+      byRegion: parseIntMap(json['byRegion']),
+      byCategory: parseIntMap(json['byCategory']),
+      towns: List<YellowPagesTownCount>.unmodifiable(parsedTowns),
+    );
+  }
+}
+
 class PipeBuyerYellowPagesAccess {
   const PipeBuyerYellowPagesAccess({
     required this.authorized,
@@ -114,6 +290,21 @@ class PipeBuyerYellowPagesClient {
     final result =
         await _call('getYellowPagesAccess', const <String, Object?>{});
     return PipeBuyerYellowPagesAccess.fromJson(result);
+  }
+
+  Future<PipeBuyerYellowPagesDirectoryCounts> getDirectoryCounts() async {
+    final result = await _call(
+      'getYellowPagesTaxonomy',
+      const <String, Object?>{},
+      requiresAuthentication: false,
+    );
+    final rawCounts = result['counts'];
+    if (rawCounts is Map) {
+      return PipeBuyerYellowPagesDirectoryCounts.fromJson(
+        Map<String, dynamic>.from(rawCounts),
+      );
+    }
+    return PipeBuyerYellowPagesDirectoryCounts.empty;
   }
 
   Future<PipeBuyerYellowPagesPage<Map<String, dynamic>>> searchPublic({

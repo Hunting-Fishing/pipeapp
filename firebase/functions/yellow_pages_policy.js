@@ -2,6 +2,7 @@
 
 const {
   CATEGORY_BY_CODE,
+  canonicalizeCityName,
   classifyCategoriesFromText,
   expandServiceSearchTerms,
   inferCountryAndRegion,
@@ -477,7 +478,7 @@ function buildPublicEntry(company, companyId, serverTimestamp, nowMillis = Date.
     countryName: geo.countryName,
     regionCode: geo.regionCode,
     regionName: geo.regionName,
-    city: text(company.city, 120),
+    city: canonicalizeCityName(text(company.city, 120), geo.regionCode, geo.countryCode),
     serviceAreas: stringList(company.serviceAreas, isPaid ? 20 : 3, 120),
     basins: stringList(
         company.basins && company.basins.length > 0 ? company.basins : geo.defaultBasins,

@@ -4,14 +4,17 @@ const {HttpsError} = require("firebase-functions/v2/https");
 const {isAdministrator} = require("./administrator_authorization");
 const {
   CATEGORY_BY_CODE,
+  COUNTRY_BY_CODE,
   GLOBAL_COUNTRIES_LIST,
   WORLD_CONTINENTS,
   YELLOW_PAGES_CATEGORIES,
+  canonicalizeCityName,
   checkB2BCallingWindow,
   classifyCategoriesFromText,
   countryCodesForContinent,
   expandServiceSearchTerms,
   inferCountryAndRegion,
+  normalizeCityKey,
   normalizeText,
 } = require("./yellow_pages_taxonomy");
 const {
@@ -46,6 +49,110 @@ const PUBLIC_ENTRIES = "yellow_pages_public_entries";
 const BLOCKED_NUMBERS = "yellow_pages_blocked_numbers";
 const LISTING_REQUESTS = "yellow_pages_listing_requests";
 const BOOK_PAGES = "yellow_pages_book_pages";
+const DIRECTORY_META = "yellow_pages_meta";
+const DIRECTORY_COUNTS_DOC = "directory_counts";
+const COUNTS_MEMORY_TTL_MS = 10 * 60 * 1000;
+
+function unpackTownsPacked(townsPacked) {
+  if (typeof townsPacked !== "string" || !townsPacked.trim()) return [];
+  return townsPacked
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [city = "", regionCode = "", countryCode = "", countStr = "0"] = line.split("\t");
+        const count = Math.max(0, Math.trunc(Number(countStr) || 0));
+        return city && countryCode && count > 0 ? [city, regionCode, countryCode, count] : null;
+      })
+      .filter(Boolean);
+}
+
+function packTownsList(towns) {
+  if (!Array.isArray(towns)) return "";
+  return towns
+      .map(([city, regionCode, countryCode, count]) =>
+        `${String(city || "").replace(/[\t\r\n]+/gu, " ")}\t${regionCode || ""}\t${countryCode || ""}\t${count}`,
+      )
+      .join("\n");
+}
+
+function aggregatePublicEntriesForCounts(entries) {
+  let totalBusinesses = 0;
+  const byContinent = {};
+  const byCountry = {};
+  const byRegion = {};
+  const byCategory = {};
+  const byTown = new Map();
+
+  for (const entry of entries) {
+    if (!isPublicEntryCurrent(entry)) continue;
+    totalBusinesses += 1;
+
+    const cc = String(entry.countryCode || "").trim().toUpperCase();
+    const rawRc = String(entry.regionCode || "").trim().toUpperCase();
+    const rc = rawRc === cc ? "" : rawRc;
+    const countryMeta = COUNTRY_BY_CODE.get(cc);
+
+    if (cc) byCountry[cc] = (byCountry[cc] || 0) + 1;
+    if (countryMeta) {
+      const cCode = countryMeta.continent || countryMeta.continentCode;
+      if (cCode) byContinent[cCode] = (byContinent[cCode] || 0) + 1;
+      if (countryMeta.alsoAsia && cCode !== "asia") {
+        byContinent.asia = (byContinent.asia || 0) + 1;
+      }
+      if (countryMeta.alsoEurope && cCode !== "europe") {
+        byContinent.europe = (byContinent.europe || 0) + 1;
+      }
+      if (countryMeta.isMiddleEast || entry.isMiddleEast === true) {
+        byContinent.middle_east = (byContinent.middle_east || 0) + 1;
+      }
+    } else if (entry.continentCode) {
+      const cCode = String(entry.continentCode).toLowerCase();
+      byContinent[cCode] = (byContinent[cCode] || 0) + 1;
+      if (entry.isMiddleEast === true) {
+        byContinent.middle_east = (byContinent.middle_east || 0) + 1;
+      }
+    }
+
+    if (cc && rc) {
+      const rKey = `${cc}:${rc}`;
+      byRegion[rKey] = (byRegion[rKey] || 0) + 1;
+    }
+
+    for (const cat of (entry.categoryCodes || [])) {
+      if (cat) byCategory[cat] = (byCategory[cat] || 0) + 1;
+    }
+
+    const cleanCity = canonicalizeCityName(entry.city, rc, cc);
+    if (cleanCity && cc) {
+      const tKey = `${cc}|${rc}|${normalizeCityKey(cleanCity)}`;
+      const existing = byTown.get(tKey);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        byTown.set(tKey, {
+          city: cleanCity,
+          regionCode: rc,
+          countryCode: cc,
+          count: 1,
+        });
+      }
+    }
+  }
+
+  const towns = [...byTown.values()]
+      .sort((a, b) => a.city.localeCompare(b.city))
+      .map((t) => [t.city, t.regionCode, t.countryCode, t.count]);
+
+  return {
+    totalBusinesses,
+    byContinent,
+    byCountry,
+    byRegion,
+    byCategory,
+    towns,
+  };
+}
 
 function secondFactor(token) {
   const value = token && token.firebase && token.firebase.sign_in_second_factor;
@@ -97,6 +204,84 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
   const auth = () => admin.auth();
   const serverTimestamp = () => admin.firestore.FieldValue.serverTimestamp();
   const increment = (n) => admin.firestore.FieldValue.increment(n);
+
+  let cachedDirectoryCounts = null;
+  let cachedDirectoryCountsAt = 0;
+
+  async function loadOrComputeDirectoryCounts({forceRefresh = false} = {}) {
+    if (!forceRefresh && cachedDirectoryCounts &&
+        Date.now() - cachedDirectoryCountsAt < COUNTS_MEMORY_TTL_MS) {
+      return cachedDirectoryCounts;
+    }
+
+    if (!forceRefresh) {
+      try {
+        const metaSnap = await db()
+            .collection(DIRECTORY_META)
+            .doc(DIRECTORY_COUNTS_DOC)
+            .get();
+        if (metaSnap && metaSnap.exists) {
+          const metaData = metaSnap.data() || {};
+          if (typeof metaData.totalBusinesses === "number" && metaData.totalBusinesses > 0) {
+            const unpacked = {
+              totalBusinesses: metaData.totalBusinesses,
+              byContinent: jsonSafe(metaData.byContinent || {}),
+              byCountry: jsonSafe(metaData.byCountry || {}),
+              byRegion: jsonSafe(metaData.byRegion || {}),
+              byCategory: jsonSafe(metaData.byCategory || {}),
+              towns: Array.isArray(metaData.towns) ?
+                metaData.towns :
+                unpackTownsPacked(metaData.townsPacked || ""),
+            };
+            cachedDirectoryCounts = unpacked;
+            cachedDirectoryCountsAt = Date.now();
+            return unpacked;
+          }
+        }
+      } catch (_) {
+        // Fallback to live collection scan if meta collection unavailable
+      }
+    }
+
+    const col = db().collection(PUBLIC_ENTRIES);
+    const query = typeof col.select === "function" ?
+      col.select(
+          "verified",
+          "effectiveTier",
+          "isPaidTier",
+          "nonExpiringPaid",
+          "paidThrough",
+          "countryCode",
+          "regionCode",
+          "city",
+          "continentCode",
+          "isMiddleEast",
+          "categoryCodes",
+      ) :
+      col;
+    const snap = await query.limit(20000).get();
+    const entries = snap.docs.map((doc) => doc.data() || {});
+    const computed = aggregatePublicEntriesForCounts(entries);
+
+    try {
+      await db().collection(DIRECTORY_META).doc(DIRECTORY_COUNTS_DOC).set({
+        schemaVersion: 1,
+        totalBusinesses: computed.totalBusinesses,
+        byContinent: computed.byContinent,
+        byCountry: computed.byCountry,
+        byRegion: computed.byRegion,
+        byCategory: computed.byCategory,
+        townsPacked: packTownsList(computed.towns),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (_) {
+      // Non-fatal in read-only or mock environments
+    }
+
+    cachedDirectoryCounts = computed;
+    cachedDirectoryCountsAt = Date.now();
+    return computed;
+  }
 
   function parseTimestamp(value, label) {
     if (value == null || value === "") return null;
@@ -213,6 +398,8 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       if (entry) transaction.set(publicRef, entry);
       else transaction.delete(publicRef);
     });
+    cachedDirectoryCounts = null;
+    cachedDirectoryCountsAt = 0;
   }
 
   function matchesPublicFilters(entry, {
@@ -222,6 +409,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
     countryCode,
     regionCode,
     city,
+    exactCityOnly = false,
     categoryCode,
     basin,
     certification,
@@ -243,12 +431,16 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       return false;
     }
     if (city) {
-      const targetCity = normalizeText(city);
-      const entryCity = normalizeText(entry.city || "");
-      const areas = (entry.serviceAreas || []).map((a) => normalizeText(a));
-      if (targetCity && !entryCity.includes(targetCity) &&
-          !areas.some((a) => a.includes(targetCity))) {
-        return false;
+      const targetCity = normalizeCityKey(city);
+      const entryCity = normalizeCityKey(entry.city || "");
+      if (exactCityOnly) {
+        if (targetCity && entryCity !== targetCity) return false;
+      } else {
+        const areas = (entry.serviceAreas || []).map((a) => normalizeCityKey(a));
+        if (targetCity && !entryCity.includes(targetCity) &&
+            !areas.some((a) => a.includes(targetCity))) {
+          return false;
+        }
       }
     }
     if (categoryCode) {
@@ -318,11 +510,15 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
   }
 
   return {
-    async getYellowPagesTaxonomy() {
+    async getYellowPagesTaxonomy(request) {
+      const data = (request && request.data) || {};
+      const forceRefresh = data.refreshCounts === true;
+      const counts = await loadOrComputeDirectoryCounts({forceRefresh});
       return {
         categories: YELLOW_PAGES_CATEGORIES,
         continents: WORLD_CONTINENTS,
         countries: GLOBAL_COUNTRIES_LIST,
+        counts,
       };
     },
 
@@ -382,9 +578,10 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
           query = query.where("searchTokens", "array-contains", primaryToken);
         }
       } else if (city) {
-        const cityFirstWord = normalizeText(city).split(" ").find((w) => w.length >= 3);
-        if (cityFirstWord) {
-          query = query.where("searchTokens", "array-contains", cityFirstWord.slice(0, 32));
+        const canonicalCity = canonicalizeCityName(city, regionCode, countryCode);
+        if (canonicalCity) {
+          query = query.where("city", "==", canonicalCity);
+          filterOpts.exactCityOnly = true;
         } else if (regionCode) {
           query = query.where("regionCode", "==", regionCode);
         } else if (countryCode) {
@@ -423,23 +620,31 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         query = query.orderBy("companyName", "desc");
       }
 
-      const candidateCap = 1200;
+      const candidateCap = city ? 1600 : 1200;
       const snapshot = await query.limit(candidateCap).get();
       let matched = snapshot.docs
           .map((doc) => ({id: doc.id, ...doc.data()}))
           .filter((entry) => matchesPublicFilters(entry, filterOpts));
 
-      // Fallback broad scan if synonym/token constraint missed multi-category candidates
+      // Fallback broad scan if synonym/token/exact-city constraint missed partial or service-area matches
       if (matched.length === 0 && (queryText || city) && snapshot.docs.length < candidateCap) {
-        const fallbackQuery = regionCode ?
-          db().collection(PUBLIC_ENTRIES).where("regionCode", "==", regionCode) :
-          countryCode ?
-            db().collection(PUBLIC_ENTRIES).where("countryCode", "==", countryCode) :
-            db().collection(PUBLIC_ENTRIES);
-        const broadSnap = await fallbackQuery.limit(700).get();
+        const looseOpts = {...filterOpts, exactCityOnly: false};
+        const cityDistinctWord = city ?
+          normalizeCityKey(city)
+              .split(" ")
+              .filter((w) => w.length >= 3 && !["fort", "saint", "mount", "point", "port", "san", "new"].includes(w))[0] :
+          null;
+        const fallbackQuery = cityDistinctWord && !regionCode && !countryCode ?
+          db().collection(PUBLIC_ENTRIES).where("searchTokens", "array-contains", cityDistinctWord.slice(0, 32)) :
+          regionCode ?
+            db().collection(PUBLIC_ENTRIES).where("regionCode", "==", regionCode) :
+            countryCode ?
+              db().collection(PUBLIC_ENTRIES).where("countryCode", "==", countryCode) :
+              db().collection(PUBLIC_ENTRIES);
+        const broadSnap = await fallbackQuery.limit(1200).get();
         matched = broadSnap.docs
             .map((doc) => ({id: doc.id, ...doc.data()}))
-            .filter((entry) => matchesPublicFilters(entry, filterOpts));
+            .filter((entry) => matchesPublicFilters(entry, looseOpts));
       }
 
       let exactServerTotal = matched.length;

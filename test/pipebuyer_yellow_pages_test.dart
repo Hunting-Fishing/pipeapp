@@ -11,6 +11,16 @@ import 'package:pipe_app/marketplace/pipebuyer_yellow_pages_taxonomy.dart';
 import 'package:pipe_app/marketplace/regional_phone_field.dart';
 
 class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
+  _FakeYellowPagesClient({
+    this.counts = PipeBuyerYellowPagesDirectoryCounts.empty,
+  });
+
+  final PipeBuyerYellowPagesDirectoryCounts counts;
+  String lastContinentCode = '';
+  String lastCountryCode = '';
+  String lastRegionCode = '';
+  String lastCity = '';
+
   @override
   Future<PipeBuyerYellowPagesAccess> getAccess() async {
     return const PipeBuyerYellowPagesAccess(
@@ -19,6 +29,11 @@ class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
       isAdmin: false,
       reason: 'signed_out',
     );
+  }
+
+  @override
+  Future<PipeBuyerYellowPagesDirectoryCounts> getDirectoryCounts() async {
+    return counts;
   }
 
   @override
@@ -40,6 +55,10 @@ class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
     int offset = 0,
     int pageSize = 60,
   }) async {
+    lastContinentCode = continentCode;
+    lastCountryCode = countryCode;
+    lastRegionCode = regionCode;
+    lastCity = city;
     final sample = List<Map<String, dynamic>>.generate(
       12,
       (i) => <String, dynamic>{
@@ -521,6 +540,127 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(PipeBuyerCountryFlagIcon), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'Oilfield Directory displays live database business counts across Continents, Countries, Provinces/States, Service Sectors, and every Town',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1500, 960);
+    await tester.binding.setSurfaceSize(const Size(1500, 960));
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      tester.binding.setSurfaceSize(null);
+    });
+
+    final liveCounts = PipeBuyerYellowPagesDirectoryCounts.fromJson(const {
+      'totalBusinesses': 13480,
+      'byContinent': {
+        'north_america': 12802,
+        'europe': 291,
+        'asia': 215,
+        'middle_east': 111,
+        'africa': 74,
+        'south_america': 71,
+        'oceania': 41,
+      },
+      'byCountry': {
+        'CA': 4017,
+        'US': 8737,
+        'GB': 52,
+        'AE': 24,
+      },
+      'byRegion': {
+        'CA:AB': 2966,
+        'CA:BC': 412,
+        'CA:SK': 389,
+        'US:TX': 3140,
+      },
+      'byCategory': {
+        'vacuum_hydrovac_fluid': 1842,
+        'pipe_octg_supply': 1295,
+      },
+      'towns': [
+        ['Acheson', 'AB', 'CA', 43],
+        ['Calgary', 'AB', 'CA', 951],
+        ['Edmonton', 'AB', 'CA', 765],
+        ['Fort McMurray', 'AB', 'CA', 69],
+        ['Grande Prairie', 'AB', 'CA', 162],
+        ['Hinton', 'AB', 'CA', 3],
+        ['Midland', 'TX', 'US', 318],
+      ],
+    });
+
+    expect(liveCounts.hasCounts, isTrue);
+    expect(
+      liveCounts
+          .townsForLocation(countryCode: 'CA', regionCode: 'AB')
+          .map((t) => t.city),
+      containsAll(['Acheson', 'Calgary', 'Grande Prairie', 'Hinton']),
+    );
+
+    final fakeClient = _FakeYellowPagesClient(counts: liveCounts);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PipeBuyerYellowPagesDirectoryPage(client: fakeClient),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Service picker shows total businesses and per-category counts
+    await tester.tap(find.text('FILTER BY SERVICE'));
+    await tester.pumpAndSettle();
+    expect(find.text('13,480'), findsOneWidget);
+    expect(find.text('1,842'), findsOneWidget);
+    expect(find.text('1,295'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    // 2. World Region & Country picker shows Continent, Country, and Province/State counts
+    await tester.tap(find.text('WORLD REGION & COUNTRY'));
+    await tester.pumpAndSettle();
+    expect(find.text('12,802'), findsOneWidget);
+    await tester.tap(find.text('North America'));
+    await tester.pumpAndSettle();
+    expect(find.text('4,017'), findsWidgets);
+    expect(find.text('8,737'), findsWidgets);
+
+    // Drill into Canada Regions -> Alberta (AB) shows 2,966
+    await tester.tap(find.text('Canada Regions'));
+    await tester.pumpAndSettle();
+    expect(find.text('2,966'), findsOneWidget);
+    await tester.tap(find.text('Alberta (AB)'));
+    await tester.pumpAndSettle();
+    expect(fakeClient.lastCountryCode, 'CA');
+    expect(fakeClient.lastRegionCode, 'AB');
+
+    // 3. Town / City picker shows all database towns for Alberta (including Acheson) with exact business counts
+    await tester.tap(find.text('FILTER BY TOWN / CITY'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Alberta (AB): 6 towns • 2,966 businesses listed'),
+      findsOneWidget,
+    );
+    expect(find.text('Acheson'), findsOneWidget);
+    expect(find.text('43 businesses'), findsOneWidget);
+    expect(find.text('Calgary'), findsOneWidget);
+    expect(find.text('951 businesses'), findsOneWidget);
+    expect(find.text('Grande Prairie'), findsOneWidget);
+    expect(find.text('162 businesses'), findsOneWidget);
+    expect(find.text('Hinton'), findsOneWidget);
+    expect(find.text('3 businesses'), findsOneWidget);
+
+    // Toggle to 'Most Listed' sort order and select Grande Prairie
+    await tester.tap(find.text('Most Listed'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Grande Prairie'));
+    await tester.pumpAndSettle();
+
+    expect(fakeClient.lastCity, 'Grande Prairie');
+    expect(fakeClient.lastCountryCode, 'CA');
+    expect(fakeClient.lastRegionCode, 'AB');
     expect(tester.takeException(), isNull);
   });
 }

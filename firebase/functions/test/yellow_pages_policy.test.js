@@ -6,11 +6,13 @@ const test = require("node:test");
 const {
   GLOBAL_COUNTRIES_LIST,
   WORLD_CONTINENTS,
+  canonicalizeCityName,
   classifyCategoriesFromText,
   countryCodesForContinent,
   expandServiceSearchTerms,
   inferCountryAndRegion,
 } = require("../yellow_pages_taxonomy");
+const {createYellowPagesCommands} = require("../yellow_pages_commands");
 const {
   buildAdminSearchTokens,
   buildPublicEntry,
@@ -215,4 +217,135 @@ test("supports global 197-country taxonomy, Middle East + Continent filters, and
   assert.equal(uaeEntry.isMiddleEast, true);
   assert.ok(uaeEntry.searchTokens.includes("emirates"));
   assert.ok(uaeEntry.searchTokens.includes("middle"));
+});
+
+test("canonicalizes oilfield town spellings and aggregates live business counts per town, region, country, and continent", async () => {
+  assert.equal(canonicalizeCityName("Ft McMurray", "AB", "CA"), "Fort McMurray");
+  assert.equal(canonicalizeCityName("Fort Mcmurray", "AB", "CA"), "Fort McMurray");
+  assert.equal(canonicalizeCityName("HOUSTON", "TX", "US"), "Houston");
+  assert.equal(canonicalizeCityName("Fort St John", "BC", "CA"), "Fort St. John");
+  assert.equal(canonicalizeCityName("Saint Albert", "AB", "CA"), "St. Albert");
+  assert.equal(canonicalizeCityName("CALGARY ALBERTA", "AB", "CA"), "Calgary");
+
+  const sampleDocs = [
+    buildPublicEntry({
+      companyName: "Apex Hydrovac GP",
+      countryCode: "CA",
+      regionCode: "AB",
+      city: "Grande Prairie",
+      mainPhone: "780-555-0101",
+      publicPhone: "780-555-0101",
+      categories: ["Vacuum, Hydrovac & Fluid Hauling"],
+      verificationStatus: "verified",
+      operationalStatus: "active_in_operation",
+      billingStatus: "unpaid",
+      listingTier: "free_verified",
+      publicationStatus: "published",
+      adminViewingEnabled: true,
+      isFlaggedProhibited: false,
+    }, "c1", "TS"),
+    buildPublicEntry({
+      companyName: "Peace Rig Hauling",
+      countryCode: "CA",
+      regionCode: "AB",
+      city: "Grande Prairie",
+      mainPhone: "780-555-0102",
+      publicPhone: "780-555-0102",
+      categories: ["Trucking, Towing, Winch & Heavy Haul"],
+      verificationStatus: "verified",
+      operationalStatus: "active_in_operation",
+      billingStatus: "unpaid",
+      listingTier: "free_verified",
+      publicationStatus: "published",
+      adminViewingEnabled: true,
+      isFlaggedProhibited: false,
+    }, "c2", "TS"),
+    buildPublicEntry({
+      companyName: "Athabasca Oil Sands Wireline",
+      countryCode: "CA",
+      regionCode: "AB",
+      city: "Ft McMurray",
+      mainPhone: "780-555-0103",
+      publicPhone: "780-555-0103",
+      categories: ["Completions, Frac, Coiled Tubing & Wireline"],
+      verificationStatus: "verified",
+      operationalStatus: "active_in_operation",
+      billingStatus: "unpaid",
+      listingTier: "free_verified",
+      publicationStatus: "published",
+      adminViewingEnabled: true,
+      isFlaggedProhibited: false,
+    }, "c3", "TS"),
+    buildPublicEntry({
+      companyName: "Gulf Offshore Tubulars",
+      countryCode: "AE",
+      regionCode: "AZ",
+      city: "Abu Dhabi",
+      mainPhone: "+971 2 554 1234",
+      publicPhone: "+971 2 554 1234",
+      categories: ["Pipe, OCTG, Casing & Tubulars"],
+      verificationStatus: "verified",
+      operationalStatus: "active_in_operation",
+      billingStatus: "unpaid",
+      listingTier: "free_verified",
+      publicationStatus: "published",
+      adminViewingEnabled: true,
+      isFlaggedProhibited: false,
+    }, "c4", "TS"),
+  ];
+
+  const metaStore = new Map();
+  const fakeAdmin = {
+    firestore: Object.assign(() => ({
+      collection(name) {
+        if (name === "yellow_pages_meta") {
+          return {
+            doc(id) {
+              return {
+                async get() {
+                  return {
+                    exists: metaStore.has(id),
+                    data: () => metaStore.get(id),
+                  };
+                },
+                async set(val) {
+                  metaStore.set(id, val);
+                },
+              };
+            },
+          };
+        }
+        return {
+          limit() {
+            return {
+              async get() {
+                return {docs: sampleDocs.map((d, i) => ({id: `c${i + 1}`, data: () => d}))};
+              },
+            };
+          },
+        };
+      },
+    }), {
+      FieldValue: {
+        serverTimestamp: () => "SERVER_TS",
+        increment: (n) => n,
+      },
+    }),
+    auth: () => ({}),
+  };
+
+  const commands = createYellowPagesCommands(fakeAdmin);
+  const tax = await commands.getYellowPagesTaxonomy({});
+  assert.equal(tax.counts.totalBusinesses, 4);
+  assert.equal(tax.counts.byCountry.CA, 3);
+  assert.equal(tax.counts.byCountry.AE, 1);
+  assert.equal(tax.counts.byContinent.north_america, 3);
+  assert.equal(tax.counts.byContinent.middle_east, 1);
+  assert.equal(tax.counts.byContinent.asia, 1);
+  assert.equal(tax.counts.byRegion["CA:AB"], 3);
+  assert.equal(tax.counts.byRegion["AE:AZ"], 1);
+  const gpTown = tax.counts.towns.find((t) => t[0] === "Grande Prairie");
+  const fmTown = tax.counts.towns.find((t) => t[0] === "Fort McMurray");
+  assert.deepEqual(gpTown, ["Grande Prairie", "AB", "CA", 2]);
+  assert.deepEqual(fmTown, ["Fort McMurray", "AB", "CA", 1]);
 });

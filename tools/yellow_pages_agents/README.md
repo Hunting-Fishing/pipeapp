@@ -34,7 +34,8 @@ This suite discovers, cross-references, live-audits (`Old Number -> New Number` 
     - `Agent 10D`: Regional Oilfield Supply Base & Contractor Verification Wave
 13. **`bot11_wikidata_and_phone_unlock.mjs`** — **Wikidata SPARQL Global Petroleum/Oilfield Entity Resolver & Deep Contact Phone Unlock Agent** (`P17` country, `P856` official website, `P1329` phone, `P159` HQ city + deep `/contact-us`, `/locations`, `/impressum`, `tel:` & JSON-LD `telephone` extraction).
 14. **`bot12_basin_hub_boost.mjs`** — **Global Oil & Gas Basin Hub Booster** targeting 25+ international energy basins (`North Sea`, `Arabian Gulf`, `Santos/Campos`, `Guyana-Suriname`, `Vaca Muerta`, `Burgos/Campeche`, `Niger Delta`, `North West Shelf`, `Bombay High`, `Caspian`, `Mediterranean`).
-15. **`verify_global_live_counts.mjs`** — Live production verification harness calling `searchPipeBuyerYellowPages` across Worldwide, all 7 World Regions, and 45+ Popular Oil & Gas Countries.
+15. **`bot13_directory_facet_counts.mjs`** — **Live Directory Area & Town Business Counts Indexer** canonicalizing town/city spellings (`Ft McMurray` -> `Fort McMurray`, `HOUSTON` -> `Houston`, `Fort St John` -> `Fort St. John`) across `yellow_pages_public_entries` & `yellow_pages_companies` and publishing `yellow_pages_meta/directory_counts` (`2,955` unique towns, `76` sub-regions, `108` countries, `7` world regions, `24` service sectors).
+16. **`verify_global_live_counts.mjs`** — Live production verification harness calling `searchPipeBuyerYellowPages` across Worldwide, all 7 World Regions, and 45+ Popular Oil & Gas Countries.
 
 ## Usage
 
@@ -51,6 +52,9 @@ node tools/yellow_pages_agents/bot11_wikidata_and_phone_unlock.mjs --apply --pro
 # 4. International Basin Hub Boost
 node tools/yellow_pages_agents/bot12_basin_hub_boost.mjs --apply --project flutter-flow-pipe
 
-# 5. Live Production Verification Smoke Suite
+# 5. Canonicalize Town Spellings & Publish Live Area/Town Counts Index
+node tools/yellow_pages_agents/bot13_directory_facet_counts.mjs --apply --fix-cities --project flutter-flow-pipe
+
+# 6. Live Production Verification Smoke Suite
 node tools/yellow_pages_agents/verify_global_live_counts.mjs
 ```
