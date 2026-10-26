@@ -322,14 +322,26 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
       ],
     ),
     YellowPagesCategoryItem(
+      code: 'oil_gas_training_courses',
+      label: 'Oil & Gas Training Facilities & Courses',
+      shortLabel: 'Oil & Gas Training & Courses',
+      icon: Icons.school_outlined,
+      sampleServices: [
+        'H2S Alive & Well Control (IWCF / WellSharp)',
+        'Safety Tickets (CSO, Confined Space, Fall Protection)',
+        'Offshore Survival (OPITO / BOSIET / HUET)',
+        'Polytechnics, Rig Tech, Welding & Class 1 / CDL',
+      ],
+    ),
+    YellowPagesCategoryItem(
       code: 'staffing_training_compliance',
-      label: 'Staffing, Safety Training & Compliance',
-      shortLabel: 'Staffing & Safety Training',
+      label: 'Staffing, Crew Logistics & Compliance',
+      shortLabel: 'Staffing & Compliance',
       icon: Icons.groups_outlined,
       sampleServices: [
-        'Oilfield Staffing',
-        'Safety Tickets',
-        'ISNetworld / ComplyWorks',
+        'Oilfield Staffing & Manpower',
+        'Crew Transport & Aviation',
+        'ISNetworld / ComplyWorks / Drug Testing',
       ],
     ),
     YellowPagesCategoryItem(
@@ -1596,6 +1608,9 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
     'ComplyWorks',
     'Avetta',
     'ABSA',
+    'Energy Safety Canada / H2S Alive',
+    'IWCF / IADC WellSharp',
+    'PEC SafeLand / Veriforce',
     'API Spec Q1 / Q2',
     'API Certified',
     'ISO 9001 / ISO 45001',
@@ -1969,7 +1984,9 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
       final parts = <String>[
         if (cleanCity.isNotEmpty) cleanCity,
         if (cleanRegion.isNotEmpty) cleanRegion,
-        if (includeCountryForNorthAmerica && shortCountryName.isNotEmpty)
+        if ((includeCountryForNorthAmerica ||
+                (cleanCity.isEmpty && cleanRegion.isEmpty)) &&
+            shortCountryName.isNotEmpty)
           shortCountryName,
       ];
       return parts.join(', ');
@@ -2148,6 +2165,8 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
         return Icons.cabin_outlined;
       case 'surveying_engineering_geomatics':
         return Icons.explore_outlined;
+      case 'oil_gas_training_courses':
+        return Icons.school_outlined;
       case 'staffing_training_compliance':
         return Icons.groups_outlined;
       case 'explorers_producers_midstream':
