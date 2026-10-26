@@ -1,6 +1,16 @@
+const { setGlobalOptions } = require("firebase-functions/v2/options");
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall } = require("firebase-functions/v2/https");
+
+// Right-size Gen 2 Cloud Run services to 0.25 vCPU (concurrency 1) by default
+// so simultaneous healthcheck containers across 190+ functions stay well below
+// GCP regional Cloud Run CPU quota (~48 vCPUs total vs 200 vCPU limit).
+setGlobalOptions({
+  cpu: 0.25,
+  concurrency: 1,
+});
+
 const { createAdminRuntime } = require("./admin_runtime");
 const {
   createAdministratorRoleCommands,
