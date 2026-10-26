@@ -19,6 +19,7 @@ const require = createRequire(import.meta.url);
 const {
   COUNTRY_BY_CODE,
   canonicalizeCityName,
+  canonicalizeRegionCode,
   normalizeCityKey,
 } = require("../../firebase/functions/yellow_pages_taxonomy.js");
 
@@ -105,15 +106,23 @@ async function commitCityFixes(projectId, fixes) {
   const commitUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:commit`;
   const writes = [];
   for (const fix of fixes) {
+    const fields = {};
+    const fieldPaths = [];
+    if (fix.cleanCity !== undefined) {
+      fields.city = {stringValue: fix.cleanCity};
+      fieldPaths.push("city");
+    }
+    if (fix.cleanRc !== undefined) {
+      fields.regionCode = {stringValue: fix.cleanRc};
+      fieldPaths.push("regionCode");
+    }
     for (const col of ["yellow_pages_public_entries", "yellow_pages_companies"]) {
       writes.push({
         update: {
           name: `projects/${projectId}/databases/(default)/documents/${col}/${encodeURIComponent(fix.docId)}`,
-          fields: {
-            city: {stringValue: fix.cleanCity},
-          },
+          fields,
         },
-        updateMask: {fieldPaths: ["city"]},
+        updateMask: {fieldPaths},
         currentDocument: {exists: true},
       });
     }
@@ -212,8 +221,8 @@ async function main() {
 
     totalBusinesses += 1;
     const cc = strVal(f, "countryCode").trim().toUpperCase();
-    const rawRc = strVal(f, "regionCode").trim().toUpperCase();
-    const rc = rawRc === cc ? "" : rawRc;
+    const rawRc = strVal(f, "regionCode");
+    const rc = canonicalizeRegionCode(rawRc, cc);
     const rawCity = strVal(f, "city");
     const countryMeta = COUNTRY_BY_CODE.get(cc);
 
@@ -242,9 +251,15 @@ async function main() {
     }
 
     const cleanCity = canonicalizeCityName(rawCity, rc, cc);
-    if (rawCity.trim() && rawCity !== cleanCity) {
+    const cityChanged = Boolean(rawCity.trim() && rawCity !== cleanCity);
+    const rcChanged = Boolean(rawRc.trim() && rawRc.trim() !== rc && rawRc.trim().toUpperCase() !== cc);
+    if (cityChanged || rcChanged) {
       const docId = decodeURIComponent(doc.name.split("/").pop());
-      cityFixes.push({docId, rawCity, cleanCity});
+      cityFixes.push({
+        docId,
+        cleanCity: cityChanged ? cleanCity : undefined,
+        cleanRc: rcChanged ? rc : undefined,
+      });
     }
 
     if (cleanCity && cc) {
