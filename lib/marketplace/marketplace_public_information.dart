@@ -9,6 +9,7 @@ import '../core/config/public_release_config.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_data_state.dart';
+import 'pipebuyer_site_footer.dart';
 
 enum MarketplacePublicInformationKind {
   privacy,
@@ -100,6 +101,10 @@ class MarketplacePublicInformationPage extends StatelessWidget {
                     _PublicSupport(configuration: releaseConfiguration)
                   else
                     _AccountDeletion(configuration: releaseConfiguration),
+                  const SizedBox(height: 28),
+                  const PipeBuyerSiteFooter(
+                    currentSurface: PipeBuyerFooterSurface.publicInfo,
+                  ),
                 ],
               ),
             ),

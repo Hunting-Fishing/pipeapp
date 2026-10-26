@@ -56,6 +56,7 @@ import 'marketplace_offer_commerce_summary.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_serial_decoder.dart';
 import 'marketplace_trucking_plan.dart';
+import 'pipebuyer_site_footer.dart';
 
 const _navy = Color(0xFFF8FAFC);
 const _panel = Colors.white;
@@ -1445,6 +1446,10 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
               MarketplaceNavigation.openListServices(context),
           onYellowPagesAdmin: () =>
               MarketplaceNavigation.openYellowPagesAdmin(context),
+          onPartnerWithUs: () =>
+              MarketplaceNavigation.openPartnerWithUs(context),
+          onPartnerAdmin: () =>
+              MarketplaceNavigation.openPartnerAdmin(context),
         ),
         railLeading: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
@@ -1621,6 +1626,15 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                       onTap: () {
                         Navigator.of(context).pop();
                         MarketplaceNavigation.openListServices(context);
+                      },
+                    ),
+                    _DrawerDestination(
+                      icon: Icons.handshake_outlined,
+                      label: 'Partner With Us',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        MarketplaceNavigation.openPartnerWithUs(context);
                       },
                     ),
                     if (_isAdminUser)
@@ -2163,6 +2177,10 @@ class _HomePage extends StatelessWidget {
                   message:
                       'Marketplace browsing and listing are temporarily paused.',
                 ),
+              const SizedBox(height: 28),
+              const PipeBuyerSiteFooter(
+                currentSurface: PipeBuyerFooterSurface.home,
+              ),
             ],
           ),
         ),

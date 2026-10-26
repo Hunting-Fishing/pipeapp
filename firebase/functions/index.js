@@ -48,6 +48,7 @@ const {
 const { createSupportCommands } = require("./support_commands");
 const {createWantedMatching} = require("./wanted_matching");
 const {createYellowPagesCommands} = require("./yellow_pages_commands");
+const {createPartnerProgramCommands} = require("./partner_program_commands");
 const admin = createAdminRuntime();
 
 async function notifyActiveAdministrators(notification) {
@@ -114,6 +115,9 @@ const policyAcceptanceCommands = createPolicyAcceptanceCommands(admin);
 const supportCommands = createSupportCommands(admin);
 const wantedMatching = createWantedMatching(admin);
 const yellowPagesCommands = createYellowPagesCommands(admin, {
+  notifyAdministrators: notifyActiveAdministrators,
+});
+const partnerProgramCommands = createPartnerProgramCommands(admin, {
   notifyAdministrators: notifyActiveAdministrators,
 });
 exports.syncDispatchDirectoryFromPublicProfile = onDocumentWritten(
@@ -1273,4 +1277,38 @@ exports.listYellowPagesStaff = onCall(
 exports.manageYellowPagesStaff = onCall(
   protectedCallableOptions,
   yellowPagesCommands.manageYellowPagesStaff,
+);
+
+// PipeBuyer Partner With Us — OEM, Brand Showcase, Advertising & Oilfield Deals
+exports.getPartnerProgramTaxonomy = onCall(
+  publicDirectoryReadOptions,
+  partnerProgramCommands.getPartnerProgramTaxonomy,
+);
+exports.listPartnerShowcaseDeals = onCall(
+  publicDirectoryReadOptions,
+  partnerProgramCommands.listPartnerShowcaseDeals,
+);
+exports.submitPartnerInquiry = onCall(
+  protectedCallableOptions,
+  partnerProgramCommands.submitPartnerInquiry,
+);
+exports.submitPartnerDealInterest = onCall(
+  protectedCallableOptions,
+  partnerProgramCommands.submitPartnerDealInterest,
+);
+exports.listMyPartnerInquiries = onCall(
+  protectedCallableOptions,
+  partnerProgramCommands.listMyPartnerInquiries,
+);
+exports.listAdminPartnerProgramDashboard = onCall(
+  protectedCallableOptions,
+  partnerProgramCommands.listAdminPartnerProgramDashboard,
+);
+exports.reviewPartnerInquiry = onCall(
+  protectedCallableOptions,
+  partnerProgramCommands.reviewPartnerInquiry,
+);
+exports.upsertPartnerShowcaseDeal = onCall(
+  protectedCallableOptions,
+  partnerProgramCommands.upsertPartnerShowcaseDeal,
 );

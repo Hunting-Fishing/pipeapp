@@ -168,6 +168,14 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
         ),
         actions: [
           Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: OutlinedButton.icon(
+              onPressed: () => MarketplaceNavigation.openPartnerAdmin(context),
+              icon: const Icon(Icons.handshake_outlined, size: 18),
+              label: const Text('Partner With Us Queue'),
+            ),
+          ),
+          Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton.icon(
               onPressed: () => MarketplaceNavigation.openYellowPagesAdmin(context),

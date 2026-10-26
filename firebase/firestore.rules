@@ -867,5 +867,31 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if false;
     }
+
+    // PipeBuyer Partner With Us — Brand Promotions, OEM Showcases & Oilfield Deals
+    match /partner_public_showcases/{showcaseId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /partner_showcases/{showcaseId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /partner_inquiries/{inquiryId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.submitterUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /partner_deal_leads/{leadId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.submitterUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /partner_program_audit_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
   }
 }
