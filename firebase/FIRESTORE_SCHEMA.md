@@ -227,3 +227,62 @@ The design-only policy fixtures are stored under
 Mexico, but do not contain a subdivision licence, compliance owner, legal
 approval, or enabled publishing feature and therefore cannot authorize a live
 listing.
+
+## Partner With Us — OEM Showcases, Advertising & Oilfield Deals
+
+All Partner Program writes are strictly server-controlled (`allow write: if false`):
+
+- `partner_public_showcases/{showcaseId}`: sanitized public projection of approved
+  partner spotlights, OEM fleet programs (e.g., crew trucks and upfits), featured
+  products, and oilfield discounts. Publicly readable.
+- `partner_showcases/{showcaseId}`: administrator master records including internal
+  partner contact details and review notes. Administrator-readable only.
+- `partner_inquiries/{inquiryId}`: inbound corporate partnership, advertising,
+  product showcase, and oilfield discount applications. Readable only by
+  administrators and the authenticated submitter (`submitterUid`).
+- `partner_deal_leads/{leadId}`: buyer/company requests for fleet quotes or partner
+  deal inquiries. Readable only by administrators and the authenticated submitter.
+- `partner_program_audit_events/{eventId}`: immutable administrator audit history.
+
+Callable commands:
+- `getPartnerProgramTaxonomy`
+- `listPartnerShowcaseDeals`
+- `submitPartnerInquiry`
+- `submitPartnerDealInterest`
+- `listMyPartnerInquiries`
+- `listAdminPartnerProgramDashboard`
+- `reviewPartnerInquiry`
+- `upsertPartnerShowcaseDeal`
+
+## Commercial & Oilfield Insurance Hub
+
+All writes to `insurance_*` collections are server-controlled via callable
+Cloud Functions (`allow write: if false;` in `firestore.rules`):
+
+- `insurance_public_providers/{providerId}`: public read projection of active,
+  approved commercial insurance carriers, MGAs, and specialty oil & gas brokers
+  (`allow read: if true;`). Internal administrator notes and private underwriting
+  contacts are stripped before publication.
+- `insurance_providers/{providerId}`: administrator master records containing
+  provider profiles, licensing summaries, status flags, and internal review
+  notes (`allow read: if isAdmin();`).
+- `insurance_provider_applications/{applicationId}`: onboarding applications
+  submitted by insurance carriers, MGAs, and specialty brokers to list on Pipe
+  Buyer (`allow read: if isAdmin() || (signedIn() && resource.data.submitterUid == request.auth.uid);`).
+- `insurance_rate_applications/{applicationId}`: company commercial insurance
+  rate quote applications submitted directly from Pipe Buyer, either distributed
+  multi-carrier or targeted to a specific listed provider
+  (`allow read: if isAdmin() || (signedIn() && resource.data.submitterUid == request.auth.uid);`).
+- `insurance_audit_events/{eventId}`: immutable administrator audit trail for
+  provider approvals, master directory updates, and rate application status
+  transitions (`allow read: if isAdmin();`).
+
+Callable commands:
+- `listInsuranceProviders`
+- `submitInsuranceRateApplication`
+- `listMyInsuranceRateApplications`
+- `submitInsuranceProviderApplication`
+- `listAdminInsuranceDashboard`
+- `reviewInsuranceProviderApplication`
+- `upsertInsuranceProvider`
+- `updateInsuranceRateApplicationStatus`

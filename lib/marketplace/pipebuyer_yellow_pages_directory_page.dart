@@ -9,6 +9,7 @@ import 'marketplace_dispatch_request_service_page.dart';
 import 'pipebuyer_contact_center_dashboard.dart';
 import 'pipebuyer_country_flag_icon.dart';
 import 'pipebuyer_list_services_page.dart';
+import 'pipebuyer_site_footer.dart';
 import 'pipebuyer_yellow_pages_client.dart';
 import 'pipebuyer_yellow_pages_taxonomy.dart';
 
@@ -837,6 +838,20 @@ class _PipeBuyerYellowPagesDirectoryPageState
                                         ),
                                       ),
                                     ),
+                                  const SliverToBoxAdapter(
+                                    child: Padding(
+                                      padding: EdgeInsets.fromLTRB(
+                                        14,
+                                        12,
+                                        14,
+                                        28,
+                                      ),
+                                      child: PipeBuyerSiteFooter(
+                                        currentSurface:
+                                            PipeBuyerFooterSurface.directory,
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               );
                             },
@@ -2122,9 +2137,18 @@ class _LinesDirectoryView extends StatelessWidget {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.only(bottom: 32),
-            itemCount: entries.length + (hasMore ? 1 : 0),
+            itemCount: entries.length + (hasMore ? 1 : 0) + 1,
             itemBuilder: (context, index) {
-              if (index == entries.length) {
+              final footerIndex = entries.length + (hasMore ? 1 : 0);
+              if (index == footerIndex) {
+                return const Padding(
+                  padding: EdgeInsets.fromLTRB(14, 20, 14, 8),
+                  child: PipeBuyerSiteFooter(
+                    currentSurface: PipeBuyerFooterSurface.directory,
+                  ),
+                );
+              }
+              if (hasMore && index == entries.length) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(16),

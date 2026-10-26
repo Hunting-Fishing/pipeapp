@@ -1531,3 +1531,90 @@ test("new personal profile baseline and mapped community are writable", async ()
     updatedAt,
   }));
 });
+
+test("Partner With Us and Commercial Insurance collections enforce public read projection, submitter-only access, and server-only writes", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const seedDb = context.firestore();
+    await setDoc(doc(seedDb, "partner_public_showcases", "ford-fleet-2026"), {
+      partnerName: "Ford Pro Commercial Fleet",
+      active: true,
+    });
+    await setDoc(doc(seedDb, "partner_showcases", "ford-fleet-2026"), {
+      partnerName: "Ford Pro Commercial Fleet",
+      contactEmail: "fleet@ford.example.com",
+    });
+    await setDoc(doc(seedDb, "partner_inquiries", "inq-1"), {
+      companyName: "Ford Pro Commercial Fleet",
+      submitterUid: "buyer",
+    });
+    await setDoc(doc(seedDb, "partner_deal_leads", "lead-1"), {
+      companyName: "Redwater Hauling",
+      submitterUid: "buyer",
+    });
+    await setDoc(doc(seedDb, "partner_program_audit_events", "aud-1"), {
+      action: "review_partner_inquiry",
+    });
+    await setDoc(doc(seedDb, "insurance_public_providers", "prov-1"), {
+      companyName: "Lone Star Basin Risk MGA",
+      active: true,
+    });
+    await setDoc(doc(seedDb, "insurance_providers", "prov-1"), {
+      companyName: "Lone Star Basin Risk MGA",
+      adminNotes: "Internal underwriting contact",
+    });
+    await setDoc(doc(seedDb, "insurance_provider_applications", "papp-1"), {
+      companyName: "Lone Star Basin Risk MGA",
+      submitterUid: "seller",
+    });
+    await setDoc(doc(seedDb, "insurance_rate_applications", "rapp-1"), {
+      companyName: "Redwater Hauling",
+      submitterUid: "buyer",
+    });
+    await setDoc(doc(seedDb, "insurance_audit_events", "iaud-1"), {
+      action: "review_provider_application",
+    });
+  });
+
+  const publicDb = testEnvironment.unauthenticatedContext().firestore();
+  const buyerDb = testEnvironment.authenticatedContext("buyer").firestore();
+  const sellerDb = testEnvironment.authenticatedContext("seller").firestore();
+  const strangerDb = testEnvironment.authenticatedContext("stranger").firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin", administratorClaims)
+      .firestore();
+
+  // Public projections are readable by everyone, never client-writable
+  await assertSucceeds(getDoc(doc(publicDb, "partner_public_showcases", "ford-fleet-2026")));
+  await assertSucceeds(getDoc(doc(publicDb, "insurance_public_providers", "prov-1")));
+  await assertFails(setDoc(doc(adminDb, "partner_public_showcases", "forged"), {active: true}));
+  await assertFails(setDoc(doc(adminDb, "insurance_public_providers", "forged"), {active: true}));
+
+  // Admin master records & audit logs are strictly admin-readable and server-only writable
+  await assertFails(getDoc(doc(buyerDb, "partner_showcases", "ford-fleet-2026")));
+  await assertFails(getDoc(doc(buyerDb, "insurance_providers", "prov-1")));
+  await assertSucceeds(getDoc(doc(adminDb, "partner_showcases", "ford-fleet-2026")));
+  await assertSucceeds(getDoc(doc(adminDb, "insurance_providers", "prov-1")));
+  await assertFails(getDoc(doc(buyerDb, "partner_program_audit_events", "aud-1")));
+  await assertFails(getDoc(doc(buyerDb, "insurance_audit_events", "iaud-1")));
+  await assertSucceeds(getDoc(doc(adminDb, "partner_program_audit_events", "aud-1")));
+  await assertSucceeds(getDoc(doc(adminDb, "insurance_audit_events", "iaud-1")));
+
+  // Inquiries, deal leads, provider apps, and rate apps are submitter- or admin-readable only, server-only writable
+  await assertSucceeds(getDoc(doc(buyerDb, "partner_inquiries", "inq-1")));
+  await assertFails(getDoc(doc(strangerDb, "partner_inquiries", "inq-1")));
+  await assertSucceeds(getDoc(doc(adminDb, "partner_inquiries", "inq-1")));
+  await assertFails(setDoc(doc(buyerDb, "partner_inquiries", "forged"), {submitterUid: "buyer"}));
+
+  await assertSucceeds(getDoc(doc(buyerDb, "partner_deal_leads", "lead-1")));
+  await assertFails(getDoc(doc(strangerDb, "partner_deal_leads", "lead-1")));
+
+  await assertSucceeds(getDoc(doc(sellerDb, "insurance_provider_applications", "papp-1")));
+  await assertFails(getDoc(doc(buyerDb, "insurance_provider_applications", "papp-1")));
+  await assertSucceeds(getDoc(doc(adminDb, "insurance_provider_applications", "papp-1")));
+  await assertFails(setDoc(doc(sellerDb, "insurance_provider_applications", "forged"), {submitterUid: "seller"}));
+
+  await assertSucceeds(getDoc(doc(buyerDb, "insurance_rate_applications", "rapp-1")));
+  await assertFails(getDoc(doc(strangerDb, "insurance_rate_applications", "rapp-1")));
+  await assertSucceeds(getDoc(doc(adminDb, "insurance_rate_applications", "rapp-1")));
+  await assertFails(setDoc(doc(buyerDb, "insurance_rate_applications", "forged"), {submitterUid: "buyer"}));
+});

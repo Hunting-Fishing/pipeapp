@@ -2021,6 +2021,96 @@ try {
       [["listingId", "==", blockListingId]],
   );
 
+  // Partner With Us & Commercial Insurance end-to-end callable integration
+  const partnerTaxonomy = await call(
+      "getPartnerProgramTaxonomy",
+      unverified.token,
+      {},
+  );
+  assert.equal(partnerTaxonomy.brandCategories.length, 8);
+  const partnerSubmit = await call(
+      "submitPartnerInquiry",
+      unverified.token,
+      {
+        companyName: "Integration Fleet Motors Corp",
+        brandCategory: "oem_fleet_crew_trucks",
+        programTypes: ["promote_brand", "oilfield_deals_discounts"],
+        commercialModel: "sponsored_showcase",
+        headline: "New 4x4 Diesel Crew Trucks & Oilfield Fleet Rebates",
+        productSummary: "Factory crew cab trucks and service body upfits.",
+        dealOrDiscountOffer: "Fleet rebate per unit for oilfield buyers.",
+        targetRegions: ["North America", "Permian Basin"],
+        contactName: "Fleet Sales Director",
+        email: `fleet-${now}@pipe.test`,
+        phone: "+15555551400",
+      },
+  );
+  assert.equal(partnerSubmit.status, "new");
+  const myPartnerInquiries = await call(
+      "listMyPartnerInquiries",
+      unverified.token,
+      {},
+  );
+  assert.equal(myPartnerInquiries.items.length, 1);
+  assert.equal(myPartnerInquiries.items[0].inquiryId, partnerSubmit.inquiryId);
+
+  const insuranceProviderApp = await call(
+      "submitInsuranceProviderApplication",
+      unverified.token,
+      {
+        companyName: "Integration Basin Underwriters LLC",
+        providerType: "mga",
+        contactName: "Underwriting Desk",
+        email: `underwriting-${now}@pipe.test`,
+        phone: "+15555551401",
+        licenseSummary: "Multi-State Commercial Energy Lines",
+        countryCode: "US",
+        regionCode: "TX",
+        headquartersCity: "Midland",
+        licensedCountries: ["US"],
+        licensedRegions: ["TX", "NM", "OK"],
+        operatingBasins: ["Permian Basin"],
+        coverageLines: [
+          "commercial_auto_fleet",
+          "oilfield_general_liability",
+        ],
+        msaCompliant: true,
+        fastCoi24x7: true,
+      },
+  );
+  assert.equal(insuranceProviderApp.status, "pending_review");
+
+  const insuranceRateApp = await call(
+      "submitInsuranceRateApplication",
+      unverified.token,
+      {
+        companyName: "Integration Rig Hauling LLC",
+        contactName: "Safety Manager",
+        email: `safety-${now}@pipe.test`,
+        phone: "+15555551402",
+        countryCode: "US",
+        regionCode: "TX",
+        city: "Odessa",
+        operatingBasins: ["Permian Basin"],
+        coverageLines: ["commercial_auto_fleet"],
+        msaRequirements: ["waiver_of_subrogation"],
+        fleetVehicleCount: 8,
+        equipmentValueUsd: 650000,
+        annualRevenueBand: "2m_10m",
+      },
+  );
+  assert.equal(insuranceRateApp.status, "new");
+  const myRateApps = await call(
+      "listMyInsuranceRateApplications",
+      unverified.token,
+      {},
+  );
+  assert.equal(myRateApps.applications.length, 1);
+  assert.equal(
+      myRateApps.applications[0].applicationId,
+      insuranceRateApp.applicationId,
+  );
+
   console.log(
       "Callable integration passed: trusted media hashes, duplicate-photo " +
       "and message-safety review signals, private listing drafts, saved listings, " +

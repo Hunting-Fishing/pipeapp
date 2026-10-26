@@ -56,6 +56,7 @@ import 'marketplace_offer_commerce_summary.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_serial_decoder.dart';
 import 'marketplace_trucking_plan.dart';
+import 'pipebuyer_site_footer.dart';
 
 const _navy = Color(0xFFF8FAFC);
 const _panel = Colors.white;
@@ -1300,6 +1301,10 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             MarketplaceNavigation.openListServices(context);
             return;
           }
+          if (target == 10) {
+            MarketplaceNavigation.openInsuranceHub(context);
+            return;
+          }
           if (target == 2) {
             _openCreate();
             return;
@@ -1395,6 +1400,12 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             selectedIcon: Icon(Icons.workspace_premium_rounded),
           ),
           const MarketplaceShellDestination(
+            pageIndex: 10,
+            label: 'Commercial Insurance',
+            icon: Icon(Icons.shield_outlined),
+            selectedIcon: Icon(Icons.shield_rounded),
+          ),
+          const MarketplaceShellDestination(
             pageIndex: 4,
             label: 'Messages',
             icon: _NavMessageIcon(selected: false),
@@ -1445,6 +1456,16 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
               MarketplaceNavigation.openListServices(context),
           onYellowPagesAdmin: () =>
               MarketplaceNavigation.openYellowPagesAdmin(context),
+          onPartnerWithUs: () =>
+              MarketplaceNavigation.openPartnerWithUs(context),
+          onPartnerAdmin: () =>
+              MarketplaceNavigation.openPartnerAdmin(context),
+          onInsuranceHub: () =>
+              MarketplaceNavigation.openInsuranceHub(context),
+          onInsuranceProviderApply: () =>
+              MarketplaceNavigation.openInsuranceProviderApply(context),
+          onInsuranceAdmin: () =>
+              MarketplaceNavigation.openInsuranceAdmin(context),
         ),
         railLeading: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
@@ -1623,6 +1644,35 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                         MarketplaceNavigation.openListServices(context);
                       },
                     ),
+                    _DrawerDestination(
+                      icon: Icons.shield_outlined,
+                      label: 'Commercial Insurance',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        MarketplaceNavigation.openInsuranceHub(context);
+                      },
+                    ),
+                    _DrawerDestination(
+                      icon: Icons.domain_add_outlined,
+                      label: 'List Insurance Company',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        MarketplaceNavigation.openInsuranceProviderApply(
+                          context,
+                        );
+                      },
+                    ),
+                    _DrawerDestination(
+                      icon: Icons.handshake_outlined,
+                      label: 'Partner With Us',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        MarketplaceNavigation.openPartnerWithUs(context);
+                      },
+                    ),
                     if (_isAdminUser)
                       _DrawerDestination(
                         icon: Icons.contact_phone_outlined,
@@ -1631,6 +1681,26 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                         onTap: () {
                           Navigator.of(context).pop();
                           MarketplaceNavigation.openYellowPagesAdmin(context);
+                        },
+                      ),
+                    if (_isAdminUser)
+                      _DrawerDestination(
+                        icon: Icons.admin_panel_settings_outlined,
+                        label: 'Insurance Admin',
+                        selected: false,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          MarketplaceNavigation.openInsuranceAdmin(context);
+                        },
+                      ),
+                    if (_isAdminUser)
+                      _DrawerDestination(
+                        icon: Icons.handshake_outlined,
+                        label: 'Partner Admin',
+                        selected: false,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          MarketplaceNavigation.openPartnerAdmin(context);
                         },
                       ),
                     if (_features.auctions)
@@ -2163,6 +2233,10 @@ class _HomePage extends StatelessWidget {
                   message:
                       'Marketplace browsing and listing are temporarily paused.',
                 ),
+              const SizedBox(height: 28),
+              const PipeBuyerSiteFooter(
+                currentSurface: PipeBuyerFooterSurface.home,
+              ),
             ],
           ),
         ),
@@ -2230,6 +2304,18 @@ class _HomeQuickActions extends StatelessWidget {
         label: 'List services',
         color: const Color(0xFF0F52BA),
         onTap: () => MarketplaceNavigation.openListServices(context),
+      ),
+      _QuickAction(
+        icon: Icons.shield_outlined,
+        label: 'Commercial insurance',
+        color: const Color(0xFF0E7490),
+        onTap: () => MarketplaceNavigation.openInsuranceHub(context),
+      ),
+      _QuickAction(
+        icon: Icons.handshake_outlined,
+        label: 'Partner with us',
+        color: const Color(0xFFB45309),
+        onTap: () => MarketplaceNavigation.openPartnerWithUs(context),
       ),
     ];
 

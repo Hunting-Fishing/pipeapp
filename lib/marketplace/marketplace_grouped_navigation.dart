@@ -14,6 +14,11 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
     this.onSearchServices,
     this.onListServices,
     this.onYellowPagesAdmin,
+    this.onPartnerWithUs,
+    this.onPartnerAdmin,
+    this.onInsuranceHub,
+    this.onInsuranceProviderApply,
+    this.onInsuranceAdmin,
     this.isAdmin = false,
   });
 
@@ -26,6 +31,11 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
   final VoidCallback? onSearchServices;
   final VoidCallback? onListServices;
   final VoidCallback? onYellowPagesAdmin;
+  final VoidCallback? onPartnerWithUs;
+  final VoidCallback? onPartnerAdmin;
+  final VoidCallback? onInsuranceHub;
+  final VoidCallback? onInsuranceProviderApply;
+  final VoidCallback? onInsuranceAdmin;
   final bool isAdmin;
 
   @override
@@ -70,7 +80,10 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
               onTap: () => onDestinationSelected(3),
             ),
           ],
-          if (onSearchServices != null || onListServices != null) ...[
+          if (onSearchServices != null ||
+              onListServices != null ||
+              onInsuranceHub != null ||
+              onInsuranceProviderApply != null) ...[
             const _SectionLabel('SERVICES & DIRECTORY'),
             if (onSearchServices != null)
               _NavItem(
@@ -88,6 +101,22 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
                 selected: false,
                 onTap: onListServices!,
               ),
+            if (onInsuranceHub != null)
+              _NavItem(
+                icon: Icons.shield_outlined,
+                selectedIcon: Icons.shield_rounded,
+                label: 'Commercial Insurance',
+                selected: false,
+                onTap: onInsuranceHub!,
+              ),
+            if (onInsuranceProviderApply != null)
+              _NavItem(
+                icon: Icons.domain_add_outlined,
+                selectedIcon: Icons.domain_add_rounded,
+                label: 'List Insurance Company',
+                selected: false,
+                onTap: onInsuranceProviderApply!,
+              ),
             if (isAdmin && onYellowPagesAdmin != null)
               _NavItem(
                 icon: Icons.contact_phone_outlined,
@@ -95,6 +124,14 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
                 label: 'Directory Admin',
                 selected: false,
                 onTap: onYellowPagesAdmin!,
+              ),
+            if (isAdmin && onInsuranceAdmin != null)
+              _NavItem(
+                icon: Icons.admin_panel_settings_outlined,
+                selectedIcon: Icons.admin_panel_settings_rounded,
+                label: 'Insurance Admin',
+                selected: false,
+                onTap: onInsuranceAdmin!,
               ),
           ],
           const _SectionLabel('DEALS'),
@@ -122,6 +159,24 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
               selected: selectedPageIndex == 7,
               onTap: () => onDestinationSelected(7),
             ),
+          ],
+          if (onPartnerWithUs != null) ...[
+            const _SectionLabel('PARTNERSHIPS & DEALS'),
+            _NavItem(
+              icon: Icons.handshake_outlined,
+              selectedIcon: Icons.handshake_rounded,
+              label: 'Partner With Us',
+              selected: false,
+              onTap: onPartnerWithUs!,
+            ),
+            if (isAdmin && onPartnerAdmin != null)
+              _NavItem(
+                icon: Icons.admin_panel_settings_outlined,
+                selectedIcon: Icons.admin_panel_settings_rounded,
+                label: 'Partner Admin',
+                selected: false,
+                onTap: onPartnerAdmin!,
+              ),
           ],
         ],
       );

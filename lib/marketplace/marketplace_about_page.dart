@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/config/public_release_config.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'pipebuyer_site_footer.dart';
 
 class MarketplaceAboutPage extends StatelessWidget {
   const MarketplaceAboutPage({super.key});
@@ -148,6 +149,10 @@ class MarketplaceAboutPage extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 24),
+                const PipeBuyerSiteFooter(
+                  currentSurface: PipeBuyerFooterSurface.about,
                 ),
               ],
             ),

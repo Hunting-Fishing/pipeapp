@@ -867,5 +867,61 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if false;
     }
+
+    // PipeBuyer Partner With Us — Brand Promotions, OEM Showcases & Oilfield Deals
+    match /partner_public_showcases/{showcaseId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /partner_showcases/{showcaseId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /partner_inquiries/{inquiryId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.submitterUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /partner_deal_leads/{leadId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.submitterUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /partner_program_audit_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Commercial & Oilfield Insurance Hub — Directory, Rate Applications & Carrier Portal
+    match /insurance_public_providers/{providerId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /insurance_providers/{providerId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /insurance_provider_applications/{applicationId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.submitterUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /insurance_rate_applications/{applicationId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.submitterUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /insurance_audit_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
   }
 }
