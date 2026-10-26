@@ -104,7 +104,12 @@ void main() {
   test(
       'Oilfield Directory taxonomy covers Global Continents, 197 Countries, Popular Quick-Search + A-Z, Town Index, Towing, and clean Pipe & OCTG icon',
       () {
-    expect(PipeBuyerYellowPagesTaxonomy.categories.length, 24);
+    expect(PipeBuyerYellowPagesTaxonomy.categories.length, 25);
+    final trainingCat =
+        PipeBuyerYellowPagesTaxonomy.byCode('oil_gas_training_courses')!;
+    expect(trainingCat.label, 'Oil & Gas Training Facilities & Courses');
+    expect(trainingCat.shortLabel, 'Oil & Gas Training & Courses');
+    expect(trainingCat.icon, Icons.school_outlined);
     expect(PipeBuyerYellowPagesTaxonomy.continents.length, 7);
     expect(PipeBuyerYellowPagesTaxonomy.countries.length, 197);
 

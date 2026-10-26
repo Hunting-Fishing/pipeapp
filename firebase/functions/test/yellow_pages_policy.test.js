@@ -6,11 +6,14 @@ const test = require("node:test");
 const {
   GLOBAL_COUNTRIES_LIST,
   WORLD_CONTINENTS,
+  YELLOW_PAGES_CATEGORIES,
   canonicalizeCityName,
+  canonicalizeCompanyName,
   classifyCategoriesFromText,
   countryCodesForContinent,
   expandServiceSearchTerms,
   inferCountryAndRegion,
+  inferGeoFromNanpaPhone,
 } = require("../yellow_pages_taxonomy");
 const {createYellowPagesCommands} = require("../yellow_pages_commands");
 const {
@@ -448,4 +451,35 @@ test("keeps crawled unverified companies published as free_basic (verified=false
   assert.equal(verOnlyRes.totalMatched, 1);
   assert.equal(verOnlyRes.entries[0].companyId, "comp-ver");
   assert.equal(verOnlyRes.entries[0].verified, true);
+});
+
+test("consolidates county/USDOT/FMCSA town variants, infers NANPA geo, and classifies Oil & Gas Training courses", () => {
+  assert.equal(YELLOW_PAGES_CATEGORIES.length, 25);
+  assert.equal(canonicalizeCityName("Co of GrandPr", "AB", "CA"), "Grande Prairie");
+  assert.equal(canonicalizeCityName("Co of GrndPr #1", "AB", "CA"), "Grande Prairie");
+  assert.equal(canonicalizeCityName("County of Grande Prairie", "AB", "CA"), "Grande Prairie");
+  assert.equal(canonicalizeCityName("Grande Prairie County No. 1", "AB", "CA"), "Grande Prairie");
+  assert.equal(canonicalizeCityName("Grand Prairie", "AB", "CA"), "Grande Prairie");
+  assert.equal(canonicalizeCityName("Grand Prairie", "TX", "US"), "Grand Prairie");
+  assert.equal(canonicalizeCityName("Rocky Mtn Hse", "AB", "CA"), "Rocky Mountain House");
+  assert.equal(canonicalizeCityName("EL Paso", "TX", "US"), "El Paso");
+  assert.equal(canonicalizeCityName("LA Porte", "TX", "US"), "La Porte");
+  assert.equal(canonicalizeCityName("Calgary, T3e 0b4", "AB", "CA"), "Calgary");
+  assert.equal(canonicalizeCompanyName("WESTPRO SAFETY AND TRAINING LTD"), "Westpro Safety And Training LTD");
+
+  const gpGeo = inferGeoFromNanpaPhone("+1 780-539-5353");
+  assert.equal(gpGeo.countryCode, "CA");
+  assert.equal(gpGeo.regionCode, "AB");
+  assert.equal(gpGeo.hubCity, "Grande Prairie");
+
+  const ndGeo = inferGeoFromNanpaPhone("(701) 444-2697");
+  assert.equal(ndGeo.countryCode, "US");
+  assert.equal(ndGeo.regionCode, "ND");
+  assert.equal(ndGeo.hubCity, "Watford City");
+
+  const trainCats = classifyCategoriesFromText(["H2S Alive", "IWCF Well Control", "Safety Training Center"]);
+  assert.ok(trainCats.includes("oil_gas_training_courses"));
+
+  const pumpCats = classifyCategoriesFromText(["Pump Supplier"]);
+  assert.ok(pumpCats.includes("pumps_artificial_lift"));
 });

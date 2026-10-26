@@ -98,7 +98,8 @@ const YELLOW_PAGES_CATEGORIES = Object.freeze([
     keywords: [
       "artificial lift", "pumpjack", "rod pump", "esp", "pcp", "plunger lift",
       "gas lift", "compressor", "compression", "generator", "genset", "downhole pump",
-      "turbomachinery",
+      "turbomachinery", "pump", "pumps", "pumping", "pump supplier", "mud pump",
+      "centrifugal pump", "plunger pump", "power equipment", "engine accessories",
     ],
   },
   {
@@ -222,13 +223,31 @@ const YELLOW_PAGES_CATEGORIES = Object.freeze([
     ],
   },
   {
+    code: "oil_gas_training_courses",
+    label: "Oil & Gas Training Facilities & Courses",
+    section: "yellow",
+    keywords: [
+      "oilfield training", "oil and gas training", "safety training", "training center",
+      "training centre", "training facility", "training academy", "safety school",
+      "safety college", "polytechnic", "petroleum institute", "h2s alive",
+      "energy safety canada", "common safety orientation", "well control",
+      "iwcf", "wellsharp", "iadc", "opito", "bosiet", "huet", "foet",
+      "safeland", "safegulf", "veriforce", "rigpass", "confined space training",
+      "fall protection training", "ground disturbance training", "whmis", "tdg",
+      "hazwoper", "osha 10", "osha 30", "crane training", "rigging training",
+      "class 1 melt", "cdl training", "ndt training", "welding school",
+      "first aid training", "emergency training", "industrial rescue training",
+      "simulated worksite", "safety courses", "safety tickets",
+    ],
+  },
+  {
     code: "staffing_training_compliance",
-    label: "Staffing, Safety Training & Compliance",
+    label: "Staffing, Crew Logistics & Compliance",
     section: "white",
     keywords: [
-      "staffing", "recruiting", "labour", "crew transport", "safety training",
-      "first aid", "isnetworld", "complyworks", "avetta", "cor", "drug testing",
-      "bosiet", "opito", "iwcf", "manpower",
+      "staffing", "recruiting", "labour", "crew transport", "helicopter",
+      "aviation", "isnetworld", "complyworks", "avetta", "cor", "drug testing",
+      "alcohol testing", "occupational testing", "manpower", "workforce solutions",
     ],
   },
   {
@@ -260,10 +279,12 @@ const SYNONYM_GROUPS = Object.freeze([
   ["welder", "welding", "b pressure", "fabrication", "machine shop", "machining"],
   ["rig mat", "rig mats", "access mats", "swamp mats", "matting", "lease construction"],
   ["h2s", "medic", "medics", "safety", "breathing air", "firewatch", "hse"],
+  ["training", "safety training", "oilfield training", "courses", "h2s alive", "well control", "iwcf", "wellsharp", "opito", "bosiet", "safeland", "rigpass", "energy safety canada", "school", "college", "academy"],
   ["camp", "camps", "catering", "wellsite trailer", "skid shack", "sleeper"],
   ["scada", "instrumentation", "automation", "electrical", "plc", "rov"],
   ["mechanic", "heavy duty", "hydraulics", "cvip", "fleet repair"],
   ["boiler", "heater", "light tower", "rental", "rentals", "downhole tools"],
+  ["pump", "pumps", "artificial lift", "pumpjack", "esp", "compressor", "compression"],
 ]);
 
 // ============================================================================
@@ -773,10 +794,15 @@ function classifyCategoriesFromText(rawLabels = [], description = "") {
     }
   }
 
+  const padded = ` ${combined} `;
   for (const cat of YELLOW_PAGES_CATEGORIES) {
     for (const kw of cat.keywords) {
       const normalizedKw = normalizeText(kw);
-      if (normalizedKw && combined.includes(normalizedKw)) {
+      if (!normalizedKw) continue;
+      const isHit = normalizedKw.length <= 4 ?
+        padded.includes(` ${normalizedKw} `) :
+        combined.includes(normalizedKw);
+      if (isHit) {
         matched.add(cat.code);
         break;
       }
@@ -859,46 +885,554 @@ function checkB2BCallingWindow(timeZone, now = new Date()) {
   }
 }
 
+// North American 3-digit Area Code (NPA) -> [countryCode, regionCode, primaryHubCity]
+const NANPA_AREA_CODE_GEO = Object.freeze({
+  // Canada
+  "403": ["CA", "AB", "Calgary"],
+  "587": ["CA", "AB", "Calgary"],
+  "825": ["CA", "AB", "Edmonton"],
+  "368": ["CA", "AB", "Calgary"],
+  "780": ["CA", "AB", "Edmonton"],
+  "236": ["CA", "BC", "Vancouver"],
+  "250": ["CA", "BC", "Fort St. John"],
+  "604": ["CA", "BC", "Vancouver"],
+  "672": ["CA", "BC", "Vancouver"],
+  "778": ["CA", "BC", "Vancouver"],
+  "306": ["CA", "SK", "Saskatoon"],
+  "639": ["CA", "SK", "Regina"],
+  "474": ["CA", "SK", "Saskatoon"],
+  "204": ["CA", "MB", "Winnipeg"],
+  "431": ["CA", "MB", "Winnipeg"],
+  "584": ["CA", "MB", "Winnipeg"],
+  "226": ["CA", "ON", "Sarnia"],
+  "249": ["CA", "ON", "Sudbury"],
+  "289": ["CA", "ON", "Mississauga"],
+  "343": ["CA", "ON", "Ottawa"],
+  "365": ["CA", "ON", "Hamilton"],
+  "416": ["CA", "ON", "Toronto"],
+  "437": ["CA", "ON", "Toronto"],
+  "519": ["CA", "ON", "Sarnia"],
+  "548": ["CA", "ON", "London"],
+  "613": ["CA", "ON", "Ottawa"],
+  "647": ["CA", "ON", "Toronto"],
+  "705": ["CA", "ON", "Sudbury"],
+  "807": ["CA", "ON", "Thunder Bay"],
+  "905": ["CA", "ON", "Mississauga"],
+  "418": ["CA", "QC", "Quebec City"],
+  "438": ["CA", "QC", "Montreal"],
+  "450": ["CA", "QC", "Longueuil"],
+  "514": ["CA", "QC", "Montreal"],
+  "579": ["CA", "QC", "Laval"],
+  "581": ["CA", "QC", "Quebec City"],
+  "819": ["CA", "QC", "Trois-Rivieres"],
+  "873": ["CA", "QC", "Sherbrooke"],
+  "506": ["CA", "NB", "Saint John"],
+  "782": ["CA", "NS", "Halifax"],
+  "902": ["CA", "NS", "Halifax"],
+  "709": ["CA", "NL", "St. John's"],
+  "867": ["CA", "NT", "Yellowknife"],
+  // USA — Major Oil & Gas + All States
+  "432": ["US", "TX", "Midland"],
+  "713": ["US", "TX", "Houston"],
+  "281": ["US", "TX", "Houston"],
+  "832": ["US", "TX", "Houston"],
+  "346": ["US", "TX", "Houston"],
+  "361": ["US", "TX", "Corpus Christi"],
+  "903": ["US", "TX", "Kilgore"],
+  "430": ["US", "TX", "Longview"],
+  "806": ["US", "TX", "Amarillo"],
+  "940": ["US", "TX", "Wichita Falls"],
+  "325": ["US", "TX", "San Angelo"],
+  "210": ["US", "TX", "San Antonio"],
+  "830": ["US", "TX", "Pleasanton"],
+  "512": ["US", "TX", "Austin"],
+  "214": ["US", "TX", "Dallas"],
+  "469": ["US", "TX", "Dallas"],
+  "972": ["US", "TX", "Dallas"],
+  "817": ["US", "TX", "Fort Worth"],
+  "682": ["US", "TX", "Fort Worth"],
+  "936": ["US", "TX", "Conroe"],
+  "409": ["US", "TX", "Beaumont"],
+  "979": ["US", "TX", "Freeport"],
+  "956": ["US", "TX", "Laredo"],
+  "254": ["US", "TX", "Waco"],
+  "915": ["US", "TX", "El Paso"],
+  "701": ["US", "ND", "Williston"],
+  "307": ["US", "WY", "Casper"],
+  "405": ["US", "OK", "Oklahoma City"],
+  "539": ["US", "OK", "Tulsa"],
+  "918": ["US", "OK", "Tulsa"],
+  "580": ["US", "OK", "Elk City"],
+  "337": ["US", "LA", "Lafayette"],
+  "504": ["US", "LA", "New Orleans"],
+  "225": ["US", "LA", "Baton Rouge"],
+  "318": ["US", "LA", "Shreveport"],
+  "985": ["US", "LA", "Houma"],
+  "505": ["US", "NM", "Farmington"],
+  "575": ["US", "NM", "Hobbs"],
+  "303": ["US", "CO", "Denver"],
+  "720": ["US", "CO", "Denver"],
+  "970": ["US", "CO", "Greeley"],
+  "719": ["US", "CO", "Pueblo"],
+  "406": ["US", "MT", "Billings"],
+  "661": ["US", "CA", "Bakersfield"],
+  "805": ["US", "CA", "Ventura"],
+  "562": ["US", "CA", "Signal Hill"],
+  "714": ["US", "CA", "Huntington Beach"],
+  "310": ["US", "CA", "Los Angeles"],
+  "412": ["US", "PA", "Pittsburgh"],
+  "724": ["US", "PA", "Canonsburg"],
+  "878": ["US", "PA", "Pittsburgh"],
+  "814": ["US", "PA", "Bradford"],
+  "570": ["US", "PA", "Williamsport"],
+  "610": ["US", "PA", "Allentown"],
+  "215": ["US", "PA", "Philadelphia"],
+  "717": ["US", "PA", "Harrisburg"],
+  "304": ["US", "WV", "Morgantown"],
+  "681": ["US", "WV", "Morgantown"],
+  "740": ["US", "OH", "Cambridge"],
+  "330": ["US", "OH", "Canton"],
+  "234": ["US", "OH", "Canton"],
+  "419": ["US", "OH", "Lima"],
+  "614": ["US", "OH", "Columbus"],
+  "216": ["US", "OH", "Cleveland"],
+  "513": ["US", "OH", "Cincinnati"],
+  "316": ["US", "KS", "Wichita"],
+  "620": ["US", "KS", "Great Bend"],
+  "785": ["US", "KS", "Hays"],
+  "913": ["US", "KS", "Overland Park"],
+  "479": ["US", "AR", "Fort Smith"],
+  "501": ["US", "AR", "Little Rock"],
+  "870": ["US", "AR", "El Dorado"],
+  "907": ["US", "AK", "Anchorage"],
+  "385": ["US", "UT", "Salt Lake City"],
+  "435": ["US", "UT", "Vernal"],
+  "801": ["US", "UT", "Salt Lake City"],
+  "601": ["US", "MS", "Laurel"],
+  "662": ["US", "MS", "Tupelo"],
+  "228": ["US", "MS", "Gulfport"],
+  "205": ["US", "AL", "Birmingham"],
+  "251": ["US", "AL", "Mobile"],
+  "256": ["US", "AL", "Huntsville"],
+  "334": ["US", "AL", "Montgomery"],
+  "231": ["US", "MI", "Traverse City"],
+  "517": ["US", "MI", "Lansing"],
+  "616": ["US", "MI", "Grand Rapids"],
+  "810": ["US", "MI", "Flint"],
+  "989": ["US", "MI", "Mount Pleasant"],
+  "313": ["US", "MI", "Detroit"],
+  "248": ["US", "MI", "Troy"],
+  "618": ["US", "IL", "Mount Vernon"],
+  "217": ["US", "IL", "Springfield"],
+  "309": ["US", "IL", "Peoria"],
+  "312": ["US", "IL", "Chicago"],
+  "630": ["US", "IL", "Naperville"],
+  "847": ["US", "IL", "Schaumburg"],
+  "812": ["US", "IN", "Evansville"],
+  "219": ["US", "IN", "Hammond"],
+  "317": ["US", "IN", "Indianapolis"],
+  "606": ["US", "KY", "Pikeville"],
+  "270": ["US", "KY", "Henderson"],
+  "502": ["US", "KY", "Louisville"],
+  "859": ["US", "KY", "Lexington"],
+  "308": ["US", "NE", "Sidney"],
+  "402": ["US", "NE", "Omaha"],
+  "605": ["US", "SD", "Rapid City"],
+  "515": ["US", "IA", "Des Moines"],
+  "319": ["US", "IA", "Cedar Rapids"],
+  "314": ["US", "MO", "St. Louis"],
+  "816": ["US", "MO", "Kansas City"],
+  "417": ["US", "MO", "Springfield"],
+  "612": ["US", "MN", "Minneapolis"],
+  "218": ["US", "MN", "Duluth"],
+  "651": ["US", "MN", "St. Paul"],
+  "414": ["US", "WI", "Milwaukee"],
+  "608": ["US", "WI", "Madison"],
+  "715": ["US", "WI", "Eau Claire"],
+  "602": ["US", "AZ", "Phoenix"],
+  "480": ["US", "AZ", "Scottsdale"],
+  "520": ["US", "AZ", "Tucson"],
+  "702": ["US", "NV", "Las Vegas"],
+  "775": ["US", "NV", "Reno"],
+  "208": ["US", "ID", "Boise"],
+  "206": ["US", "WA", "Seattle"],
+  "360": ["US", "WA", "Bellingham"],
+  "509": ["US", "WA", "Spokane"],
+  "503": ["US", "OR", "Portland"],
+  "404": ["US", "GA", "Atlanta"],
+  "770": ["US", "GA", "Atlanta"],
+  "305": ["US", "FL", "Miami"],
+  "407": ["US", "FL", "Orlando"],
+  "813": ["US", "FL", "Tampa"],
+  "904": ["US", "FL", "Jacksonville"],
+  "704": ["US", "NC", "Charlotte"],
+  "919": ["US", "NC", "Raleigh"],
+  "803": ["US", "SC", "Columbia"],
+  "843": ["US", "SC", "Charleston"],
+  "615": ["US", "TN", "Nashville"],
+  "865": ["US", "TN", "Knoxville"],
+  "901": ["US", "TN", "Memphis"],
+  "757": ["US", "VA", "Norfolk"],
+  "804": ["US", "VA", "Richmond"],
+  "703": ["US", "VA", "Arlington"],
+  "410": ["US", "MD", "Baltimore"],
+  "302": ["US", "DE", "Wilmington"],
+  "201": ["US", "NJ", "Jersey City"],
+  "732": ["US", "NJ", "Edison"],
+  "973": ["US", "NJ", "Newark"],
+  "212": ["US", "NY", "New York"],
+  "716": ["US", "NY", "Buffalo"],
+  "585": ["US", "NY", "Rochester"],
+  "607": ["US", "NY", "Horseheads"],
+  "203": ["US", "CT", "Stamford"],
+  "617": ["US", "MA", "Boston"],
+});
+
+// High-precision Canadian & Oilpatch Exchange Prefixes (NPA-NXX -> Exact Oilfield Town)
+const NANPA_EXCHANGE_CITY = Object.freeze({
+  "780-532": "Grande Prairie",
+  "780-538": "Grande Prairie",
+  "780-539": "Grande Prairie",
+  "780-513": "Grande Prairie",
+  "780-518": "Grande Prairie",
+  "780-814": "Grande Prairie",
+  "780-830": "Grande Prairie",
+  "780-831": "Grande Prairie",
+  "780-832": "Grande Prairie",
+  "780-833": "Grande Prairie",
+  "780-876": "Grande Prairie",
+  "780-882": "Grande Prairie",
+  "780-897": "Grande Prairie",
+  "780-402": "Grande Prairie",
+  "780-733": "Grande Prairie",
+  "780-955": "Nisku",
+  "780-986": "Leduc",
+  "780-980": "Leduc",
+  "780-960": "Acheson",
+  "780-962": "Spruce Grove",
+  "780-743": "Fort McMurray",
+  "780-790": "Fort McMurray",
+  "780-791": "Fort McMurray",
+  "780-792": "Fort McMurray",
+  "780-799": "Fort McMurray",
+  "780-542": "Drayton Valley",
+  "780-621": "Drayton Valley",
+  "780-826": "Bonnyville",
+  "780-812": "Bonnyville",
+  "780-594": "Cold Lake",
+  "780-639": "Cold Lake",
+  "780-875": "Lloydminster",
+  "780-871": "Lloydminster",
+  "780-872": "Lloydminster",
+  "780-778": "Whitecourt",
+  "780-779": "Whitecourt",
+  "780-723": "Edson",
+  "780-865": "Hinton",
+  "780-622": "Fox Creek",
+  "780-849": "Slave Lake",
+  "780-624": "Peace River",
+  "780-926": "High Level",
+  "780-523": "High Prairie",
+  "780-623": "Lac La Biche",
+  "780-679": "Camrose",
+  "780-672": "Camrose",
+  "780-842": "Wainwright",
+  "780-753": "Provost",
+  "780-853": "Vermilion",
+  "780-998": "Fort Saskatchewan",
+  "780-992": "Fort Saskatchewan",
+  "780-987": "Devon",
+  "403-340": "Red Deer",
+  "403-341": "Red Deer",
+  "403-342": "Red Deer",
+  "403-343": "Red Deer",
+  "403-346": "Red Deer",
+  "403-347": "Red Deer",
+  "403-350": "Red Deer",
+  "403-352": "Red Deer",
+  "403-357": "Red Deer",
+  "403-358": "Red Deer",
+  "403-887": "Sylvan Lake",
+  "403-845": "Rocky Mountain House",
+  "403-844": "Rocky Mountain House",
+  "403-362": "Brooks",
+  "403-501": "Brooks",
+  "403-526": "Medicine Hat",
+  "403-527": "Medicine Hat",
+  "403-528": "Medicine Hat",
+  "403-529": "Medicine Hat",
+  "403-742": "Stettler",
+  "403-783": "Ponoka",
+  "403-638": "Sundre",
+  "403-556": "Olds",
+  "403-223": "Taber",
+  "403-320": "Lethbridge",
+  "403-327": "Lethbridge",
+  "403-328": "Lethbridge",
+  "403-823": "Drumheller",
+  "250-785": "Fort St. John",
+  "250-787": "Fort St. John",
+  "250-261": "Fort St. John",
+  "250-262": "Fort St. John",
+  "250-263": "Fort St. John",
+  "250-782": "Dawson Creek",
+  "250-784": "Dawson Creek",
+  "250-774": "Fort Nelson",
+  "306-634": "Estevan",
+  "306-636": "Estevan",
+  "306-842": "Weyburn",
+  "306-463": "Kindersley",
+  "306-773": "Swift Current",
+  "306-778": "Swift Current",
+  "306-825": "Lloydminster",
+  "204-748": "Virden",
+  "701-572": "Williston",
+  "701-577": "Williston",
+  "701-774": "Williston",
+  "701-444": "Watford City",
+  "701-842": "Watford City",
+  "701-225": "Dickinson",
+  "701-227": "Dickinson",
+  "701-483": "Dickinson",
+  "701-664": "Tioga",
+  "701-628": "Stanley",
+  "307-682": "Gillette",
+  "307-686": "Gillette",
+  "307-687": "Gillette",
+  "307-234": "Casper",
+  "307-235": "Casper",
+  "307-237": "Casper",
+  "307-265": "Casper",
+  "307-266": "Casper",
+  "307-362": "Rock Springs",
+  "307-382": "Rock Springs",
+  "432-682": "Midland",
+  "432-683": "Midland",
+  "432-684": "Midland",
+  "432-685": "Midland",
+  "432-686": "Midland",
+  "432-687": "Midland",
+  "432-332": "Odessa",
+  "432-333": "Odessa",
+  "432-334": "Odessa",
+  "432-335": "Odessa",
+  "432-337": "Odessa",
+  "432-362": "Odessa",
+  "432-366": "Odessa",
+  "432-367": "Odessa",
+  "432-368": "Odessa",
+  "432-550": "Odessa",
+  "432-561": "Odessa",
+  "432-563": "Odessa",
+  "432-445": "Pecos",
+  "432-523": "Andrews",
+  "432-263": "Big Spring",
+  "432-267": "Big Spring",
+  "575-392": "Hobbs",
+  "575-393": "Hobbs",
+  "575-397": "Hobbs",
+  "575-885": "Carlsbad",
+  "575-887": "Carlsbad",
+  "575-746": "Artesia",
+  "575-748": "Artesia",
+});
+
+const TOLL_FREE_NPAS = new Set(["800", "888", "877", "866", "855", "844", "833"]);
+
+function inferGeoFromNanpaPhone(rawPhone) {
+  const digits = String(rawPhone || "").replace(/\D+/gu, "");
+  const d10 = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) :
+    (digits.length === 10 ? digits : "");
+  if (!d10) return null;
+  const npa = d10.slice(0, 3);
+  const nxx = d10.slice(3, 6);
+  if (TOLL_FREE_NPAS.has(npa)) return {isTollFree: true, npa, nxx};
+  const geo = NANPA_AREA_CODE_GEO[npa];
+  if (!geo) return null;
+  const exactCity = NANPA_EXCHANGE_CITY[`${npa}-${nxx}`] || "";
+  return {
+    isTollFree: false,
+    npa,
+    nxx,
+    countryCode: geo[0],
+    regionCode: geo[1],
+    hubCity: exactCity || geo[2],
+    hasExactExchangeCity: Boolean(exactCity),
+  };
+}
+
+const PRESERVED_COMPANY_ACRONYMS = new Set([
+  "LLC", "LLP", "LP", "LTD", "INC", "CORP", "CO", "PLC", "ULC", "JV",
+  "USA", "US", "UK", "UAE", "AB", "BC", "SK", "TX", "ND", "OK", "LA",
+  "OCTG", "NDT", "H2S", "BOP", "SCADA", "HSE", "SWD", "HDD", "CVIP",
+  "DOT", "API", "CNC", "GPS", "VAC", "MWD", "LWD", "ESP", "PCP",
+  "EPC", "EPCM", "EPCI", "ISO", "IWCF", "OPITO", "CSO", "II", "III", "IV",
+]);
+
+function canonicalizeCompanyName(rawName) {
+  if (!rawName) return "";
+  let s = String(rawName)
+      .replace(/&amp;/giu, "&")
+      .replace(/&#39;|&apos;/giu, "'")
+      .replace(/&quot;/giu, "\"")
+      .replace(/\s+/gu, " ")
+      .replace(/^[,\-–—.|/\s]+|[,\-–—.|/=\s]+$/gu, "")
+      .trim();
+  if (!s) return "";
+  const alphaOnly = s.replace(/[^A-Za-z]/gu, "");
+  if (alphaOnly.length >= 5 && (s === s.toUpperCase() || s === s.toLowerCase())) {
+    s = s.split(" ").map((word) => {
+      const bare = word.replace(/[^A-Za-z0-9]/gu, "").toUpperCase();
+      if (PRESERVED_COMPANY_ACRONYMS.has(bare)) {
+        return word.toUpperCase();
+      }
+      return word.toLowerCase().replace(/(?:^|[\-/'(&])([a-z])/gu, (m, c) =>
+        `${m.slice(0, -1)}${c.toUpperCase()}`,
+      ).replace(/\bMc([a-z])/gu, (_, c) => `Mc${c.toUpperCase()}`);
+    }).join(" ");
+  }
+  return s.slice(0, 160);
+}
+
 function canonicalizeCityName(rawCity, regionCode = "", countryCode = "") {
   if (!rawCity) return "";
   let s = String(rawCity)
+      .replace(/&amp;/giu, "&")
       .trim()
       .replace(/\s+/gu, " ")
-      .replace(/^[,\-–—./\s]+|[,\-–—./\s]+$/gu, "");
+      .replace(/^[,\-–—./=#\s]+|[,\-–—./=#\s]+$/gu, "");
   if (!s) return "";
 
-  const rc = String(regionCode || "").trim().toUpperCase();
+  const rc = canonicalizeRegionCode(regionCode, countryCode);
   const cc = String(countryCode || "").trim().toUpperCase();
+
+  // Strip Canadian postal codes (e.g. "T3E 0B4"), leading European postal codes ("151 25 Maroussi", "1181 Le Amstelveen"), or US ZIPs
+  s = s
+      .replace(/,?\s*\b[A-Z]\d[A-Z]\s*\d[A-Z]\d\b$/iu, "")
+      .replace(/,?\s*\b\d{5}(?:-\d{4})?\b$/u, "")
+      .replace(/^\d{2,5}\s*(?:\d{2,3}\s+)?(?:[A-Za-z]{2}\s+)?(?=[A-Z][a-z]{3,})/u, "")
+      .replace(/^[,\-–—./=#\s]+|[,\-–—./=#\s]+$/gu, "")
+      .trim();
+
+  // Strip China/Asia district/province suffixes ("Xinxiang City, Henan Province", "Chaoyang District, Beijing")
+  if (/,\s*Beijing$/iu.test(s)) s = "Beijing";
+  if (/,\s*Seoul$/iu.test(s)) s = "Seoul";
+  if (/^Changzhoucity/iu.test(s)) s = "Changzhou";
+  s = s.replace(/\s+City,\s*[A-Za-z\s]+Province$/iu, "").trim();
+
   if (rc) {
     const rcEsc = rc.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-    s = s.replace(new RegExp(`,\\s*${rcEsc}$`, "iu"), "").trim();
+    s = s.replace(new RegExp(`(?:,|\\s)+${rcEsc}=?$`, "iu"), "").trim();
     const regInfo = NORTH_AMERICA_REGIONS[`${cc}-${rc}`];
     if (regInfo && regInfo.name && s.toLowerCase() !== regInfo.name.toLowerCase()) {
       const rnEsc = regInfo.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
       s = s.replace(new RegExp(`[\\s,]+${rnEsc}$`, "iu"), "").trim();
     }
   }
-  if (cc) {
+  if (cc && s.length > 3) {
     const ccEsc = cc.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
     s = s.replace(new RegExp(`,\\s*${ccEsc}$`, "iu"), "").trim();
   }
+  s = s.replace(/,\s*Wa$/iu, "").trim();
 
-  if (s === s.toUpperCase() || s === s.toLowerCase()) {
+  // Normalize all-caps, all-lowercase, FMCSA 2-letter uppercase prefix bugs ("EL Paso", "LA Porte", "ST Louis", "MC Camey"), or mixed-case typos ("sylvan Lake", "MIssissauga")
+  const hasCaseAnomaly =
+    s === s.toUpperCase() ||
+    s === s.toLowerCase() ||
+    /^(?:[a-z]|[A-Z]{2}[a-z])/u.test(s) ||
+    /\b(?:EL|LA|ST|MC|DE|FE|OF|MT)\b/u.test(s);
+  if (hasCaseAnomaly) {
     s = s.toLowerCase().replace(/(?:^|[\s\-/'(])([a-z])/gu, (m, c) =>
       `${m.slice(0, -1)}${c.toUpperCase()}`,
     );
+    s = s
+        .replace(/\bOf\b/gu, "of")
+        .replace(/\bPortage La Prairie\b/gu, "Portage la Prairie")
+        .replace(/\bDar Es Salaam\b/gu, "Dar es Salaam");
   }
+
+  // Consolidate county / municipal district / truncated USDOT & directory variants into canonical town names
+  if (
+    /^(?:Co\s+of\s+Gr(?:a?nd|nd)\s*Pr(?:\s*#?\s*\d+)?|(?:County\s+of\s+)?Grande\s+Prairie(?:\s+County)?(?:\s+No\.?\s*\d+)?)$/iu.test(s) ||
+    (/^Grand\s+Prairie$/iu.test(s) && (rc === "AB" || cc === "CA"))
+  ) {
+    return "Grande Prairie";
+  }
+
+  const exactRewrites = [
+    [/^Red\s+Deer\s+(?:Co|County)$/iu, "Red Deer"],
+    [/^(?:Leduc\s+County|Edmonton\s+International\s+Airport)$/iu, "Leduc"],
+    [/^(?:Ponoka\s+County|County\s+of\s+Ponoka)$/iu, "Ponoka"],
+    [/^Lethbridge\s+County$/iu, "Lethbridge"],
+    [/^(?:Rocky\s*view(?:\s+Co|\s+County)?)$/iu, "Rocky View County"],
+    [/^(?:RM|R\.M\.)\s+of\s+Aberdeen$/iu, "Aberdeen"],
+    [/^(?:(?:RM|R\.M\.|Regional\s+Municipality)\s+of\s+)?Wood\s+Buffalo$/iu, "Fort McMurray"],
+    [/^Rocky\s+Mtn\s+(?:Hse|House)$/iu, "Rocky Mountain House"],
+    [/^Carrizo\s+Spgs$/iu, "Carrizo Springs"],
+    [/^Wht\s+Sphr\s+Spgs$/iu, "White Sulphur Springs"],
+    [/^Cheyenne\s+Wls$/iu, "Cheyenne Wells"],
+    [/^Grand\s+Jct$/iu, "Grand Junction"],
+    [/^Roaring\s+Brnch$/iu, "Roaring Branch"],
+    [/^Li\s+Ngle$/iu, "Lingle"],
+    [/^Jbsa\s+Fsh$/iu, "San Antonio"],
+    [/^Portugal\s*Cv\s*-\s*St\.?\s*Philip'?s$/iu, "Portugal Cove-St. Philip's"],
+    [/^Langley\s+Twp$/iu, "Langley"],
+    [/^Cranberry\s+Twp$/iu, "Cranberry Township"],
+    [/^North\s+Lemmon\s+Township(?:\s+Nd)?$/iu, "Lemmon"],
+    [/^Beulah\s+Airport$/iu, "Beulah"],
+    [/^Pleasant\s+Mt$/iu, "Pleasant Mount"],
+    [/^Swift\s+Curretn$/iu, "Swift Current"],
+    [/^Saskatooon$/iu, "Saskatoon"],
+    [/^(?:Willston|Willistion)$/iu, "Williston"],
+    [/^Bakerfield$/iu, "Bakersfield"],
+    [/^Beckenridge$/iu, "Breckenridge"],
+    [/^Carrolton$/iu, "Carrollton"],
+    [/^Fourt\s+Lupton$/iu, "Fort Lupton"],
+    [/^Thoruton$/iu, "Thornton"],
+    [/^Trindad$/iu, "Trinidad"],
+    [/^Cunnigham$/iu, "Cunningham"],
+    [/^Fort\s+Smite$/iu, "Fort Smith"],
+    [/^Boomfield$/iu, "Bloomfield"],
+    [/^Abberville$/iu, "Abbeville"],
+    [/^Geismer$/iu, "Geismar"],
+    [/^Carenco$/iu, "Carencro"],
+    [/^Backwell$/iu, "Blackwell"],
+    [/^Woodard$/iu, "Woodward"],
+    [/^W\s+Stroud$/iu, "Stroud"],
+    [/^Sidhey$/iu, "Sidney"],
+    [/^Mc\s+Camey$/iu, "McCamey"],
+    [/^Mc\s+Clellandtown$/iu, "McClellandtown"],
+    [/^De\s+Berry$/iu, "DeBerry"],
+    [/^Lac\s+La\s+Biche$/iu, "Lac La Biche"],
+    [/^Ste-Justine$/iu, "Sainte-Justine"],
+  ];
+  for (const [rx, target] of exactRewrites) {
+    if (rx.test(s)) return target;
+  }
+  if (/^Pittsburg$/iu.test(s) && rc === "PA") return "Pittsburgh";
+  if (/^Laporte$/iu.test(s) && rc === "TX") return "La Porte";
+  if (/^Lasalle$/iu.test(s) && (rc === "CO" || rc === "MB" || rc === "QC")) return "La Salle";
+  if (/^Labarge$/iu.test(s) && rc === "WY") return "La Barge";
 
   s = s
       .replace(/^Ft\.?\s+/iu, "Fort ")
       .replace(/^Fort\s+Mcmurray$/iu, "Fort McMurray")
       .replace(/^Fort\s+Sask$/iu, "Fort Saskatchewan")
       .replace(/^Fort\s+St\.?\s+John$/iu, "Fort St. John")
+      .replace(/^Fort\s+St\.?\s+James$/iu, "Fort St. James")
       .replace(/^Sault\s+Ste\.?\s+Marie$/iu, "Sault Ste. Marie")
       .replace(/^(?:St\.?|Saint)\s+Albert$/iu, "St. Albert")
       .replace(/^(?:St\.?|Saint)\s+Paul$/iu, "St. Paul")
       .replace(/^(?:St\.?|Saint)\s+John'?s$/iu, "St. John's")
       .replace(/^(?:St\.?|Saint)\s+John$/iu, "St. John")
+      .replace(/^(?:St\.?|Saint)\s+Louis$/iu, "St. Louis")
+      .replace(/^(?:St\.?|Saint)\s+Clairsville$/iu, "St. Clairsville")
+      .replace(/^(?:St\.?|Saint)\s+Catharines$/iu, "St. Catharines")
+      .replace(/^(?:St\.?|Saint)\s+Jacobs$/iu, "St. Jacobs")
+      .replace(/^(?:St\.?|Saint)\s+George$/iu, "St. George")
+      .replace(/^(?:St\.?|Saint)\s+Isidore$/iu, "St. Isidore")
+      .replace(/^(?:St\.?|Saint)\s+Brieux$/iu, "St. Brieux")
+      .replace(/^(?:St\.?|Saint)\s+Rose$/iu, "St. Rose")
       .replace(/^Mt\.?\s+/iu, "Mount ")
       .replace(/^Pt\.?\s+/iu, "Point ")
       .replace(/\bNo\s+(\d+)\b/giu, "No. $1")
@@ -910,7 +1444,7 @@ function canonicalizeCityName(rawCity, regionCode = "", countryCode = "") {
 function canonicalizeRegionCode(rawRegion, countryCode = "") {
   if (!rawRegion) return "";
   const cc = String(countryCode || "").trim().toUpperCase();
-  const s = String(rawRegion).trim().replace(/\s+/gu, " ").toUpperCase();
+  const s = String(rawRegion).trim().replace(/\s+/gu, " ").replace(/=+$/gu, "").toUpperCase();
   if (!s || s === cc) return "";
   // Strip trailing postal/ZIP codes accidentally appended to a 2-3 char region code (e.g. "AB T1A0H2", "TX 79701")
   const leadingIso = s.match(/^([A-Z]{2,3})(?:[\s,-]+[A-Z0-9-]{3,12})+$/u);
@@ -934,17 +1468,21 @@ module.exports = {
   CATEGORY_BY_CODE,
   COUNTRY_BY_CODE,
   GLOBAL_COUNTRIES_LIST,
+  NANPA_AREA_CODE_GEO,
+  NANPA_EXCHANGE_CITY,
   NORTH_AMERICA_REGIONS,
   SYNONYM_GROUPS,
   WORLD_CONTINENTS,
   YELLOW_PAGES_CATEGORIES,
   canonicalizeCityName,
+  canonicalizeCompanyName,
   canonicalizeRegionCode,
   checkB2BCallingWindow,
   classifyCategoriesFromText,
   countryCodesForContinent,
   expandServiceSearchTerms,
   inferCountryAndRegion,
+  inferGeoFromNanpaPhone,
   normalizeCityKey,
   normalizeText,
 };
