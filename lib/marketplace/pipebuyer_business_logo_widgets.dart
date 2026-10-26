@@ -195,11 +195,11 @@ class PipeBuyerVisualBadge extends StatelessWidget {
         ),
       PipeBuyerBadgeVariant.verifiedBasic => const _BadgeVisualSpec(
           defaultLabel: 'VERIFIED',
-          icon: Icons.check_circle_outline_rounded,
-          gradientColors: <Color>[Color(0xFFF8FAFC), Color(0xFFF1F5F9)],
-          borderColor: Color(0xFFCBD5E1),
-          iconColor: Color(0xFF475569),
-          textColor: Color(0xFF334155),
+          icon: Icons.check_circle_rounded,
+          gradientColors: <Color>[Color(0xFFECFDF5), Color(0xFFDCFCE7)],
+          borderColor: Color(0xFF4ADE80),
+          iconColor: Color(0xFF16A34A),
+          textColor: Color(0xFF15803D),
         ),
     };
   }

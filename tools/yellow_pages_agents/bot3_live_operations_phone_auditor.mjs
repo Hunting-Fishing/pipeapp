@@ -371,11 +371,7 @@ function evaluateCompanyWithDomainProbe(company, domainProbe) {
     categoryCodes: mergedCategoryCodes,
     operationalStatus,
     verificationStatus:
-      operationalStatus === "active_in_operation" || operationalStatus === "active_number_updated"
-        ? "verified"
-        : operationalStatus === "closed_inactive"
-          ? "inactive"
-          : "unverified",
+      operationalStatus === "closed_inactive" ? "inactive" : "unverified",
     phoneHistory: normalizePhoneHistory([], legacyPhones, currentMainPhone),
     liveAudit: {
       auditedAt: domainProbe?.checkedAt || new Date().toISOString(),

@@ -464,6 +464,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
     if (paidOnly && entry.isPaidTier !== true) return false;
     if (tierFilter === "featured_only" && entry.isFeatured !== true) return false;
     if (tierFilter === "paid_only" && entry.isPaidTier !== true) return false;
+    if (tierFilter === "verified_only" && entry.verified !== true) return false;
     if (tierFilter === "claimable_only" && entry.isPaidTier === true) return false;
     if (hasTollFree && !String(entry.tollFreePhone || "").trim()) return false;
     if (startsWith) {
@@ -596,6 +597,9 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         if (continentCode || countryCode || regionCode) serverConstrainedOnly = false;
       } else if (tierFilter === "featured_only") {
         query = query.where("isFeatured", "==", true);
+        if (continentCode || countryCode || regionCode) serverConstrainedOnly = false;
+      } else if (tierFilter === "verified_only") {
+        query = query.where("verified", "==", true);
         if (continentCode || countryCode || regionCode) serverConstrainedOnly = false;
       } else if (startsWith && /^[A-Z]$/u.test(startsWith)) {
         query = query
@@ -754,10 +758,11 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       const geo = inferCountryAndRegion(data.countryCode, data.regionCode);
       const city = text(data.city, 120);
       const rawInterval = text(data.billingInterval, 20).toLowerCase();
-      const billingInterval = requestedTier === "free_verified" ?
+      const isFreeTier = requestedTier === "free_verified" || requestedTier === "free_basic";
+      const billingInterval = isFreeTier ?
         "none" :
         (rawInterval === "monthly" || rawInterval === "month" ? "monthly" : "yearly");
-      if (requestedTier !== "free_verified") {
+      if (!isFreeTier) {
         try {
           assertCountryPayableWithStripe(
               geo.countryCode,
@@ -832,7 +837,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         description: text(data.description, 2500),
         requestedTier,
         billingInterval,
-        paymentStatus: requestedTier === "free_verified" ?
+        paymentStatus: isFreeTier ?
           "not_required" :
           "pending_checkout",
         paidThrough: null,
@@ -856,7 +861,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         status: "pending_review",
         requestedTier,
         billingInterval,
-        paymentStatus: requestedTier === "free_verified" ?
+        paymentStatus: isFreeTier ?
           "not_required" :
           "pending_checkout",
       };
@@ -1245,9 +1250,8 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         updatedAt: serverTimestamp(),
         updatedByUid: actor.uid,
       };
-      // If Admin turns viewing ON and the company is already verified (or Admin opts to quick-publish), ensure publicationStatus is published
+      // If Admin turns viewing ON and opts to quick-publish, ensure publicationStatus is published without pre-verifying
       if (visible && data.publishImmediately === true) {
-        updates.verificationStatus = "verified";
         updates.publicationStatus = "published";
         if (!company.operationalStatus || company.operationalStatus === "unverified") {
           updates.operationalStatus = "active_in_operation";
@@ -1517,9 +1521,16 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       if (!BILLING_STATUSES.has(status)) {
         throw new HttpsError("invalid-argument", "Invalid billing status.");
       }
+      const ref = db().collection(PRIVATE_COMPANIES).doc(companyId);
+      const snap = await ref.get();
+      if (!snap.exists) throw new HttpsError("not-found", "Company record not found.");
+      const current = snap.data() || {};
+
       const listingTier = LISTING_TIERS.has(text(data.listingTier, 40)) ?
         text(data.listingTier, 40) :
-        (status === "paid" ? "paid_verified" : "free_verified");
+        (status === "paid" ?
+          "paid_verified" :
+          (current.verificationStatus === "verified" ? "free_verified" : "free_basic"));
       const nonExpiringPaid = status === "paid" && data.nonExpiringPaid === true;
       const paidThrough = status === "paid" && !nonExpiringPaid ?
         parseTimestamp(data.paidThrough, "paid-through date") :
@@ -1527,11 +1538,8 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       if (status === "paid" && !nonExpiringPaid && (!paidThrough || paidThrough.toMillis() <= Date.now())) {
         throw new HttpsError("invalid-argument", "A future paid-through date is required for paid status.");
       }
-      const ref = db().collection(PRIVATE_COMPANIES).doc(companyId);
-      const snap = await ref.get();
-      if (!snap.exists) throw new HttpsError("not-found", "Company record not found.");
 
-      await ref.update({
+      const billingUpdate = {
         billingStatus: status,
         listingTier,
         paidThrough,
@@ -1541,7 +1549,13 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         billingReviewNote: text(data.reviewNote, 2000),
         updatedAt: serverTimestamp(),
         updatedByUid: actor.uid,
-      });
+      };
+      if (status === "paid" && current.verificationStatus !== "verified") {
+        billingUpdate.verificationStatus = "verified";
+        billingUpdate.verifiedAt = serverTimestamp();
+        billingUpdate.verifiedByUid = actor.uid;
+      }
+      await ref.update(billingUpdate);
       await audit(actor, "billing_status_changed", companyId, {
         status,
         listingTier,
@@ -1567,7 +1581,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
       if (status === "published" && !isPublicationEligible({...company, publicationStatus: "published"})) {
         throw new HttpsError(
             "failed-precondition",
-            "Company must be verified, operational, unflagged, and viewing-enabled before publishing.",
+            "Company must be operational, unflagged, and viewing-enabled before publishing.",
         );
       }
       await ref.update({

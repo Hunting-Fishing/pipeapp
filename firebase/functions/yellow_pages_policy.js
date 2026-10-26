@@ -53,6 +53,7 @@ const LISTING_TIERS = new Set([
   "featured_platinum",
   "paid_verified",
   "free_verified",
+  "free_basic",
 ]);
 
 const STAFF_ROLES = new Set(["agent", "manager"]);
@@ -309,7 +310,7 @@ function resolveEffectiveTier(company, nowMillis = Date.now()) {
   if (!company || typeof company !== "object") return null;
   if (company.isFlaggedProhibited === true) return null;
   if (company.adminViewingEnabled === false) return null;
-  if (company.verificationStatus !== "verified") return null;
+  if (["rejected", "inactive"].includes(company.verificationStatus)) return null;
   if (company.publicationStatus !== "published") return null;
   if (["closed_inactive", "flagged_prohibited"].includes(company.operationalStatus)) {
     return null;
@@ -323,7 +324,9 @@ function resolveEffectiveTier(company, nowMillis = Date.now()) {
   }
 
   if (company.allowUnpaidPublic !== false) {
-    return "free_verified";
+    return company.verificationStatus === "verified" ?
+      "free_verified" :
+      "free_basic";
   }
 
   return null;
@@ -332,7 +335,8 @@ function resolveEffectiveTier(company, nowMillis = Date.now()) {
 function computePriorityScore(company, effectiveTier) {
   const base = effectiveTier === "featured_platinum" ? 300 :
     effectiveTier === "paid_verified" ? 200 :
-    effectiveTier === "free_verified" ? 100 : 0;
+    effectiveTier === "free_verified" ? 130 :
+    effectiveTier === "free_basic" ? 100 : 0;
   if (base === 0) return 0;
 
   let bonus = 0;
@@ -443,6 +447,7 @@ function buildPublicEntry(company, companyId, serverTimestamp, nowMillis = Date.
   if (!effectiveTier) return null;
 
   const isPaid = effectiveTier === "featured_platinum" || effectiveTier === "paid_verified";
+  const isVerified = company.verificationStatus === "verified" || isPaid;
   const geo = inferCountryAndRegion(company.countryCode, company.regionCode);
   const categoryCodes = classifyCategoriesFromText(
       [...(company.categoryCodes || []), ...(company.categories || []), ...(company.services || [])],
@@ -497,7 +502,7 @@ function buildPublicEntry(company, companyId, serverTimestamp, nowMillis = Date.
       text(company.description, 2500) :
       text(company.shortSummary || company.description, 220),
     operationalStatus: text(company.operationalStatus, 40) || "active_in_operation",
-    verified: true,
+    verified: isVerified,
     paidThrough: isPaid ? (company.paidThrough || null) : null,
     nonExpiringPaid: isPaid && company.nonExpiringPaid === true,
     searchTokens: buildPublicSearchTokens(company),
@@ -508,13 +513,19 @@ function buildPublicEntry(company, companyId, serverTimestamp, nowMillis = Date.
 
 function isPublicEntryCurrent(entry, nowMillis = Date.now()) {
   if (!entry || typeof entry !== "object") return false;
-  if (entry.verified !== true) return false;
+  if (entry.isFlaggedProhibited === true || entry.adminViewingEnabled === false) {
+    return false;
+  }
+  if (entry.publicationStatus && entry.publicationStatus !== "published") {
+    return false;
+  }
   if (entry.isPaidTier === true) {
     if (entry.nonExpiringPaid === true) return true;
     const paidThroughMillis = timestampMillis(entry.paidThrough);
     return paidThroughMillis != null && paidThroughMillis > nowMillis;
   }
-  return entry.effectiveTier === "free_verified";
+  return entry.effectiveTier === "free_basic" ||
+    entry.effectiveTier === "free_verified";
 }
 
 function defaultCompanyWorkflow() {
@@ -524,7 +535,7 @@ function defaultCompanyWorkflow() {
     operationalStatus: "unverified",
     billingStatus: "unpaid",
     publicationStatus: "unpublished",
-    listingTier: "free_verified",
+    listingTier: "free_basic",
     allowUnpaidPublic: true,
     adminViewingEnabled: true,
     isFlaggedProhibited: false,

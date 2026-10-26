@@ -349,3 +349,103 @@ test("canonicalizes oilfield town spellings and aggregates live business counts 
   assert.deepEqual(gpTown, ["Grande Prairie", "AB", "CA", 2]);
   assert.deepEqual(fmTown, ["Fort McMurray", "AB", "CA", 1]);
 });
+
+test("keeps crawled unverified companies published as free_basic (verified=false) without pre-verification and ranks admin-verified companies higher", async () => {
+  const now = Date.parse("2026-10-26T00:00:00Z");
+
+  const crawledUnverifiedCompany = {
+    companyName: "Red Deer Wireline & Slickline Ltd.",
+    countryCode: "CA",
+    regionCode: "AB",
+    city: "Red Deer",
+    mainPhone: "403-555-0199",
+    publicPhone: "403-555-0199",
+    categories: ["Completions, Frac, Coiled Tubing & Wireline"],
+    services: ["Slickline", "Wireline"],
+    verificationStatus: "unverified",
+    operationalStatus: "active_in_operation",
+    billingStatus: "unpaid",
+    listingTier: "free_basic",
+    publicationStatus: "published",
+    adminViewingEnabled: true,
+    isFlaggedProhibited: false,
+  };
+
+  const adminVerifiedCompany = {
+    ...crawledUnverifiedCompany,
+    companyName: "Leduc Pressure Control Ltd.",
+    city: "Leduc",
+    verificationStatus: "verified",
+    listingTier: "free_verified",
+  };
+
+  const basicEntry = buildPublicEntry(crawledUnverifiedCompany, "comp-basic", "TS", now);
+  const verifiedEntry = buildPublicEntry(adminVerifiedCompany, "comp-ver", "TS", now);
+
+  assert.ok(basicEntry, "unverified published company should still build a public entry");
+  assert.equal(basicEntry.effectiveTier, "free_basic");
+  assert.equal(basicEntry.verified, false);
+  assert.equal(isPublicEntryCurrent(basicEntry, now), true);
+
+  assert.equal(verifiedEntry.effectiveTier, "free_verified");
+  assert.equal(verifiedEntry.verified, true);
+  assert.equal(isPublicEntryCurrent(verifiedEntry, now), true);
+  assert.ok(
+      verifiedEntry.priorityScore > basicEntry.priorityScore,
+      "genuinely verified unpaid listings outrank unverified basic listings",
+  );
+
+  // Rejected or inactive verification status never publishes publicly
+  assert.equal(
+      buildPublicEntry({...crawledUnverifiedCompany, verificationStatus: "rejected"}, "c-rej", "TS", now),
+      null,
+  );
+  assert.equal(
+      buildPublicEntry({...crawledUnverifiedCompany, verificationStatus: "inactive"}, "c-inact", "TS", now),
+      null,
+  );
+
+  // Search tierFilter === "verified_only" returns only verified === true entries
+  const publicDocs = [basicEntry, verifiedEntry];
+  const fakeAdmin = {
+    firestore: Object.assign(() => ({
+      collection() {
+        const makeChain = (items) => ({
+          where(field, op, val) {
+            const filtered = items.filter((it) => op === "==" ? it[field] === val : true);
+            return makeChain(filtered);
+          },
+          limit() {
+            return {
+              async get() {
+                return {docs: items.map((d, idx) => ({id: d.companyId || `id-${idx}`, data: () => d}))};
+              },
+            };
+          },
+        });
+        return makeChain(publicDocs);
+      },
+    }), {
+      FieldValue: {
+        serverTimestamp: () => "TS",
+        increment: (n) => n,
+      },
+    }),
+    auth: () => ({}),
+  };
+
+  const commands = createYellowPagesCommands(fakeAdmin);
+  const allRes = await commands.searchPipeBuyerYellowPages({data: {}});
+  assert.equal(allRes.totalMatched, 2);
+  assert.equal(allRes.entries[0].companyId, "comp-ver");
+  assert.equal(allRes.entries[0].verified, true);
+  assert.equal(allRes.entries[1].companyId, "comp-basic");
+  assert.equal(allRes.entries[1].verified, false);
+
+  const verOnlyRes = await commands.searchPipeBuyerYellowPages({
+    data: {tierFilter: "verified_only"},
+  });
+  assert.equal(verOnlyRes.totalMatched, 1);
+  assert.equal(verOnlyRes.entries[0].companyId, "comp-ver");
+  assert.equal(verOnlyRes.entries[0].verified, true);
+});
