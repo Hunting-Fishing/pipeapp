@@ -257,7 +257,11 @@ function createPartnerProgramCommands(admin, {notifyAdministrators} = {}) {
     }),
 
     listMyPartnerInquiries: command(async (request) => {
-      const identity = requireAuthenticatedIdentity(request);
+      const identity = requireAuthenticatedIdentity(request, {
+        requireEmail: false,
+        requirePhone: false,
+        allowUnverified: true,
+      });
       const snapshot = await db.collection(PARTNER_INQUIRIES)
           .where("submitterUid", "==", identity.uid)
           .limit(50)
@@ -346,6 +350,12 @@ function createPartnerProgramCommands(admin, {notifyAdministrators} = {}) {
 
     reviewPartnerInquiry: command(async (request) => {
       const actorUid = requireAdministrator(request);
+      await enforceUserRateLimit({
+        db,
+        admin,
+        request,
+        scope: "administration",
+      });
       const data = request.data || {};
       const inquiryId = requiredId(data, "inquiryId");
       const nextStatus = String(data.status || "").trim();
@@ -415,6 +425,26 @@ function createPartnerProgramCommands(admin, {notifyAdministrators} = {}) {
         updatedAt: FieldValue.serverTimestamp(),
       }, {merge: true});
 
+      if (existing.submitterUid) {
+        await db.collection("users")
+            .doc(existing.submitterUid)
+            .collection("notifications")
+            .doc(`partner-inquiry-${inquiryId}-${validatedStatus}`)
+            .set({
+              recipientUid: existing.submitterUid,
+              type: "partner_inquiry_status_updated",
+              title: `Partner Proposal Status: ${validatedStatus.toUpperCase()}`,
+              body: publishedShowcaseId ?
+                `Your ${existing.companyName || "partner"} showcase has been approved and published live on Pipe Buyer.` :
+                `Your partnership proposal for ${existing.companyName || "your organization"} is now ${validatedStatus}.`,
+              inquiryId,
+              publishedShowcaseId,
+              status: validatedStatus,
+              read: false,
+              createdAt: FieldValue.serverTimestamp(),
+            }, {merge: true});
+      }
+
       await writeAuditEvent(actorUid, "review_partner_inquiry", inquiryId, {
         status: validatedStatus,
         publishedShowcaseId,
@@ -429,6 +459,12 @@ function createPartnerProgramCommands(admin, {notifyAdministrators} = {}) {
 
     upsertPartnerShowcaseDeal: command(async (request) => {
       const actorUid = requireAdministrator(request);
+      await enforceUserRateLimit({
+        db,
+        admin,
+        request,
+        scope: "administration",
+      });
       const data = request.data || {};
       const existingId = String(data.showcaseId || "").trim();
       if (existingId && existingId.includes("/")) {

@@ -18,16 +18,24 @@ class PipeBuyerPartnerClient {
 
   FirebaseAuth get _resolvedAuth => _auth ??= FirebaseAuth.instance;
 
-  String? get currentUserEmail => _resolvedAuth.currentUser?.email;
-  String? get currentUserDisplayName => _resolvedAuth.currentUser?.displayName;
-  bool get isSignedIn => _resolvedAuth.currentUser != null;
+  User? get _safeCurrentUser {
+    try {
+      return _resolvedAuth.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? get currentUserEmail => _safeCurrentUser?.email;
+  String? get currentUserDisplayName => _safeCurrentUser?.displayName;
+  bool get isSignedIn => _safeCurrentUser != null;
 
   Future<Map<String, dynamic>> _call(
     String name,
     Map<String, Object?> payload, {
     bool requiresAuthentication = false,
   }) async {
-    if (requiresAuthentication && _resolvedAuth.currentUser == null) {
+    if (requiresAuthentication && _safeCurrentUser == null) {
       throw StateError('Sign in to continue.');
     }
     try {

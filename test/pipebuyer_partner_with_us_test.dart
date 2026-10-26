@@ -201,6 +201,14 @@ void main() {
       );
       expect(find.text('OEM Fleet & Crew Trucks'), findsOneWidget);
       expect(find.text('Oilfield Deals & Discounts'), findsOneWidget);
+      expect(
+        find.byKey(const Key('footer-link-commercial-insurance')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('footer-link-insurance-carrier-apply')),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     }
 

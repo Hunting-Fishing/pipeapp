@@ -8,6 +8,7 @@ import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_auth_page.dart';
 import 'marketplace_subscription_billing_policy.dart';
 import 'pipebuyer_country_flag_icon.dart';
+import 'pipebuyer_site_footer.dart';
 import 'pipebuyer_yellow_pages_client.dart';
 import 'pipebuyer_yellow_pages_taxonomy.dart';
 
@@ -952,6 +953,10 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                           ),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 24),
+                    const PipeBuyerSiteFooter(
+                      currentSurface: PipeBuyerFooterSurface.directory,
                     ),
                   ],
                 ),

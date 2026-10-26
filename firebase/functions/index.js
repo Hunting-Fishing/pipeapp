@@ -49,6 +49,9 @@ const { createSupportCommands } = require("./support_commands");
 const {createWantedMatching} = require("./wanted_matching");
 const {createYellowPagesCommands} = require("./yellow_pages_commands");
 const {createPartnerProgramCommands} = require("./partner_program_commands");
+const {
+  createInsuranceMarketplaceCommands,
+} = require("./insurance_marketplace_commands");
 const admin = createAdminRuntime();
 
 async function notifyActiveAdministrators(notification) {
@@ -118,6 +121,9 @@ const yellowPagesCommands = createYellowPagesCommands(admin, {
   notifyAdministrators: notifyActiveAdministrators,
 });
 const partnerProgramCommands = createPartnerProgramCommands(admin, {
+  notifyAdministrators: notifyActiveAdministrators,
+});
+const insuranceMarketplaceCommands = createInsuranceMarketplaceCommands(admin, {
   notifyAdministrators: notifyActiveAdministrators,
 });
 exports.syncDispatchDirectoryFromPublicProfile = onDocumentWritten(
@@ -1311,4 +1317,38 @@ exports.reviewPartnerInquiry = onCall(
 exports.upsertPartnerShowcaseDeal = onCall(
   protectedCallableOptions,
   partnerProgramCommands.upsertPartnerShowcaseDeal,
+);
+
+// Commercial & Oilfield Insurance Hub — Directory, Rate Applications & Carrier Portal
+exports.listInsuranceProviders = onCall(
+  publicDirectoryReadOptions,
+  insuranceMarketplaceCommands.listInsuranceProviders,
+);
+exports.submitInsuranceRateApplication = onCall(
+  protectedCallableOptions,
+  insuranceMarketplaceCommands.submitInsuranceRateApplication,
+);
+exports.listMyInsuranceRateApplications = onCall(
+  protectedCallableOptions,
+  insuranceMarketplaceCommands.listMyInsuranceRateApplications,
+);
+exports.submitInsuranceProviderApplication = onCall(
+  protectedCallableOptions,
+  insuranceMarketplaceCommands.submitInsuranceProviderApplication,
+);
+exports.listAdminInsuranceDashboard = onCall(
+  protectedCallableOptions,
+  insuranceMarketplaceCommands.listAdminInsuranceDashboard,
+);
+exports.reviewInsuranceProviderApplication = onCall(
+  protectedCallableOptions,
+  insuranceMarketplaceCommands.reviewInsuranceProviderApplication,
+);
+exports.upsertInsuranceProvider = onCall(
+  protectedCallableOptions,
+  insuranceMarketplaceCommands.upsertInsuranceProvider,
+);
+exports.updateInsuranceRateApplicationStatus = onCall(
+  protectedCallableOptions,
+  insuranceMarketplaceCommands.updateInsuranceRateApplicationStatus,
 );

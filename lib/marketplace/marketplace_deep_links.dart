@@ -22,6 +22,10 @@ class MarketplaceDeepLinks {
   static const partnerWithUsRouteName = 'partner-with-us';
   static const partnerApplyRouteName = 'partner-apply';
   static const partnerAdminRouteName = 'partner-admin';
+  static const insuranceHubRouteName = 'commercial-insurance-hub';
+  static const insuranceProviderApplyRouteName =
+      'commercial-insurance-provider-apply';
+  static const insuranceAdminRouteName = 'commercial-insurance-admin';
 
   static const privacyPath = '/privacy';
   static const termsPath = '/terms';
@@ -33,6 +37,9 @@ class MarketplaceDeepLinks {
   static const partnerWithUsPath = '/partner';
   static const partnerApplyPath = '/partner/apply';
   static const partnerAdminPath = '/admin/partners';
+  static const insuranceHubPath = '/insurance';
+  static const insuranceProviderApplyPath = '/insurance/list-provider';
+  static const insuranceAdminPath = '/admin/insurance';
 
   static String listing(String listingId) =>
       '/listings/${Uri.encodeComponent(_requiredId(listingId))}';

@@ -10,6 +10,7 @@ enum PipeBuyerFooterSurface {
   home,
   directory,
   partner,
+  insurance,
   about,
   publicInfo,
 }
@@ -34,6 +35,7 @@ class PipeBuyerSiteFooter extends StatelessWidget {
   void _openPartner(
     BuildContext context, {
     PartnerPageSection section = PartnerPageSection.overview,
+    String categoryFilter = '',
   }) {
     if (section == PartnerPageSection.showcase &&
         onOpenPartnerShowcase != null) {
@@ -45,7 +47,11 @@ class PipeBuyerSiteFooter extends StatelessWidget {
       onOpenPartnerWithUs!();
       return;
     }
-    MarketplaceNavigation.openPartnerWithUs(context, initialSection: section);
+    MarketplaceNavigation.openPartnerWithUs(
+      context,
+      initialSection: section,
+      initialCategoryFilter: categoryFilter,
+    );
   }
 
   void _openPublicInfo(
@@ -148,6 +154,13 @@ class PipeBuyerSiteFooter extends StatelessWidget {
                             MarketplaceNavigation.openListServices(context),
                       ),
                       _FooterLinkItem(
+                        key: const Key('footer-link-commercial-insurance'),
+                        label: 'Commercial Insurance',
+                        icon: Icons.shield_outlined,
+                        onTap: () =>
+                            MarketplaceNavigation.openInsuranceHub(context),
+                      ),
+                      _FooterLinkItem(
                         label: 'Dispatch & Hauling',
                         icon: Icons.local_shipping_outlined,
                         onTap: () =>
@@ -172,6 +185,7 @@ class PipeBuyerSiteFooter extends StatelessWidget {
                         onTap: () => _openPartner(
                           context,
                           section: PartnerPageSection.showcase,
+                          categoryFilter: 'oem_fleet_crew_trucks',
                         ),
                       ),
                       _FooterLinkItem(
@@ -188,6 +202,15 @@ class PipeBuyerSiteFooter extends StatelessWidget {
                         onTap: () => _openPartner(
                           context,
                           section: PartnerPageSection.apply,
+                        ),
+                      ),
+                      _FooterLinkItem(
+                        key: const Key('footer-link-insurance-carrier-apply'),
+                        label: 'Insurance Carrier Onboarding',
+                        icon: Icons.domain_add_outlined,
+                        onTap: () =>
+                            MarketplaceNavigation.openInsuranceProviderApply(
+                          context,
                         ),
                       ),
                     ],

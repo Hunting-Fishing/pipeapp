@@ -23,6 +23,9 @@ import '/marketplace/marketplace_stripe_connect_return_page.dart';
 import '/marketplace/marketplace_tax_compliance_admin_page.dart';
 import '/marketplace/marketplace_tax_profile_page.dart';
 import '/marketplace/pipebuyer_contact_center_dashboard.dart';
+import '/marketplace/pipebuyer_insurance_admin_page.dart';
+import '/marketplace/pipebuyer_insurance_hub_page.dart';
+import '/marketplace/pipebuyer_insurance_provider_apply_page.dart';
 import '/marketplace/pipebuyer_list_services_page.dart';
 import '/marketplace/pipebuyer_partner_admin_page.dart';
 import '/marketplace/pipebuyer_partner_with_us_page.dart';
@@ -301,6 +304,41 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: MarketplaceDeepLinks.partnerAdminPath,
           requireAuth: true,
           builder: (context, params) => const PipeBuyerPartnerAdminPage(),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.insuranceHubRouteName,
+          path: MarketplaceDeepLinks.insuranceHubPath,
+          builder: (context, params) {
+            final tabParam =
+                params.getParam<String>('tab', ParamType.string)?.trim() ?? '';
+            final initialTab = switch (tabParam) {
+              'apply' || 'rates' => InsuranceHubTab.applyForRates,
+              'my-apps' ||
+              'carriers' =>
+                InsuranceHubTab.myApplicationsAndCarriers,
+              _ => InsuranceHubTab.browseProviders,
+            };
+            return PipeBuyerInsuranceHubPage(
+              initialTab: initialTab,
+              initialQuery: params.getParam<String>('q', ParamType.string) ?? '',
+              initialCoverageLine:
+                  params.getParam<String>('line', ParamType.string) ?? '',
+              initialCountryCode:
+                  params.getParam<String>('country', ParamType.string) ?? '',
+            );
+          },
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.insuranceProviderApplyRouteName,
+          path: MarketplaceDeepLinks.insuranceProviderApplyPath,
+          builder: (context, params) =>
+              const PipeBuyerInsuranceProviderApplyPage(),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.insuranceAdminRouteName,
+          path: MarketplaceDeepLinks.insuranceAdminPath,
+          requireAuth: true,
+          builder: (context, params) => const PipeBuyerInsuranceAdminPage(),
         ),
         FFRoute(
           name: MarketplaceDeepLinks.privacyRouteName,

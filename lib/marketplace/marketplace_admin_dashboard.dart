@@ -160,30 +160,66 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                   color: Colors.white, size: 20),
             ),
             const SizedBox(width: 10),
-            const Text(
-              'PIPE BUYER ADMIN PORTAL',
-              style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.8),
+            const Flexible(
+              child: Text(
+                'PIPE BUYER ADMIN PORTAL',
+                overflow: TextOverflow.ellipsis,
+                style:
+                    TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.8),
+              ),
             ),
           ],
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: OutlinedButton.icon(
-              onPressed: () => MarketplaceNavigation.openPartnerAdmin(context),
-              icon: const Icon(Icons.handshake_outlined, size: 18),
-              label: const Text('Partner With Us Queue'),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: FilledButton.icon(
-              onPressed: () => MarketplaceNavigation.openYellowPagesAdmin(context),
-              icon: const Icon(Icons.menu_book_outlined, size: 18),
-              label: const Text('Oilfield Directory Admin & Flagged'),
-            ),
-          ),
-        ],
+        actions: MediaQuery.sizeOf(context).width >= 1080
+            ? [
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        MarketplaceNavigation.openPartnerAdmin(context),
+                    icon: const Icon(Icons.handshake_outlined, size: 18),
+                    label: const Text('Partner With Us Queue'),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        MarketplaceNavigation.openInsuranceAdmin(context),
+                    icon: const Icon(Icons.shield_outlined, size: 18),
+                    label: const Text('Commercial Insurance Admin'),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: FilledButton.icon(
+                    onPressed: () =>
+                        MarketplaceNavigation.openYellowPagesAdmin(context),
+                    icon: const Icon(Icons.menu_book_outlined, size: 18),
+                    label: const Text('Oilfield Directory Admin & Flagged'),
+                  ),
+                ),
+              ]
+            : [
+                IconButton(
+                  tooltip: 'Partner With Us Queue',
+                  onPressed: () =>
+                      MarketplaceNavigation.openPartnerAdmin(context),
+                  icon: const Icon(Icons.handshake_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Commercial Insurance Admin',
+                  onPressed: () =>
+                      MarketplaceNavigation.openInsuranceAdmin(context),
+                  icon: const Icon(Icons.shield_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Oilfield Directory Admin & Flagged',
+                  onPressed: () =>
+                      MarketplaceNavigation.openYellowPagesAdmin(context),
+                  icon: const Icon(Icons.menu_book_outlined),
+                ),
+              ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
