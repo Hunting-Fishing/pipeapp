@@ -53,6 +53,8 @@ class _PipeBuyerYellowPagesDirectoryPageState
   String _countryCode = '';
   String _regionCode = '';
   String _city = '';
+  String _cityCountryCode = '';
+  String _cityRegionCode = '';
   String _categoryCode = '';
   String _basin = '';
   String _certification = '';
@@ -63,7 +65,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
   bool _paidOnly = false;
   bool _hasTollFree = false;
 
-  // Results state
+  // Results & live database facet counts state
   bool _loading = false;
   bool _canAccessContactCenter = false;
   String? _error;
@@ -71,6 +73,8 @@ class _PipeBuyerYellowPagesDirectoryPageState
   String? _nextCursor;
   List<String> _expandedCategories = const <String>[];
   List<Map<String, dynamic>> _entries = const <Map<String, dynamic>>[];
+  PipeBuyerYellowPagesDirectoryCounts _directoryCounts =
+      PipeBuyerYellowPagesDirectoryCounts.empty;
 
   static const _alphabet = <String>[
     'A',
@@ -112,7 +116,20 @@ class _PipeBuyerYellowPagesDirectoryPageState
     _continentCode = widget.initialContinentCode;
     _countryCode = widget.initialCountryCode;
     _load(reset: true);
+    _loadDirectoryCounts();
     _refreshStaffAccess();
+  }
+
+  Future<void> _loadDirectoryCounts() async {
+    try {
+      final counts = await _client.getDirectoryCounts();
+      if (!mounted) return;
+      setState(() {
+        _directoryCounts = counts;
+      });
+    } catch (_) {
+      // Directory still functions with static hub fallback if counts are unavailable.
+    }
   }
 
   Future<void> _refreshStaffAccess() async {
@@ -167,6 +184,8 @@ class _PipeBuyerYellowPagesDirectoryPageState
       _countryCode = '';
       _regionCode = '';
       _city = '';
+      _cityCountryCode = '';
+      _cityRegionCode = '';
       _categoryCode = '';
       _basin = '';
       _certification = '';
@@ -200,11 +219,15 @@ class _PipeBuyerYellowPagesDirectoryPageState
     });
     try {
       final offset = reset ? 0 : (int.tryParse(_nextCursor ?? '0') ?? 0);
+      final effectiveCountryCode =
+          _countryCode.isNotEmpty ? _countryCode : _cityCountryCode;
+      final effectiveRegionCode =
+          _regionCode.isNotEmpty ? _regionCode : _cityRegionCode;
       final page = await _client.searchPublic(
         query: _searchController.text.trim(),
         continentCode: _continentCode,
-        countryCode: _countryCode,
-        regionCode: _regionCode,
+        countryCode: effectiveCountryCode,
+        regionCode: effectiveRegionCode,
         city: _city,
         categoryCode: _categoryCode,
         basin: _basin,
@@ -260,6 +283,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
     );
     if (submitted == true && mounted) {
       _load(reset: true);
+      _loadDirectoryCounts();
     }
   }
 
@@ -283,7 +307,10 @@ class _PipeBuyerYellowPagesDirectoryPageState
   Future<void> _openServicePicker() async {
     final chosen = await showDialog<String>(
       context: context,
-      builder: (ctx) => _ServicePickerDialog(selectedCode: _categoryCode),
+      builder: (ctx) => _ServicePickerDialog(
+        selectedCode: _categoryCode,
+        counts: _directoryCounts,
+      ),
     );
     if (chosen == null || !mounted) return;
     setState(() => _categoryCode = chosen == '__all__' ? '' : chosen);
@@ -298,6 +325,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
         selectedContinentCode: _continentCode,
         selectedCountryCode: _countryCode,
         selectedRegionCode: _regionCode,
+        counts: _directoryCounts,
       ),
     );
     if (chosen == null || !mounted) return;
@@ -305,17 +333,32 @@ class _PipeBuyerYellowPagesDirectoryPageState
       _continentCode = chosen.continentCode;
       _countryCode = chosen.countryCode;
       _regionCode = chosen.regionCode;
+      _cityCountryCode = '';
+      _cityRegionCode = '';
       if (_city.isNotEmpty) {
-        final matchingHubs = PipeBuyerYellowPagesTaxonomy.hubsForLocation(
-          continentCode: _continentCode,
-          countryCode: _countryCode,
-          regionCode: _regionCode,
-        );
-        if (matchingHubs.isNotEmpty &&
-            !matchingHubs.any(
-              (h) => h.city.toLowerCase() == _city.toLowerCase(),
-            )) {
-          _city = '';
+        if (_directoryCounts.hasCounts) {
+          final matchingTowns = _directoryCounts.townsForLocation(
+            continentCode: _continentCode,
+            countryCode: _countryCode,
+            regionCode: _regionCode,
+          );
+          if (!matchingTowns.any(
+            (t) => t.city.toLowerCase() == _city.toLowerCase(),
+          )) {
+            _city = '';
+          }
+        } else {
+          final matchingHubs = PipeBuyerYellowPagesTaxonomy.hubsForLocation(
+            continentCode: _continentCode,
+            countryCode: _countryCode,
+            regionCode: _regionCode,
+          );
+          if (matchingHubs.isNotEmpty &&
+              !matchingHubs.any(
+                (h) => h.city.toLowerCase() == _city.toLowerCase(),
+              )) {
+            _city = '';
+          }
         }
       }
     });
@@ -323,22 +366,60 @@ class _PipeBuyerYellowPagesDirectoryPageState
   }
 
   Future<void> _openTownPicker() async {
-    final hubs = PipeBuyerYellowPagesTaxonomy.hubsForLocation(
-      continentCode: _continentCode,
-      countryCode: _countryCode,
-      regionCode: _regionCode,
-    );
-    final chosen = await showDialog<String>(
+    final List<YellowPagesTownCount> townOptions;
+    if (_directoryCounts.hasCounts) {
+      townOptions = _directoryCounts.townsForLocation(
+        continentCode: _continentCode,
+        countryCode: _countryCode,
+        regionCode: _regionCode,
+      );
+    } else {
+      final hubs = PipeBuyerYellowPagesTaxonomy.hubsForLocation(
+        continentCode: _continentCode,
+        countryCode: _countryCode,
+        regionCode: _regionCode,
+      );
+      townOptions = hubs
+          .map(
+            (h) => YellowPagesTownCount(
+              city: h.city,
+              regionCode: h.regionCode,
+              countryCode: h.countryCode,
+            ),
+          )
+          .toList(growable: false);
+    }
+    final areaBusinessTotal = _directoryCounts.hasCounts
+        ? _directoryCounts.countForLocation(
+            continentCode: _continentCode,
+            countryCode: _countryCode,
+            regionCode: _regionCode,
+          )
+        : null;
+    final chosen = await showDialog<
+        ({String city, String? countryCode, String? regionCode})>(
       context: context,
       builder: (ctx) => _TownPickerDialog(
         selectedCity: _city,
-        hubs: hubs,
+        towns: townOptions,
+        areaBusinessTotal: areaBusinessTotal,
+        continentCode: _continentCode,
         countryCode: _countryCode,
         regionCode: _regionCode,
       ),
     );
     if (chosen == null || !mounted) return;
-    setState(() => _city = chosen == '__all__' ? '' : chosen.trim());
+    setState(() {
+      if (chosen.city == '__all__' || chosen.city.trim().isEmpty) {
+        _city = '';
+        _cityCountryCode = '';
+        _cityRegionCode = '';
+      } else {
+        _city = chosen.city.trim();
+        _cityCountryCode = chosen.countryCode?.trim() ?? '';
+        _cityRegionCode = chosen.regionCode?.trim() ?? '';
+      }
+    });
     _load(reset: true);
   }
 
@@ -486,6 +567,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
                 countryCode: _countryCode,
                 regionCode: _regionCode,
                 city: _city,
+                cityCountryCode: _cityCountryCode,
                 startsWith: _startsWith,
                 sortBy: _sortBy,
                 moreFiltersCount: _moreFiltersCount,
@@ -540,7 +622,11 @@ class _PipeBuyerYellowPagesDirectoryPageState
                     _load(reset: true);
                   },
                   onClearCity: () {
-                    setState(() => _city = '');
+                    setState(() {
+                      _city = '';
+                      _cityCountryCode = '';
+                      _cityRegionCode = '';
+                    });
                     _load(reset: true);
                   },
                   onClearCategory: () {
@@ -785,6 +871,7 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
     required this.countryCode,
     required this.regionCode,
     required this.city,
+    this.cityCountryCode = '',
     required this.startsWith,
     required this.sortBy,
     required this.moreFiltersCount,
@@ -806,6 +893,7 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
   final String countryCode;
   final String regionCode;
   final String city;
+  final String cityCountryCode;
   final String startsWith;
   final String sortBy;
   final int moreFiltersCount;
@@ -857,9 +945,11 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
 
   Widget? _townFlagIcon() {
     if (city.isEmpty) return null;
-    if (countryCode.isNotEmpty) {
+    final resolvedCountry =
+        countryCode.isNotEmpty ? countryCode : cityCountryCode;
+    if (resolvedCountry.isNotEmpty) {
       return PipeBuyerCountryFlagIcon(
-        countryCode: countryCode,
+        countryCode: resolvedCountry,
         width: 19,
         height: 13,
       );
@@ -2399,12 +2489,91 @@ class _DirectoryLineRow extends StatelessWidget {
 }
 
 // ============================================================================
+// LIVE DATABASE BUSINESS COUNT BADGE (TOWNS, REGIONS, COUNTRIES & SECTORS)
+// ============================================================================
+class _DirectoryCountBadge extends StatelessWidget {
+  const _DirectoryCountBadge({
+    required this.count,
+    this.suffix = '',
+    this.compact = false,
+    this.highlighted = false,
+    this.mutedWhenZero = false,
+  });
+
+  final int count;
+  final String suffix;
+  final bool compact;
+  final bool highlighted;
+  final bool mutedWhenZero;
+
+  static String formatNumber(int n) {
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isZero = count <= 0 && mutedWhenZero;
+    final formatted = formatNumber(count);
+    final text = suffix.isEmpty ? formatted : '$formatted $suffix';
+
+    final bgColor = highlighted
+        ? PipeBuyerColors.orange.withValues(alpha: 0.16)
+        : isZero
+            ? const Color(0xFFF8FAFC)
+            : const Color(0xFFEFF6FF);
+    final borderColor = highlighted
+        ? PipeBuyerColors.orange.withValues(alpha: 0.45)
+        : isZero
+            ? const Color(0xFFE2E8F0)
+            : const Color(0xFFBFDBFE);
+    final textColor = highlighted
+        ? const Color(0xFF9A3412)
+        : isZero
+            ? const Color(0xFF94A3B8)
+            : const Color(0xFF1E3A8A);
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 1.5 : 3,
+      ),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: borderColor),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: compact ? 10.5 : 11.5,
+          fontWeight: FontWeight.w800,
+          color: textColor,
+          height: 1.15,
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
 // DIALOG 1: SEARCHABLE SERVICE / CATEGORY SELECTOR (FULL NAMES, NO CUTOFFS)
 // ============================================================================
 class _ServicePickerDialog extends StatefulWidget {
-  const _ServicePickerDialog({required this.selectedCode});
+  const _ServicePickerDialog({
+    required this.selectedCode,
+    this.counts = PipeBuyerYellowPagesDirectoryCounts.empty,
+  });
 
   final String selectedCode;
+  final PipeBuyerYellowPagesDirectoryCounts counts;
 
   @override
   State<_ServicePickerDialog> createState() => _ServicePickerDialogState();
@@ -2458,7 +2627,20 @@ class _ServicePickerDialogState extends State<_ServicePickerDialog> {
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop('__all__'),
-                    child: const Text('All Services'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('All Services'),
+                        if (widget.counts.hasCounts) ...[
+                          const SizedBox(width: 6),
+                          _DirectoryCountBadge(
+                            count: widget.counts.totalBusinesses,
+                            compact: true,
+                            highlighted: widget.selectedCode.isEmpty,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
@@ -2505,6 +2687,9 @@ class _ServicePickerDialogState extends State<_ServicePickerDialog> {
                       itemBuilder: (context, idx) {
                         final cat = filtered[idx];
                         final active = cat.code == widget.selectedCode;
+                        final catCount = widget.counts.countForCategory(
+                          cat.code,
+                        );
                         return InkWell(
                           borderRadius: BorderRadius.circular(10),
                           onTap: () => Navigator.of(context).pop(cat.code),
@@ -2564,6 +2749,15 @@ class _ServicePickerDialogState extends State<_ServicePickerDialog> {
                                     ],
                                   ),
                                 ),
+                                if (widget.counts.hasCounts) ...[
+                                  const SizedBox(width: 8),
+                                  _DirectoryCountBadge(
+                                    count: catCount,
+                                    compact: true,
+                                    highlighted: active,
+                                    mutedWhenZero: true,
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -2589,11 +2783,13 @@ class _RegionPickerDialog extends StatefulWidget {
     required this.selectedContinentCode,
     required this.selectedCountryCode,
     required this.selectedRegionCode,
+    this.counts = PipeBuyerYellowPagesDirectoryCounts.empty,
   });
 
   final String selectedContinentCode;
   final String selectedCountryCode;
   final String selectedRegionCode;
+  final PipeBuyerYellowPagesDirectoryCounts counts;
 
   @override
   State<_RegionPickerDialog> createState() => _RegionPickerDialogState();
@@ -2603,6 +2799,32 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
   String _filter = '';
   late String _activeContinent;
   String _expandedRegionCountryCode = '';
+
+  List<YellowPagesRegionOption> _subRegionsForCountry(String countryCode) {
+    final cc = countryCode.trim().toUpperCase();
+    if (cc.isEmpty) return const <YellowPagesRegionOption>[];
+    final base = PipeBuyerYellowPagesTaxonomy.regionsForCountry(cc);
+    if (!widget.counts.hasCounts) return base;
+    final known = base.map((r) => r.regionCode.toUpperCase()).toSet();
+    final extras = <YellowPagesRegionOption>[];
+    final prefix = '$cc:';
+    for (final entry in widget.counts.byRegion.entries) {
+      if (!entry.key.startsWith(prefix) || entry.value <= 0) continue;
+      final rc = entry.key.substring(prefix.length).trim().toUpperCase();
+      if (rc.isEmpty || rc == cc || known.contains(rc)) continue;
+      known.add(rc);
+      extras.add(
+        YellowPagesRegionOption(
+          countryCode: cc,
+          regionCode: rc,
+          name: rc,
+        ),
+      );
+    }
+    if (extras.isEmpty) return base;
+    extras.sort((a, b) => a.name.compareTo(b.name));
+    return <YellowPagesRegionOption>[...base, ...extras];
+  }
 
   @override
   void initState() {
@@ -2617,9 +2839,7 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
       _activeContinent = '';
     }
     if (widget.selectedCountryCode.isNotEmpty &&
-        PipeBuyerYellowPagesTaxonomy.regionsForCountry(
-                widget.selectedCountryCode)
-            .isNotEmpty) {
+        _subRegionsForCountry(widget.selectedCountryCode).isNotEmpty) {
       _expandedRegionCountryCode = widget.selectedCountryCode;
     }
   }
@@ -2638,6 +2858,8 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final compactDialog = MediaQuery.sizeOf(context).width < 460;
+    final hasCounts = widget.counts.hasCounts;
     final q = _filter.trim().toLowerCase();
     final activeContinentMeta =
         PipeBuyerYellowPagesTaxonomy.continentByCode(_activeContinent);
@@ -2652,17 +2874,12 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
         alphabeticalCountries.map((c) => c.code).toSet();
 
     final countriesWithSubRegions = alphabeticalCountries
-        .where(
-          (c) =>
-              PipeBuyerYellowPagesTaxonomy.regionsForCountry(c.code).isNotEmpty,
-        )
+        .where((c) => _subRegionsForCountry(c.code).isNotEmpty)
         .toList(growable: false);
 
     final subRegionsToDisplay = _expandedRegionCountryCode.isNotEmpty &&
             allowedCountryCodes.contains(_expandedRegionCountryCode)
-        ? PipeBuyerYellowPagesTaxonomy.regionsForCountry(
-            _expandedRegionCountryCode,
-          )
+        ? _subRegionsForCountry(_expandedRegionCountryCode)
         : const <YellowPagesRegionOption>[];
 
     // Search matches across all 197 countries + provinces/states
@@ -2721,10 +2938,25 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                 children: [
                   ChoiceChip(
                     visualDensity: VisualDensity.compact,
-                    label: const Text(
-                      'All Global',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'All Global',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (hasCounts) ...[
+                          const SizedBox(width: 5),
+                          _DirectoryCountBadge(
+                            count: widget.counts.totalBusinesses,
+                            compact: true,
+                            highlighted: _activeContinent.isEmpty,
+                          ),
+                        ],
+                      ],
                     ),
                     selected: _activeContinent.isEmpty,
                     onSelected: (_) => setState(() {
@@ -2736,12 +2968,25 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                     final selected = _activeContinent == cont.code;
                     return ChoiceChip(
                       visualDensity: VisualDensity.compact,
-                      label: Text(
-                        cont.shortLabel,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            cont.shortLabel,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                          if (hasCounts) ...[
+                            const SizedBox(width: 5),
+                            _DirectoryCountBadge(
+                              count: widget.counts.countForContinent(cont.code),
+                              compact: true,
+                              highlighted: selected,
+                            ),
+                          ],
+                        ],
                       ),
                       selected: selected,
                       onSelected: (_) => setState(() {
@@ -2794,6 +3039,8 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                               final selected =
                                   widget.selectedCountryCode == c.code &&
                                       widget.selectedRegionCode.isEmpty;
+                              final countryCount =
+                                  widget.counts.countForCountry(c.code);
                               return ListTile(
                                 dense: true,
                                 selected: selected,
@@ -2809,12 +3056,30 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                                   ),
                                 ),
                                 subtitle: Text(c.dialCode),
-                                trailing: c.isPopularOilGas
-                                    ? const _TierBadge(
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (hasCounts)
+                                      _DirectoryCountBadge(
+                                        count: countryCount,
+                                        suffix: compactDialog
+                                            ? ''
+                                            : (countryCount == 1
+                                                ? 'business'
+                                                : 'businesses'),
+                                        compact: compactDialog,
+                                        highlighted: selected,
+                                        mutedWhenZero: true,
+                                      ),
+                                    if (c.isPopularOilGas) ...[
+                                      if (hasCounts) const SizedBox(width: 6),
+                                      const _TierBadge(
                                         label: 'OIL & GAS',
                                         color: PipeBuyerColors.orange,
-                                      )
-                                    : null,
+                                      ),
+                                    ],
+                                  ],
+                                ),
                                 onTap: () => _selectLocation(
                                   continentCode: c.continentCode,
                                   countryCode: c.code,
@@ -2840,6 +3105,10 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                               final selected = widget.selectedRegionCode ==
                                       r.regionCode &&
                                   widget.selectedCountryCode == r.countryCode;
+                              final regionCount = widget.counts.countForRegion(
+                                r.countryCode,
+                                r.regionCode,
+                              );
                               return ListTile(
                                 dense: true,
                                 selected: selected,
@@ -2854,6 +3123,19 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
+                                trailing: hasCounts
+                                    ? _DirectoryCountBadge(
+                                        count: regionCount,
+                                        suffix: compactDialog
+                                            ? ''
+                                            : (regionCount == 1
+                                                ? 'business'
+                                                : 'businesses'),
+                                        compact: compactDialog,
+                                        highlighted: selected,
+                                        mutedWhenZero: true,
+                                      )
+                                    : null,
                                 onTap: () => _selectLocation(
                                   continentCode: _activeContinent,
                                   countryCode: r.countryCode,
@@ -2897,9 +3179,24 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                                 fontSize: 13,
                               ),
                             ),
-                            trailing: const Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 14,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (hasCounts) ...[
+                                  _DirectoryCountBadge(
+                                    count: widget.counts.countForContinent(
+                                      _activeContinent,
+                                    ),
+                                    suffix: compactDialog ? '' : 'businesses',
+                                    compact: compactDialog,
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                const Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  size: 14,
+                                ),
+                              ],
                             ),
                             onTap: () => _selectLocation(
                               continentCode: _activeContinent,
@@ -2958,13 +3255,28 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                                     width: 19,
                                     height: 13,
                                   ),
-                                  label: Text(
-                                    c.name,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF0F172A),
-                                    ),
+                                  label: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        c.name,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      if (hasCounts) ...[
+                                        const SizedBox(width: 5),
+                                        _DirectoryCountBadge(
+                                          count: widget.counts.countForCountry(
+                                            c.code,
+                                          ),
+                                          compact: true,
+                                          highlighted: isSelected,
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   onPressed: () => _selectLocation(
                                     continentCode: _activeContinent,
@@ -3002,12 +3314,28 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                                     width: 16,
                                     height: 11,
                                   ),
-                                  label: Text(
-                                    '${c.name} Regions',
-                                    style: const TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                  label: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '${c.name} Regions',
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      if (hasCounts) ...[
+                                        const SizedBox(width: 5),
+                                        _DirectoryCountBadge(
+                                          count: widget.counts.countForCountry(
+                                            c.code,
+                                          ),
+                                          compact: true,
+                                          highlighted: expanded,
+                                          mutedWhenZero: true,
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   selected: expanded,
                                   onSelected: (_) => setState(() {
@@ -3043,12 +3371,32 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                                           ? PipeBuyerColors.industrialBlue
                                               .withValues(alpha: 0.14)
                                           : Colors.white,
-                                      label: Text(
-                                        '${r.name} (${r.regionCode})',
-                                        style: const TextStyle(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w800,
-                                        ),
+                                      label: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            r.name == r.regionCode
+                                                ? r.regionCode
+                                                : '${r.name} (${r.regionCode})',
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          if (hasCounts) ...[
+                                            const SizedBox(width: 5),
+                                            _DirectoryCountBadge(
+                                              count:
+                                                  widget.counts.countForRegion(
+                                                r.countryCode,
+                                                r.regionCode,
+                                              ),
+                                              compact: true,
+                                              highlighted: selected,
+                                              mutedWhenZero: true,
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                       onPressed: () => _selectLocation(
                                         continentCode: _activeContinent,
@@ -3081,9 +3429,9 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                                 widget.selectedCountryCode == c.code &&
                                     widget.selectedRegionCode.isEmpty;
                             final hasSub =
-                                PipeBuyerYellowPagesTaxonomy.regionsForCountry(
-                                        c.code)
-                                    .isNotEmpty;
+                                _subRegionsForCountry(c.code).isNotEmpty;
+                            final countryCount =
+                                widget.counts.countForCountry(c.code);
                             return ListTile(
                               dense: true,
                               contentPadding: const EdgeInsets.symmetric(
@@ -3110,7 +3458,20 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (hasSub)
+                                  if (hasCounts)
+                                    _DirectoryCountBadge(
+                                      count: countryCount,
+                                      suffix: compactDialog
+                                          ? ''
+                                          : (countryCount == 1
+                                              ? 'business'
+                                              : 'businesses'),
+                                      compact: compactDialog,
+                                      highlighted: selected,
+                                      mutedWhenZero: true,
+                                    ),
+                                  if (hasSub) ...[
+                                    if (hasCounts) const SizedBox(width: 4),
                                     TextButton(
                                       style: TextButton.styleFrom(
                                         visualDensity: VisualDensity.compact,
@@ -3132,12 +3493,15 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                                         ),
                                       ),
                                     ),
-                                  if (selected)
+                                  ],
+                                  if (selected) ...[
+                                    const SizedBox(width: 4),
                                     const Icon(
                                       Icons.check_circle,
                                       color: PipeBuyerColors.orange,
                                       size: 18,
                                     ),
+                                  ],
                                 ],
                               ),
                               onTap: () => _selectLocation(
@@ -3159,18 +3523,24 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
 }
 
 // ============================================================================
-// DIALOG 3: SEARCHABLE TOWN / CITY INDEX SELECTOR
+// DIALOG 3: SEARCHABLE TOWN / CITY INDEX SELECTOR WITH LIVE DATABASE COUNTS
 // ============================================================================
+enum _TownSortMode { alphabetical, mostBusinesses }
+
 class _TownPickerDialog extends StatefulWidget {
   const _TownPickerDialog({
     required this.selectedCity,
-    required this.hubs,
+    required this.towns,
+    this.areaBusinessTotal,
+    this.continentCode = '',
     required this.countryCode,
     required this.regionCode,
   });
 
   final String selectedCity;
-  final List<({String city, String regionCode, String countryCode})> hubs;
+  final List<YellowPagesTownCount> towns;
+  final int? areaBusinessTotal;
+  final String continentCode;
   final String countryCode;
   final String regionCode;
 
@@ -3181,12 +3551,12 @@ class _TownPickerDialog extends StatefulWidget {
 class _TownPickerDialogState extends State<_TownPickerDialog> {
   late final TextEditingController _ctrl;
   String _query = '';
+  _TownSortMode _sortMode = _TownSortMode.alphabetical;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = TextEditingController(text: widget.selectedCity);
-    _query = widget.selectedCity;
+    _ctrl = TextEditingController();
   }
 
   @override
@@ -3195,25 +3565,97 @@ class _TownPickerDialogState extends State<_TownPickerDialog> {
     super.dispose();
   }
 
+  String _areaScopeLabel() {
+    if (widget.regionCode.isNotEmpty) {
+      for (final r in PipeBuyerYellowPagesTaxonomy.regions) {
+        if (r.regionCode == widget.regionCode &&
+            (widget.countryCode.isEmpty ||
+                r.countryCode == widget.countryCode)) {
+          return '${r.name} (${r.regionCode})';
+        }
+      }
+      return widget.countryCode.isNotEmpty
+          ? '${widget.regionCode}, ${widget.countryCode}'
+          : widget.regionCode;
+    }
+    if (widget.countryCode.isNotEmpty) {
+      return PipeBuyerYellowPagesTaxonomy.countryByCode(widget.countryCode)
+              ?.name ??
+          widget.countryCode;
+    }
+    if (widget.continentCode.isNotEmpty) {
+      return PipeBuyerYellowPagesTaxonomy.continentByCode(widget.continentCode)
+              ?.label ??
+          widget.continentCode;
+    }
+    return 'Worldwide';
+  }
+
+  void _popAllTowns() {
+    Navigator.of(context).pop((
+      city: '__all__',
+      countryCode: null as String?,
+      regionCode: null as String?,
+    ));
+  }
+
+  void _popCustomTown(String cityText) {
+    Navigator.of(context).pop((
+      city: cityText,
+      countryCode: null as String?,
+      regionCode: null as String?,
+    ));
+  }
+
+  void _popTownOption(YellowPagesTownCount town) {
+    Navigator.of(context).pop((
+      city: town.city,
+      countryCode: town.countryCode,
+      regionCode: town.regionCode,
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final compactDialog = MediaQuery.sizeOf(context).width < 460;
     final trimmed = _query.trim();
     final q = trimmed.toLowerCase();
-    final filtered = widget.hubs.where((h) {
-      if (q.isEmpty) return true;
-      return h.city.toLowerCase().contains(q) ||
-          h.regionCode.toLowerCase().contains(q);
-    }).toList(growable: false);
+    final hasTownCounts = widget.towns.any((t) => t.count != null);
 
-    final exactMatch = widget.hubs.any(
-      (h) => h.city.toLowerCase() == q,
+    final filtered = widget.towns.where((t) {
+      if (q.isEmpty) return true;
+      return t.city.toLowerCase().contains(q) ||
+          t.regionCode.toLowerCase().contains(q) ||
+          t.countryCode.toLowerCase() == q;
+    }).toList();
+
+    if (_sortMode == _TownSortMode.mostBusinesses && hasTownCounts) {
+      filtered.sort((a, b) {
+        final cmp = (b.count ?? 0).compareTo(a.count ?? 0);
+        if (cmp != 0) return cmp;
+        return a.city.toLowerCase().compareTo(b.city.toLowerCase());
+      });
+    } else {
+      filtered.sort(
+        (a, b) => a.city.toLowerCase().compareTo(b.city.toLowerCase()),
+      );
+    }
+
+    final exactMatch = widget.towns.any(
+      (t) => t.city.toLowerCase() == q,
     );
 
+    final int? summaryBusinesses = hasTownCounts
+        ? (q.isEmpty && widget.areaBusinessTotal != null
+            ? widget.areaBusinessTotal
+            : filtered.fold<int>(0, (sum, t) => sum + (t.count ?? 0)))
+        : null;
+
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 650),
+        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 680),
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(
@@ -3236,8 +3678,21 @@ class _TownPickerDialogState extends State<_TownPickerDialog> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () => Navigator.of(context).pop('__all__'),
-                    child: const Text('All Towns'),
+                    onPressed: _popAllTowns,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('All Towns'),
+                        if (widget.areaBusinessTotal != null) ...[
+                          const SizedBox(width: 6),
+                          _DirectoryCountBadge(
+                            count: widget.areaBusinessTotal!,
+                            compact: true,
+                            highlighted: widget.selectedCity.isEmpty,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
@@ -3252,9 +3707,9 @@ class _TownPickerDialogState extends State<_TownPickerDialog> {
                 onChanged: (v) => setState(() => _query = v),
                 onSubmitted: (v) {
                   if (v.trim().isEmpty) {
-                    Navigator.of(context).pop('__all__');
+                    _popAllTowns();
                   } else {
-                    Navigator.of(context).pop(v.trim());
+                    _popCustomTown(v.trim());
                   }
                 },
                 decoration: InputDecoration(
@@ -3276,6 +3731,61 @@ class _TownPickerDialogState extends State<_TownPickerDialog> {
                   ),
                 ),
               ),
+              const SizedBox(height: 8),
+              // Area Summary & Town Sort Mode Strip
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    summaryBusinesses != null
+                        ? '${_areaScopeLabel()}: ${_DirectoryCountBadge.formatNumber(filtered.length)} town${filtered.length == 1 ? '' : 's'} • ${_DirectoryCountBadge.formatNumber(summaryBusinesses)} business${summaryBusinesses == 1 ? '' : 'es'} listed'
+                        : '${_areaScopeLabel()}: ${_DirectoryCountBadge.formatNumber(filtered.length)} oilfield hubs',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF475569),
+                    ),
+                  ),
+                  if (hasTownCounts)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ChoiceChip(
+                          visualDensity: VisualDensity.compact,
+                          label: const Text(
+                            'A–Z',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          selected: _sortMode == _TownSortMode.alphabetical,
+                          onSelected: (_) => setState(
+                            () => _sortMode = _TownSortMode.alphabetical,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        ChoiceChip(
+                          visualDensity: VisualDensity.compact,
+                          label: const Text(
+                            'Most Listed',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          selected: _sortMode == _TownSortMode.mostBusinesses,
+                          onSelected: (_) => setState(
+                            () => _sortMode = _TownSortMode.mostBusinesses,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
               if (trimmed.isNotEmpty && !exactMatch) ...[
                 const SizedBox(height: 8),
                 ListTile(
@@ -3292,48 +3802,85 @@ class _TownPickerDialogState extends State<_TownPickerDialog> {
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                   subtitle: const Text('Search any town or service area'),
-                  onTap: () => Navigator.of(context).pop(trimmed),
+                  onTap: () => _popCustomTown(trimmed),
                 ),
               ],
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Expanded(
-                child: ListView.separated(
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, idx) {
-                    final hub = filtered[idx];
-                    final selected = hub.city.toLowerCase() ==
-                        widget.selectedCity.toLowerCase();
-                    return ListTile(
-                      dense: true,
-                      selected: selected,
-                      leading: PipeBuyerCountryFlagIcon(
-                        countryCode: hub.countryCode,
-                        width: 22,
-                        height: 15,
-                      ),
-                      title: Text(
-                        hub.city,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      trailing: Text(
-                        [
-                          hub.regionCode,
-                          PipeBuyerYellowPagesTaxonomy.countryByCode(
-                                hub.countryCode,
-                              )?.name ??
-                              hub.countryCode,
-                        ].where((s) => s.isNotEmpty).join(', '),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF64748B),
+                child: filtered.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'No listed towns match your search.',
+                            style: TextStyle(color: Color(0xFF64748B)),
+                          ),
                         ),
+                      )
+                    : ListView.separated(
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, idx) {
+                          final town = filtered[idx];
+                          final selected = town.city.toLowerCase() ==
+                              widget.selectedCity.toLowerCase();
+                          final locationLabel = compactDialog
+                              ? [town.regionCode, town.countryCode]
+                                  .where((s) => s.isNotEmpty)
+                                  .join(', ')
+                              : [
+                                  town.regionCode,
+                                  PipeBuyerYellowPagesTaxonomy.countryByCode(
+                                        town.countryCode,
+                                      )?.name ??
+                                      town.countryCode,
+                                ].where((s) => s.isNotEmpty).join(', ');
+                          return ListTile(
+                            dense: true,
+                            selected: selected,
+                            leading: PipeBuyerCountryFlagIcon(
+                              countryCode: town.countryCode,
+                              width: 22,
+                              height: 15,
+                            ),
+                            title: Text(
+                              town.city,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (town.count != null) ...[
+                                  _DirectoryCountBadge(
+                                    count: town.count!,
+                                    suffix: compactDialog
+                                        ? ''
+                                        : (town.count == 1
+                                            ? 'business'
+                                            : 'businesses'),
+                                    compact: compactDialog,
+                                    highlighted: selected,
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                Text(
+                                  locationLabel,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            onTap: () => _popTownOption(town),
+                          );
+                        },
                       ),
-                      onTap: () => Navigator.of(context).pop(hub.city),
-                    );
-                  },
-                ),
               ),
             ],
           ),

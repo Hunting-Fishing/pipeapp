@@ -859,6 +859,58 @@ function checkB2BCallingWindow(timeZone, now = new Date()) {
   }
 }
 
+function canonicalizeCityName(rawCity, regionCode = "", countryCode = "") {
+  if (!rawCity) return "";
+  let s = String(rawCity)
+      .trim()
+      .replace(/\s+/gu, " ")
+      .replace(/^[,\-–—./\s]+|[,\-–—./\s]+$/gu, "");
+  if (!s) return "";
+
+  const rc = String(regionCode || "").trim().toUpperCase();
+  const cc = String(countryCode || "").trim().toUpperCase();
+  if (rc) {
+    const rcEsc = rc.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    s = s.replace(new RegExp(`,\\s*${rcEsc}$`, "iu"), "").trim();
+    const regInfo = NORTH_AMERICA_REGIONS[`${cc}-${rc}`];
+    if (regInfo && regInfo.name && s.toLowerCase() !== regInfo.name.toLowerCase()) {
+      const rnEsc = regInfo.name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+      s = s.replace(new RegExp(`[\\s,]+${rnEsc}$`, "iu"), "").trim();
+    }
+  }
+  if (cc) {
+    const ccEsc = cc.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    s = s.replace(new RegExp(`,\\s*${ccEsc}$`, "iu"), "").trim();
+  }
+
+  if (s === s.toUpperCase() || s === s.toLowerCase()) {
+    s = s.toLowerCase().replace(/(?:^|[\s\-/'(])([a-z])/gu, (m, c) =>
+      `${m.slice(0, -1)}${c.toUpperCase()}`,
+    );
+  }
+
+  s = s
+      .replace(/^Ft\.?\s+/iu, "Fort ")
+      .replace(/^Fort\s+Mcmurray$/iu, "Fort McMurray")
+      .replace(/^Fort\s+Sask$/iu, "Fort Saskatchewan")
+      .replace(/^Fort\s+St\.?\s+John$/iu, "Fort St. John")
+      .replace(/^Sault\s+Ste\.?\s+Marie$/iu, "Sault Ste. Marie")
+      .replace(/^(?:St\.?|Saint)\s+Albert$/iu, "St. Albert")
+      .replace(/^(?:St\.?|Saint)\s+Paul$/iu, "St. Paul")
+      .replace(/^(?:St\.?|Saint)\s+John'?s$/iu, "St. John's")
+      .replace(/^(?:St\.?|Saint)\s+John$/iu, "St. John")
+      .replace(/^Mt\.?\s+/iu, "Mount ")
+      .replace(/^Pt\.?\s+/iu, "Point ")
+      .replace(/\bNo\s+(\d+)\b/giu, "No. $1")
+      .replace(/\bMc([a-z])/gu, (_, c) => `Mc${c.toUpperCase()}`);
+
+  return s.slice(0, 120).trim();
+}
+
+function normalizeCityKey(rawCity) {
+  return normalizeText(canonicalizeCityName(rawCity));
+}
+
 module.exports = {
   CATEGORY_BY_CODE,
   COUNTRY_BY_CODE,
@@ -867,10 +919,12 @@ module.exports = {
   SYNONYM_GROUPS,
   WORLD_CONTINENTS,
   YELLOW_PAGES_CATEGORIES,
+  canonicalizeCityName,
   checkB2BCallingWindow,
   classifyCategoriesFromText,
   countryCodesForContinent,
   expandServiceSearchTerms,
   inferCountryAndRegion,
+  normalizeCityKey,
   normalizeText,
 };
