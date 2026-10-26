@@ -227,3 +227,20 @@ The design-only policy fixtures are stored under
 Mexico, but do not contain a subdivision licence, compliance owner, legal
 approval, or enabled publishing feature and therefore cannot authorize a live
 listing.
+
+## Partner With Us — OEM Showcases, Advertising & Oilfield Deals
+
+All Partner Program writes are strictly server-controlled (`allow write: if false`):
+
+- `partner_public_showcases/{showcaseId}`: sanitized public projection of approved
+  partner spotlights, OEM fleet programs (e.g., crew trucks and upfits), featured
+  products, and oilfield discounts. Publicly readable.
+- `partner_showcases/{showcaseId}`: administrator master records including internal
+  partner contact details and review notes. Administrator-readable only.
+- `partner_inquiries/{inquiryId}`: inbound corporate partnership, advertising,
+  product showcase, and oilfield discount applications. Readable only by
+  administrators and the authenticated submitter (`submitterUid`).
+- `partner_deal_leads/{leadId}`: buyer/company requests for fleet quotes or partner
+  deal claims. Readable only by administrators and the authenticated submitter.
+- `partner_program_audit_events/{eventId}`: immutable administrator audit history.
+

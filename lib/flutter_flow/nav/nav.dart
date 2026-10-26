@@ -24,6 +24,8 @@ import '/marketplace/marketplace_tax_compliance_admin_page.dart';
 import '/marketplace/marketplace_tax_profile_page.dart';
 import '/marketplace/pipebuyer_contact_center_dashboard.dart';
 import '/marketplace/pipebuyer_list_services_page.dart';
+import '/marketplace/pipebuyer_partner_admin_page.dart';
+import '/marketplace/pipebuyer_partner_with_us_page.dart';
 import '/marketplace/pipebuyer_yellow_pages_directory_page.dart';
 
 export 'package:go_router/go_router.dart';
@@ -270,6 +272,35 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
             initialSearchQuery:
                 params.getParam<String>('q', ParamType.string) ?? '',
           ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.partnerWithUsRouteName,
+          path: MarketplaceDeepLinks.partnerWithUsPath,
+          builder: (context, params) {
+            final section = params.getParam<String>('section', ParamType.string);
+            return PipeBuyerPartnerWithUsPage(
+              initialSection: switch (section) {
+                'showcase' => PartnerPageSection.showcase,
+                'apply' => PartnerPageSection.apply,
+                _ => PartnerPageSection.overview,
+              },
+              initialCategoryFilter:
+                  params.getParam<String>('category', ParamType.string) ?? '',
+            );
+          },
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.partnerApplyRouteName,
+          path: MarketplaceDeepLinks.partnerApplyPath,
+          builder: (context, params) => const PipeBuyerPartnerWithUsPage(
+            initialSection: PartnerPageSection.apply,
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.partnerAdminRouteName,
+          path: MarketplaceDeepLinks.partnerAdminPath,
+          requireAuth: true,
+          builder: (context, params) => const PipeBuyerPartnerAdminPage(),
         ),
         FFRoute(
           name: MarketplaceDeepLinks.privacyRouteName,

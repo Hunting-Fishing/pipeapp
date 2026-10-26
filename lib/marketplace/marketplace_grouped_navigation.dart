@@ -14,6 +14,8 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
     this.onSearchServices,
     this.onListServices,
     this.onYellowPagesAdmin,
+    this.onPartnerWithUs,
+    this.onPartnerAdmin,
     this.isAdmin = false,
   });
 
@@ -26,6 +28,8 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
   final VoidCallback? onSearchServices;
   final VoidCallback? onListServices;
   final VoidCallback? onYellowPagesAdmin;
+  final VoidCallback? onPartnerWithUs;
+  final VoidCallback? onPartnerAdmin;
   final bool isAdmin;
 
   @override
@@ -122,6 +126,24 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
               selected: selectedPageIndex == 7,
               onTap: () => onDestinationSelected(7),
             ),
+          ],
+          if (onPartnerWithUs != null) ...[
+            const _SectionLabel('PARTNERSHIPS & DEALS'),
+            _NavItem(
+              icon: Icons.handshake_outlined,
+              selectedIcon: Icons.handshake_rounded,
+              label: 'Partner With Us',
+              selected: false,
+              onTap: onPartnerWithUs!,
+            ),
+            if (isAdmin && onPartnerAdmin != null)
+              _NavItem(
+                icon: Icons.admin_panel_settings_outlined,
+                selectedIcon: Icons.admin_panel_settings_rounded,
+                label: 'Partner Admin',
+                selected: false,
+                onTap: onPartnerAdmin!,
+              ),
           ],
         ],
       );
