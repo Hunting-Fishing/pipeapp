@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_insurance_client.dart';
 import 'pipebuyer_insurance_taxonomy.dart';
 
@@ -145,12 +146,11 @@ class _PipeBuyerInsuranceAdminPageState
     InsuranceRateApplicationSummary application,
   ) async {
     final result = await showDialog<
-      ({
-        String status,
-        List<String> matchedProviderNames,
-        String brokerResponseNotes,
-      })
-    >(
+        ({
+          String status,
+          List<String> matchedProviderNames,
+          String brokerResponseNotes,
+        })>(
       context: context,
       builder: (_) => _RateStatusUpdateDialog(application: application),
     );
@@ -366,8 +366,7 @@ class _PipeBuyerInsuranceAdminPageState
             : constraints.maxWidth >= 500
                 ? 2
                 : 1;
-        final cardWidth =
-            (constraints.maxWidth - ((cols - 1) * 12)) / cols;
+        final cardWidth = (constraints.maxWidth - ((cols - 1) * 12)) / cols;
 
         return Wrap(
           spacing: 12,
@@ -462,8 +461,7 @@ class _PipeBuyerInsuranceAdminPageState
 
     return Column(
       children: apps.map((app) {
-        final appId =
-            '${app['applicationId'] ?? app['id'] ?? ''}'.trim();
+        final appId = '${app['applicationId'] ?? app['id'] ?? ''}'.trim();
         final status = '${app['status'] ?? 'pending_review'}'.trim();
         final isPending = status == 'pending_review';
         final busy = _busyItemIds.contains(appId);
@@ -486,12 +484,27 @@ class _PipeBuyerInsuranceAdminPageState
                     alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text(
-                        '${app['companyName'] ?? 'Unnamed Provider'}',
-                        style: const TextStyle(
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w900,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PipeBuyerCompanyLogoBadge(
+                            logoUrl: '${app['logoUrl'] ?? ''}'.trim(),
+                            companyName:
+                                '${app['companyName'] ?? 'Unnamed Provider'}',
+                            size: 40,
+                            fallbackIcon: Icons.shield_outlined,
+                          ),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Text(
+                              '${app['companyName'] ?? 'Unnamed Provider'}',
+                              style: const TextStyle(
+                                fontSize: 16.5,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       Chip(
                         label: Text(status.toUpperCase()),
@@ -567,7 +580,8 @@ class _PipeBuyerInsuranceAdminPageState
                                     applicationId: appId,
                                     decision: 'approved',
                                   ),
-                          icon: const Icon(Icons.check_circle_outline, size: 18),
+                          icon:
+                              const Icon(Icons.check_circle_outline, size: 18),
                           label: const Text('Approve & Publish'),
                         ),
                         OutlinedButton.icon(
@@ -594,13 +608,14 @@ class _PipeBuyerInsuranceAdminPageState
   }
 
   Widget _buildRateApplicationsSection() {
-    final apps =
-        _dashboard?.rateApplications ?? const <InsuranceRateApplicationSummary>[];
+    final apps = _dashboard?.rateApplications ??
+        const <InsuranceRateApplicationSummary>[];
     if (apps.isEmpty) {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(24),
-          child: Text('No commercial insurance rate applications submitted yet.'),
+          child:
+              Text('No commercial insurance rate applications submitted yet.'),
         ),
       );
     }
@@ -693,8 +708,7 @@ class _PipeBuyerInsuranceAdminPageState
   }
 
   Widget _buildDirectoryProvidersSection() {
-    final providers =
-        _dashboard?.providers ?? const <Map<String, dynamic>>[];
+    final providers = _dashboard?.providers ?? const <Map<String, dynamic>>[];
     if (providers.isEmpty) {
       return const Card(
         child: Padding(
@@ -724,12 +738,28 @@ class _PipeBuyerInsuranceAdminPageState
                     alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text(
-                        '${provider['companyName'] ?? 'Provider'}',
-                        style: const TextStyle(
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w900,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PipeBuyerCompanyLogoBadge(
+                            logoUrl: '${provider['logoUrl'] ?? ''}'.trim(),
+                            companyName:
+                                '${provider['companyName'] ?? 'Provider'}',
+                            size: 40,
+                            featured: featured,
+                            fallbackIcon: Icons.shield_outlined,
+                          ),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Text(
+                              '${provider['companyName'] ?? 'Provider'}',
+                              style: const TextStyle(
+                                fontSize: 16.5,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       Wrap(
                         spacing: 6,
@@ -793,8 +823,8 @@ class _RateStatusUpdateDialogState extends State<_RateStatusUpdateDialog> {
   void initState() {
     super.initState();
     _selectedStatus = PipeBuyerInsuranceTaxonomy.rateStatuses.contains(
-          widget.application.status,
-        )
+      widget.application.status,
+    )
         ? widget.application.status
         : 'new';
     _matchedController = TextEditingController(
@@ -918,6 +948,7 @@ class _UpsertProviderDialogState extends State<_UpsertProviderDialog> {
 
   late String _providerType;
   late String _countryCode;
+  late String _logoUrl;
   late final Set<String> _selectedLines;
   late bool _active;
   late bool _featured;
@@ -928,8 +959,7 @@ class _UpsertProviderDialogState extends State<_UpsertProviderDialog> {
   void initState() {
     super.initState();
     final existing = widget.existing;
-    _existingId =
-        '${existing?['providerId'] ?? existing?['id'] ?? ''}'.trim();
+    _existingId = '${existing?['providerId'] ?? existing?['id'] ?? ''}'.trim();
     _companyController = TextEditingController(
       text: '${existing?['companyName'] ?? ''}'.trim(),
     );
@@ -942,6 +972,7 @@ class _UpsertProviderDialogState extends State<_UpsertProviderDialog> {
     _websiteController = TextEditingController(
       text: '${existing?['website'] ?? ''}'.trim(),
     );
+    _logoUrl = '${existing?['logoUrl'] ?? ''}'.trim();
     _cityController = TextEditingController(
       text: '${existing?['headquartersCity'] ?? ''}'.trim(),
     );
@@ -958,15 +989,13 @@ class _UpsertProviderDialogState extends State<_UpsertProviderDialog> {
       text: '${existing?['summary'] ?? ''}'.trim(),
     );
 
-    _providerType =
-        '${existing?['providerType'] ?? 'specialty_broker'}'.trim();
+    _providerType = '${existing?['providerType'] ?? 'specialty_broker'}'.trim();
     if (!PipeBuyerInsuranceTaxonomy.providerTypes.any(
       (item) => item.code == _providerType,
     )) {
       _providerType = 'specialty_broker';
     }
-    _countryCode =
-        '${existing?['countryCode'] ?? 'US'}'.trim().toUpperCase();
+    _countryCode = '${existing?['countryCode'] ?? 'US'}'.trim().toUpperCase();
     if (_countryCode != 'US' && _countryCode != 'CA') {
       _countryCode = 'US';
     }
@@ -1068,6 +1097,15 @@ class _UpsertProviderDialogState extends State<_UpsertProviderDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Website URL',
                 ),
+              ),
+              const SizedBox(height: 10),
+              PipeBuyerBusinessLogoField(
+                fieldKeyPrefix: 'admin_insurance_provider_logo',
+                logoUrl: _logoUrl,
+                companyName: _companyController.text,
+                purpose: 'insurance_provider',
+                title: 'Provider Business Logo',
+                onChanged: (url) => setState(() => _logoUrl = url),
               ),
               const SizedBox(height: 10),
               Row(
@@ -1210,6 +1248,7 @@ class _UpsertProviderDialogState extends State<_UpsertProviderDialog> {
               'publicEmail': _emailController.text.trim(),
               'publicPhone': _phoneController.text.trim(),
               'website': _websiteController.text.trim(),
+              'logoUrl': _logoUrl.trim(),
               'countryCode': _countryCode,
               'regionCode': _regionController.text.trim().toUpperCase(),
               'headquartersCity': _cityController.text.trim(),

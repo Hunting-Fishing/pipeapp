@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_request_service_page.dart';
+import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_contact_center_dashboard.dart';
 import 'pipebuyer_country_flag_icon.dart';
 import 'pipebuyer_list_services_page.dart';
@@ -1680,6 +1681,7 @@ class _GridCompanyCard extends StatelessWidget {
 
     final phone = '${entry['publicPhone'] ?? ''}'.trim();
     final website = isPaid ? '${entry['website'] ?? ''}'.trim() : '';
+    final logoUrl = '${entry['logoUrl'] ?? ''}'.trim();
     final emergency24x7 = entry['emergency24x7'] == true;
 
     final categories = _asStringList(entry['categories']);
@@ -1747,24 +1749,29 @@ class _GridCompanyCard extends StatelessWidget {
                               runSpacing: 2,
                               children: [
                                 if (isFeatured)
-                                  const _TierBadge(
+                                  const PipeBuyerVisualBadge(
+                                    variant: PipeBuyerBadgeVariant.featured,
                                     label: 'FEATURED',
-                                    color: PipeBuyerColors.orange,
+                                    compact: true,
                                   )
                                 else if (isPaid)
-                                  const _TierBadge(
+                                  const PipeBuyerVisualBadge(
+                                    variant: PipeBuyerBadgeVariant.verifiedPro,
                                     label: 'PRO',
-                                    color: PipeBuyerColors.industrialBlue,
+                                    compact: true,
                                   )
                                 else
-                                  const _TierBadge(
+                                  const PipeBuyerVisualBadge(
+                                    variant:
+                                        PipeBuyerBadgeVariant.verifiedBasic,
                                     label: 'VERIFIED',
-                                    color: Color(0xFF475569),
+                                    compact: true,
                                   ),
                                 if (emergency24x7)
-                                  const _TierBadge(
+                                  const PipeBuyerVisualBadge(
+                                    variant: PipeBuyerBadgeVariant.fastCoi24x7,
                                     label: '24/7',
-                                    color: PipeBuyerColors.success,
+                                    compact: true,
                                   ),
                               ],
                             ),
@@ -1810,17 +1817,33 @@ class _GridCompanyCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      // Row 2: Company Name (2 lines max)
-                      Text(
-                        companyName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: compact ? 13.5 : 14.2,
-                          height: 1.18,
-                          fontWeight: FontWeight.w900,
-                          color: const Color(0xFF0F172A),
-                        ),
+                      // Row 2: Company Name (+ Inline Business Logo if present)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (logoUrl.isNotEmpty) ...[
+                            PipeBuyerCompanyLogoBadge(
+                              logoUrl: logoUrl,
+                              companyName: companyName,
+                              size: 28,
+                              featured: isFeatured,
+                            ),
+                            const SizedBox(width: 7),
+                          ],
+                          Expanded(
+                            child: Text(
+                              companyName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: compact ? 13.5 : 14.2,
+                                height: 1.18,
+                                fontWeight: FontWeight.w900,
+                                color: const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       // Row 3: Town + Basin
@@ -2225,6 +2248,7 @@ class _DirectoryLineRow extends StatelessWidget {
       ...services.where((s) => !categories.contains(s)),
     ].take(3).join(' • ');
     final phone = '${entry['publicPhone'] ?? ''}'.trim();
+    final logoUrl = '${entry['logoUrl'] ?? ''}'.trim();
 
     final rowBg = isFeatured
         ? const Color(0xFFFFF8F1)
@@ -2245,21 +2269,31 @@ class _DirectoryLineRow extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    _TierBadge(
+                    PipeBuyerVisualBadge(
+                      variant: isFeatured
+                          ? PipeBuyerBadgeVariant.featured
+                          : isPaid
+                              ? PipeBuyerBadgeVariant.verifiedPro
+                              : (emergency
+                                  ? PipeBuyerBadgeVariant.fastCoi24x7
+                                  : PipeBuyerBadgeVariant.verifiedBasic),
                       label: isFeatured
                           ? 'FEATURED'
                           : isPaid
                               ? 'PRO'
                               : (emergency ? '24/7' : 'VERIFIED'),
-                      color: isFeatured
-                          ? PipeBuyerColors.orange
-                          : isPaid
-                              ? PipeBuyerColors.industrialBlue
-                              : (emergency
-                                  ? PipeBuyerColors.success
-                                  : const Color(0xFF475569)),
+                      compact: true,
                     ),
                     const SizedBox(width: 8),
+                    if (logoUrl.isNotEmpty) ...[
+                      PipeBuyerCompanyLogoBadge(
+                        logoUrl: logoUrl,
+                        companyName: companyName,
+                        size: 24,
+                        featured: isFeatured,
+                      ),
+                      const SizedBox(width: 6),
+                    ],
                     Expanded(
                       child: Text(
                         companyName,
@@ -2358,19 +2392,20 @@ class _DirectoryLineRow extends StatelessWidget {
                 width: 89,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: _TierBadge(
+                  child: PipeBuyerVisualBadge(
+                    variant: isFeatured
+                        ? PipeBuyerBadgeVariant.featured
+                        : isPaid
+                            ? PipeBuyerBadgeVariant.verifiedPro
+                            : (emergency
+                                ? PipeBuyerBadgeVariant.fastCoi24x7
+                                : PipeBuyerBadgeVariant.verifiedBasic),
                     label: isFeatured
                         ? 'FEATURED'
                         : isPaid
                             ? 'PRO'
                             : (emergency ? '24/7' : 'VERIFIED'),
-                    color: isFeatured
-                        ? PipeBuyerColors.orange
-                        : isPaid
-                            ? PipeBuyerColors.industrialBlue
-                            : (emergency
-                                ? PipeBuyerColors.success
-                                : const Color(0xFF475569)),
+                    compact: true,
                   ),
                 ),
               ),
@@ -2378,15 +2413,30 @@ class _DirectoryLineRow extends StatelessWidget {
                 flex: 26,
                 child: Padding(
                   padding: const EdgeInsets.only(right: 10),
-                  child: Text(
-                    companyName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF0F172A),
-                    ),
+                  child: Row(
+                    children: [
+                      if (logoUrl.isNotEmpty) ...[
+                        PipeBuyerCompanyLogoBadge(
+                          logoUrl: logoUrl,
+                          companyName: companyName,
+                          size: 24,
+                          featured: isFeatured,
+                        ),
+                        const SizedBox(width: 7),
+                      ],
+                      Expanded(
+                        child: Text(
+                          companyName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -4815,6 +4865,7 @@ class _CompanyDetailSheet extends StatelessWidget {
     final tollFree = '${entry['tollFreePhone'] ?? ''}'.trim();
     final email = '${entry['publicEmail'] ?? ''}'.trim();
     final website = isPaid ? '${entry['website'] ?? ''}'.trim() : '';
+    final logoUrl = '${entry['logoUrl'] ?? ''}'.trim();
     final description = '${entry['description'] ?? ''}'.trim();
     final categories = _asStringList(entry['categories']);
     final services = _asStringList(entry['services']);
@@ -4832,32 +4883,45 @@ class _CompanyDetailSheet extends StatelessWidget {
               spacing: 8,
               runSpacing: 6,
               children: [
-                _TierBadge(
+                PipeBuyerVisualBadge(
+                  variant: isFeatured
+                      ? PipeBuyerBadgeVariant.featured
+                      : isPaid
+                          ? PipeBuyerBadgeVariant.verifiedPro
+                          : PipeBuyerBadgeVariant.verifiedBasic,
                   label: isFeatured
                       ? 'FEATURED PARTNER'
                       : isPaid
                           ? 'VERIFIED PRO'
                           : 'VERIFIED DIRECTORY',
-                  color: isFeatured
-                      ? PipeBuyerColors.orange
-                      : isPaid
-                          ? PipeBuyerColors.industrialBlue
-                          : const Color(0xFF475569),
                 ),
                 if (entry['emergency24x7'] == true)
-                  const _TierBadge(
+                  const PipeBuyerVisualBadge(
+                    variant: PipeBuyerBadgeVariant.fastCoi24x7,
                     label: '24/7 EMERGENCY CALLOUT',
-                    color: PipeBuyerColors.success,
                   ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              companyName,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                PipeBuyerCompanyLogoBadge(
+                  logoUrl: logoUrl,
+                  companyName: companyName,
+                  size: 54,
+                  featured: isFeatured,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    companyName,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
             ),
             if (location.isNotEmpty) ...[
               const SizedBox(height: 6),

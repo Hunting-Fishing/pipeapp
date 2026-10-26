@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'pipebuyer_business_logo_uploader.dart';
+import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_insurance_client.dart';
 import 'pipebuyer_insurance_taxonomy.dart';
 import 'pipebuyer_site_footer.dart';
@@ -10,10 +12,12 @@ class PipeBuyerInsuranceProviderApplyPage extends StatefulWidget {
   const PipeBuyerInsuranceProviderApplyPage({
     super.key,
     this.client,
+    this.logoUploader,
     this.onSubmitted,
   });
 
   final PipeBuyerInsuranceClient? client;
+  final PipeBuyerBusinessLogoUploader? logoUploader;
   final VoidCallback? onSubmitted;
 
   @override
@@ -43,6 +47,7 @@ class _PipeBuyerInsuranceProviderApplyPageState
   final _summaryController = TextEditingController();
 
   String _providerType = 'specialty_broker';
+  String _logoUrl = '';
   final Set<String> _licensedCountries = <String>{'US'};
   final Set<String> _selectedBasins = <String>{'Permian Basin'};
   final Set<String> _selectedCoverageLines = <String>{
@@ -123,6 +128,7 @@ class _PipeBuyerInsuranceProviderApplyPageState
         email: _emailController.text.trim(),
         phone: _phoneController.text.trim(),
         website: _websiteController.text.trim(),
+        logoUrl: _logoUrl.trim(),
         licenseSummary: _licenseSummaryController.text.trim(),
         countryCode: _licensedCountries.first,
         regionCode: _regionCodeController.text.trim().toUpperCase(),
@@ -371,13 +377,15 @@ class _PipeBuyerInsuranceProviderApplyPageState
                         child: TextFormField(
                           key: const Key('provider_apply_company_name'),
                           controller: _companyNameController,
+                          onChanged: (_) => setState(() {}),
                           decoration: const InputDecoration(
                             labelText: 'Insurance Company / Brokerage Name *',
                             hintText: 'e.g. Lone Star Energy Risk MGA LLC',
                           ),
-                          validator: (val) => (val == null || val.trim().length < 2)
-                              ? 'Enter your company name.'
-                              : null,
+                          validator: (val) =>
+                              (val == null || val.trim().length < 2)
+                                  ? 'Enter your company name.'
+                                  : null,
                         ),
                       ),
                       SizedBox(
@@ -416,9 +424,10 @@ class _PipeBuyerInsuranceProviderApplyPageState
                             labelText: 'Primary Underwriting Contact *',
                             hintText: 'Full name',
                           ),
-                          validator: (val) => (val == null || val.trim().length < 2)
-                              ? 'Enter a contact name.'
-                              : null,
+                          validator: (val) =>
+                              (val == null || val.trim().length < 2)
+                                  ? 'Enter a contact name.'
+                                  : null,
                         ),
                       ),
                       SizedBox(
@@ -443,7 +452,8 @@ class _PipeBuyerInsuranceProviderApplyPageState
                           ),
                           validator: (val) {
                             final trimmed = val?.trim() ?? '';
-                            if (!trimmed.contains('@') || !trimmed.contains('.')) {
+                            if (!trimmed.contains('@') ||
+                                !trimmed.contains('.')) {
                               return 'Enter a valid business email.';
                             }
                             return null;
@@ -493,6 +503,20 @@ class _PipeBuyerInsuranceProviderApplyPageState
                     ],
                   ),
                   const SizedBox(height: 14),
+                  PipeBuyerBusinessLogoField(
+                    fieldKeyPrefix: 'insurance_provider_logo',
+                    logoUrl: _logoUrl,
+                    companyName: _companyNameController.text,
+                    purpose: 'insurance_provider',
+                    uploader: widget.logoUploader,
+                    title: 'Insurance Company / Agency Logo (Recommended)',
+                    subtitle:
+                        'Displayed on your verified Pipe Buyer Insurance Directory card • PNG, JPG, or WebP (max 2 MB)',
+                    onChanged: (url) => setState(() => _logoUrl = url),
+                  ),
+                  const SizedBox(height: 14),
+                  _buildLiveCardPreview(),
+                  const SizedBox(height: 14),
                   TextFormField(
                     key: const Key('provider_apply_license_summary'),
                     controller: _licenseSummaryController,
@@ -519,7 +543,8 @@ class _PipeBuyerInsuranceProviderApplyPageState
                   const SizedBox(height: 12),
                   const Text(
                     'Licensed Countries *',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -566,7 +591,8 @@ class _PipeBuyerInsuranceProviderApplyPageState
                         child: TextFormField(
                           controller: _licensedRegionsController,
                           decoration: const InputDecoration(
-                            labelText: 'Licensed States / Provinces (comma-separated)',
+                            labelText:
+                                'Licensed States / Provinces (comma-separated)',
                             hintText: 'TX, NM, OK, ND, LA, AB, SK, BC',
                           ),
                         ),
@@ -576,7 +602,8 @@ class _PipeBuyerInsuranceProviderApplyPageState
                   const SizedBox(height: 14),
                   const Text(
                     'Active Energy Basins Served',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -603,7 +630,8 @@ class _PipeBuyerInsuranceProviderApplyPageState
                   const SizedBox(height: 16),
                   const Text(
                     'Commercial & Oilfield Coverage Lines Written *',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -684,7 +712,8 @@ class _PipeBuyerInsuranceProviderApplyPageState
                     onChanged: (val) => setState(() => _msaCompliant = val),
                     title: const Text(
                       'Operator MSA-Compliant Endorsements',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 13.5),
                     ),
                     subtitle: const Text(
                       'Can issue Blanket AI, Waiver of Subrogation, and Primary & Non-Contributory endorsements.',
@@ -697,7 +726,8 @@ class _PipeBuyerInsuranceProviderApplyPageState
                     onChanged: (val) => setState(() => _fastCoi24x7 = val),
                     title: const Text(
                       '24/7 Fast Certificate of Insurance (COI) Turnaround',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 13.5),
                     ),
                     subtitle: const Text(
                       'Rapid COI issuance for ISNetworld, Veriforce/PEC, Avetta, and ComplyWorks.',
@@ -743,6 +773,105 @@ class _PipeBuyerInsuranceProviderApplyPageState
             },
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLiveCardPreview() {
+    final previewName = _companyNameController.text.trim().isEmpty
+        ? 'Your Insurance Company Name'
+        : _companyNameController.text.trim();
+    final city = _headquartersCityController.text.trim();
+    final region = _regionCodeController.text.trim().toUpperCase();
+    final hqParts = <String>[
+      if (city.isNotEmpty) city,
+      if (region.isNotEmpty) region,
+      if (_licensedCountries.isNotEmpty) _licensedCountries.first,
+    ];
+    final hqLabel = hqParts.isEmpty ? 'North America' : hqParts.join(', ');
+
+    return Container(
+      key: const Key('provider_apply_live_preview'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: PipeBuyerColors.industrialBlue.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'LIVE DIRECTORY CARD PREVIEW',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
+                  color: PipeBuyerColors.muted,
+                ),
+              ),
+              PipeBuyerVisualBadge.forInsuranceProviderType(
+                _providerType,
+                compact: true,
+              ),
+              if (_msaCompliant)
+                const PipeBuyerVisualBadge(
+                  variant: PipeBuyerBadgeVariant.msaReady,
+                  compact: true,
+                ),
+              if (_fastCoi24x7)
+                const PipeBuyerVisualBadge(
+                  variant: PipeBuyerBadgeVariant.fastCoi24x7,
+                  compact: true,
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              PipeBuyerCompanyLogoBadge(
+                logoUrl: _logoUrl,
+                companyName: previewName,
+                size: 46,
+                fallbackIcon: Icons.shield_outlined,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      previewName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: PipeBuyerColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'HQ: $hqLabel • ${_selectedCoverageLines.length} Coverage Line(s)',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: PipeBuyerColors.muted,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

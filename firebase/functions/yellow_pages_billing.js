@@ -21,7 +21,7 @@ const {
   assertCountryPayableWithStripe,
   extractCheckoutSettlementAmounts,
 } = require("./global_payment_policy");
-const {buildPublicEntry, text} = require("./yellow_pages_policy");
+const {buildPublicEntry, normalizeLogoUrl, text} = require("./yellow_pages_policy");
 
 const PRIVATE_COMPANIES = "yellow_pages_companies";
 const PUBLIC_ENTRIES = "yellow_pages_public_entries";
@@ -632,7 +632,7 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
       }, {merge: true});
     }
 
-    const {reqRef, companyId} = await resolveRequestAndCompany({
+    const {reqRef, reqData, companyId} = await resolveRequestAndCompany({
       requestId,
       subscriptionId,
       companyId: meta.yellowPagesCompanyId,
@@ -657,10 +657,12 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
     }
 
     if (isPaid && companyId) {
+      const reqLogo = normalizeLogoUrl(reqData && reqData.logoUrl);
       await db.collection(PRIVATE_COMPANIES).doc(companyId).set({
         listingTier: directoryTier,
         billingStatus: "paid",
         billingInterval,
+        ...(reqLogo ? {logoUrl: reqLogo} : {}),
         ...(provisionalPaidThrough ? {paidThrough: provisionalPaidThrough} : {}),
         ...(subscriptionId ? {stripeSubscriptionId: subscriptionId} : {}),
         ...(customerId ? {stripeCustomerId: customerId} : {}),
@@ -767,11 +769,13 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
     }
 
     if (companyId) {
+      const reqLogo = normalizeLogoUrl(reqData && reqData.logoUrl);
       await db.collection(PRIVATE_COMPANIES).doc(companyId).set({
         listingTier: plan.directoryTier,
         billingStatus: "paid",
         billingInterval: plan.billingInterval,
         paidThrough,
+        ...(reqLogo ? {logoUrl: reqLogo} : {}),
         ...(subscriptionId ? {stripeSubscriptionId: subscriptionId} : {}),
         ...(customerId ? {stripeCustomerId: customerId} : {}),
         lastInvoiceId: String(invoice.id || ""),

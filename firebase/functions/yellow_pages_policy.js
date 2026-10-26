@@ -1,5 +1,6 @@
 "use strict";
 
+const {normalizeLogoUrl} = require("./business_logo_upload");
 const {
   CATEGORY_BY_CODE,
   canonicalizeCityName,
@@ -341,6 +342,7 @@ function computePriorityScore(company, effectiveTier) {
   if (company.emergency24x7 === true) bonus += 5;
   if (Array.isArray(company.basins) && company.basins.length > 0) bonus += 4;
   if (text(company.description, 2500).length >= 80) bonus += 4;
+  if (normalizeLogoUrl(company.logoUrl)) bonus += 5;
   return base + bonus;
 }
 
@@ -468,6 +470,7 @@ function buildPublicEntry(company, companyId, serverTimestamp, nowMillis = Date.
     isFeatured: effectiveTier === "featured_platinum",
     priorityScore,
     claimable: !isPaid,
+    logoUrl: normalizeLogoUrl(company.logoUrl),
     website: isPaid ? text(company.website, 500) : "",
     publicPhone: mainPhoneParsed.display || text(company.publicPhone || company.mainPhone, 80),
     tollFreePhone: isPaid ? (tollFreeParsed.display || text(company.tollFreePhone, 80)) : "",
@@ -548,6 +551,7 @@ module.exports = {
   isPublicEntryCurrent,
   isPublicationEligible,
   normalizeGlobalPhone,
+  normalizeLogoUrl,
   normalizeNorthAmericanPhone,
   normalizePhoneHistory,
   normalizedCompanyName,

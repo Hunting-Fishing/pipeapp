@@ -353,3 +353,45 @@ test("listing photos are stored only as JPEG or PNG (the app converts other form
   await assertFails(uploadBytes(photo("photo_4.webp"), tiny(), {contentType: "image/webp"}));
   await assertFails(uploadBytes(photo("photo_4.gif"), tiny(), {contentType: "image/gif"}));
 });
+
+test("business_logos allow owner PNG/JPEG/WebP uploads up to 5 MB and public reads", async () => {
+  const ownerStorage = testEnvironment
+      .authenticatedContext("carrier-1")
+      .storage();
+  const strangerStorage = testEnvironment
+      .authenticatedContext("stranger")
+      .storage();
+  const anonStorage = testEnvironment
+      .unauthenticatedContext()
+      .storage();
+  const tiny = () => Uint8Array.from([137, 80, 78, 71]);
+
+  await assertSucceeds(uploadBytes(
+      ref(ownerStorage, "business_logos/carrier-1/logo_abc12345.png"),
+      tiny(),
+      {contentType: "image/png"},
+  ));
+  await assertSucceeds(uploadBytes(
+      ref(ownerStorage, "business_logos/carrier-1/logo_abc12345.webp"),
+      tiny(),
+      {contentType: "image/webp"},
+  ));
+  await assertSucceeds(getBytes(
+      ref(anonStorage, "business_logos/carrier-1/logo_abc12345.png"),
+  ));
+  await assertFails(uploadBytes(
+      ref(strangerStorage, "business_logos/carrier-1/logo_abc12345.png"),
+      tiny(),
+      {contentType: "image/png"},
+  ));
+  await assertFails(uploadBytes(
+      ref(ownerStorage, "business_logos/carrier-1/logo_abc12345.svg"),
+      tiny(),
+      {contentType: "image/svg+xml"},
+  ));
+  await assertFails(uploadBytes(
+      ref(ownerStorage, "business_logos/carrier-1/unprefixed.png"),
+      tiny(),
+      {contentType: "image/png"},
+  ));
+});

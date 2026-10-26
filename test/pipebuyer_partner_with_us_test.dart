@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_app/marketplace/marketplace_deep_links.dart';
+import 'package:pipe_app/marketplace/pipebuyer_business_logo_uploader.dart';
 import 'package:pipe_app/marketplace/pipebuyer_partner_admin_page.dart';
 import 'package:pipe_app/marketplace/pipebuyer_partner_client.dart';
 import 'package:pipe_app/marketplace/pipebuyer_partner_taxonomy.dart';
@@ -44,7 +47,10 @@ class _FakePartnerClient extends PipeBuyerPartnerClient {
             'Factory commercial crew truck allocations and crane/service body upfit rebates for oil & gas fleets.',
         offerBadge: 'OEM Fleet Rebate',
         discountDetails: 'Up to \$3,500 Commercial Upfit Allowance',
-        productHighlights: <String>['4x4 Diesel Crew Cab', 'Fleet Volume Pricing'],
+        productHighlights: <String>[
+          '4x4 Diesel Crew Cab',
+          'Fleet Volume Pricing'
+        ],
         targetRegions: <String>['Permian Basin', 'WCSB'],
         ctaLabel: 'Request Ford Fleet Info',
         featured: true,
@@ -69,6 +75,7 @@ class _FakePartnerClient extends PipeBuyerPartnerClient {
     required String email,
     required String phone,
     String website = '',
+    String logoUrl = '',
     String notes = '',
   }) async {
     lastSubmittedInquiry = <String, Object?>{
@@ -84,6 +91,7 @@ class _FakePartnerClient extends PipeBuyerPartnerClient {
       'contactName': contactName,
       'email': email,
       'phone': phone,
+      'logoUrl': logoUrl,
     };
     return <String, dynamic>{
       'inquiryId': 'INQ-2026-FORD',
@@ -161,19 +169,24 @@ class _FakePartnerClient extends PipeBuyerPartnerClient {
 }
 
 void main() {
-  test('Partner With Us deep links and taxonomy cover OEM fleets and oilfield deals', () {
+  test(
+      'Partner With Us deep links and taxonomy cover OEM fleets and oilfield deals',
+      () {
     expect(MarketplaceDeepLinks.partnerWithUsPath, '/partner');
     expect(MarketplaceDeepLinks.partnerApplyPath, '/partner/apply');
     expect(MarketplaceDeepLinks.partnerAdminPath, '/admin/partners');
     expect(PipeBuyerPartnerTaxonomy.brandCategories.length, 8);
     expect(PipeBuyerPartnerTaxonomy.programPillars.length, 4);
     expect(
-      PipeBuyerPartnerTaxonomy.categoryByCode('oem_fleet_crew_trucks')?.shortLabel,
+      PipeBuyerPartnerTaxonomy.categoryByCode('oem_fleet_crew_trucks')
+          ?.shortLabel,
       'Fleet & Crew Trucks',
     );
   });
 
-  testWidgets('PipeBuyerSiteFooter renders Partner With Us CTA on mobile and desktop without overflow', (
+  testWidgets(
+      'PipeBuyerSiteFooter renders Partner With Us CTA on mobile and desktop without overflow',
+      (
     tester,
   ) async {
     var tappedPartner = false;
@@ -220,7 +233,9 @@ void main() {
     tester.view.resetDevicePixelRatio();
   });
 
-  testWidgets('PipeBuyerPartnerWithUsPage showcases fleet deals and submits corporate partnership proposal', (
+  testWidgets(
+      'PipeBuyerPartnerWithUsPage showcases fleet deals and submits corporate partnership proposal',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1280, 1400);
@@ -229,9 +244,21 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final fakeClient = _FakePartnerClient();
+    final logoUploader = PipeBuyerBusinessLogoUploader(
+      pickBytesOverride: () async => Uint8List.fromList(
+        List<int>.filled(64, 0x89),
+      ),
+      uploadBytesOverride: ({required bytes, required purpose}) async {
+        expect(purpose, 'partner_brand');
+        return 'https://cdn.pipebuyer.example.com/logos/ford-pro.png';
+      },
+    );
     await tester.pumpWidget(
       MaterialApp(
-        home: PipeBuyerPartnerWithUsPage(client: fakeClient),
+        home: PipeBuyerPartnerWithUsPage(
+          client: fakeClient,
+          logoUploader: logoUploader,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -240,6 +267,8 @@ void main() {
       find.text('2026 Super Duty F-350 & F-550 Oilfield Crew Trucks'),
       findsOneWidget,
     );
+    expect(find.text('PROGRAM PREVIEW'), findsWidgets);
+    expect(find.text('FEATURED'), findsWidgets);
     expect(
       find.textContaining('Up to \$3,500 Commercial Upfit Allowance'),
       findsOneWidget,
@@ -255,6 +284,12 @@ void main() {
       find.byKey(const Key('partner-company-name-input')),
       'Ford Pro Commercial',
     );
+    final uploadLogoBtn = find.byKey(
+      const Key('partner_brand_logo_upload_button'),
+    );
+    await tester.ensureVisible(uploadLogoBtn);
+    await tester.tap(uploadLogoBtn);
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('partner-headline-input')),
       '2026 Crew Truck Oilfield Fleet Showcase',
@@ -294,7 +329,12 @@ void main() {
     await tester.tap(find.byKey(const Key('partner-submit-inquiry-button')));
     await tester.pumpAndSettle();
 
-    expect(fakeClient.lastSubmittedInquiry?['companyName'], 'Ford Pro Commercial');
+    expect(
+        fakeClient.lastSubmittedInquiry?['companyName'], 'Ford Pro Commercial');
+    expect(
+      fakeClient.lastSubmittedInquiry?['logoUrl'],
+      'https://cdn.pipebuyer.example.com/logos/ford-pro.png',
+    );
     expect(
       find.byKey(const Key('partner-submission-confirmation')),
       findsOneWidget,
@@ -303,7 +343,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('PipeBuyerPartnerAdminPage enforces authorization and approves + publishes inquiries', (
+  testWidgets(
+      'PipeBuyerPartnerAdminPage enforces authorization and approves + publishes inquiries',
+      (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1280, 900);

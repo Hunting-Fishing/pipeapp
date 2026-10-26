@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_admin_access.dart';
+import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_partner_client.dart';
 import 'pipebuyer_partner_taxonomy.dart';
 
@@ -54,7 +55,8 @@ class _PipeBuyerPartnerAdminPageState extends State<PipeBuyerPartnerAdminPage>
 
   Future<void> _initialize() async {
     try {
-      final check = widget.adminAccessOverride ?? marketplaceAdministratorAccess;
+      final check =
+          widget.adminAccessOverride ?? marketplaceAdministratorAccess;
       final allowed = await check();
       if (!mounted) return;
       setState(() {
@@ -143,7 +145,8 @@ class _PipeBuyerPartnerAdminPageState extends State<PipeBuyerPartnerAdminPage>
     }
   }
 
-  Future<void> _openCreateOrEditShowcase([Map<String, dynamic>? existing]) async {
+  Future<void> _openCreateOrEditShowcase(
+      [Map<String, dynamic>? existing]) async {
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => _UpsertShowcaseDialog(
@@ -283,13 +286,27 @@ class _PipeBuyerPartnerAdminPageState extends State<PipeBuyerPartnerAdminPage>
                       spacing: 8,
                       runSpacing: 6,
                       alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Text(
-                          '${item['companyName'] ?? 'Brand'} — ${item['headline'] ?? ''}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            PipeBuyerCompanyLogoBadge(
+                              logoUrl: '${item['logoUrl'] ?? ''}'.trim(),
+                              companyName: '${item['companyName'] ?? 'Brand'}',
+                              size: 40,
+                            ),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Text(
+                                '${item['companyName'] ?? 'Brand'} — ${item['headline'] ?? ''}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         Chip(
                           visualDensity: VisualDensity.compact,
@@ -407,6 +424,12 @@ class _PipeBuyerPartnerAdminPageState extends State<PipeBuyerPartnerAdminPage>
         return Card(
           margin: const EdgeInsets.only(bottom: 10),
           child: ListTile(
+            leading: PipeBuyerCompanyLogoBadge(
+              logoUrl: '${item['logoUrl'] ?? ''}'.trim(),
+              companyName: '${item['partnerName'] ?? 'Partner'}',
+              size: 40,
+              featured: featured,
+            ),
             title: Text(
               '${item['partnerName'] ?? ''} • ${item['headline'] ?? ''}',
               style: const TextStyle(fontWeight: FontWeight.w800),
@@ -481,6 +504,7 @@ class _UpsertShowcaseDialogState extends State<_UpsertShowcaseDialog> {
   late final TextEditingController _highlights;
   late final TextEditingController _ctaUrl;
   late String _brandCategory;
+  late String _logoUrl;
   bool _featured = true;
   bool _active = true;
   bool _saving = false;
@@ -503,6 +527,7 @@ class _UpsertShowcaseDialogState extends State<_UpsertShowcaseDialog> {
     );
     _ctaUrl = TextEditingController(text: '${e['ctaUrl'] ?? ''}');
     _brandCategory = '${e['brandCategory'] ?? 'oem_fleet_crew_trucks'}';
+    _logoUrl = '${e['logoUrl'] ?? ''}'.trim();
     _featured = e['featured'] == true;
     _active = e['active'] != false;
   }
@@ -544,6 +569,7 @@ class _UpsertShowcaseDialogState extends State<_UpsertShowcaseDialog> {
         'discountDetails': _discountDetails.text.trim(),
         'productHighlights': highlights,
         'ctaUrl': _ctaUrl.text.trim(),
+        'logoUrl': _logoUrl.trim(),
         'featured': _featured,
         'active': _active,
       });
@@ -578,10 +604,20 @@ class _UpsertShowcaseDialogState extends State<_UpsertShowcaseDialog> {
               children: [
                 TextFormField(
                   controller: _partnerName,
-                  decoration:
-                      const InputDecoration(labelText: 'Partner / Brand Name *'),
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                      labelText: 'Partner / Brand Name *'),
                   validator: (v) =>
                       (v == null || v.trim().length < 2) ? 'Required' : null,
+                ),
+                const SizedBox(height: 10),
+                PipeBuyerBusinessLogoField(
+                  fieldKeyPrefix: 'admin_partner_logo',
+                  logoUrl: _logoUrl,
+                  companyName: _partnerName.text,
+                  purpose: 'partner_brand',
+                  title: 'Partner Brand Logo',
+                  onChanged: (url) => setState(() => _logoUrl = url),
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
@@ -626,8 +662,9 @@ class _UpsertShowcaseDialogState extends State<_UpsertShowcaseDialog> {
                   minLines: 2,
                   maxLines: 4,
                   decoration: const InputDecoration(labelText: 'Summary *'),
-                  validator: (v) =>
-                      (v == null || v.trim().length < 10) ? 'Min 10 chars' : null,
+                  validator: (v) => (v == null || v.trim().length < 10)
+                      ? 'Min 10 chars'
+                      : null,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(

@@ -36,7 +36,10 @@ class PipeBuyerInsuranceRateSubmissionResult {
   ) {
     final rawLines = json['coverageLines'];
     final lines = rawLines is List
-        ? rawLines.map((e) => '${e ?? ''}'.trim()).where((e) => e.isNotEmpty).toList(growable: false)
+        ? rawLines
+            .map((e) => '${e ?? ''}'.trim())
+            .where((e) => e.isNotEmpty)
+            .toList(growable: false)
         : const <String>[];
     final targetId = '${json['targetProviderId'] ?? ''}'.trim();
     return PipeBuyerInsuranceRateSubmissionResult(
@@ -315,6 +318,7 @@ class PipeBuyerInsuranceClient {
     required String email,
     required String phone,
     String website = '',
+    String logoUrl = '',
     required String licenseSummary,
     String countryCode = 'US',
     String regionCode = '',
@@ -340,6 +344,7 @@ class PipeBuyerInsuranceClient {
         'email': email,
         'phone': phone,
         'website': website,
+        'logoUrl': logoUrl,
         'licenseSummary': licenseSummary,
         'countryCode': countryCode,
         'regionCode': regionCode,

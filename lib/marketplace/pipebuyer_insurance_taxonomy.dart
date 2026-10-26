@@ -50,6 +50,7 @@ class InsuranceProviderListing {
     this.publicEmail = '',
     this.publicPhone = '',
     this.website = '',
+    this.logoUrl = '',
     this.countryCode = 'US',
     this.regionCode = '',
     this.headquartersCity = '',
@@ -80,6 +81,7 @@ class InsuranceProviderListing {
   final String publicEmail;
   final String publicPhone;
   final String website;
+  final String logoUrl;
   final String countryCode;
   final String regionCode;
   final String headquartersCity;
@@ -219,6 +221,7 @@ class InsuranceProviderListing {
       publicEmail: '${json['publicEmail'] ?? json['email'] ?? ''}'.trim(),
       publicPhone: '${json['publicPhone'] ?? json['phone'] ?? ''}'.trim(),
       website: '${json['website'] ?? ''}'.trim(),
+      logoUrl: '${json['logoUrl'] ?? ''}'.trim(),
       countryCode: '${json['countryCode'] ?? 'US'}'.trim().toUpperCase(),
       regionCode: '${json['regionCode'] ?? ''}'.trim().toUpperCase(),
       headquartersCity:
@@ -431,7 +434,8 @@ abstract final class PipeBuyerInsuranceTaxonomy {
     InsuranceMsaEndorsement(
       code: 'additional_insured',
       label: 'Additional Insured (Ongoing & Completed Ops)',
-      description: 'Blanket AI matching ISO CG 20 10 & CG 20 37 operator specs.',
+      description:
+          'Blanket AI matching ISO CG 20 10 & CG 20 37 operator specs.',
     ),
     InsuranceMsaEndorsement(
       code: 'primary_non_contributory',
@@ -451,7 +455,8 @@ abstract final class PipeBuyerInsuranceTaxonomy {
     InsuranceMsaEndorsement(
       code: 'sudden_accidental_pollution',
       label: 'Sudden & Accidental Pollution',
-      description: 'Time-element sudden and accidental oilfield pollution buyback.',
+      description:
+          'Time-element sudden and accidental oilfield pollution buyback.',
     ),
   ];
 
@@ -529,8 +534,7 @@ abstract final class PipeBuyerInsuranceTaxonomy {
     return null;
   }
 
-  static String coverageLabel(String code) =>
-      lineByCode(code)?.label ?? code;
+  static String coverageLabel(String code) => lineByCode(code)?.label ?? code;
 
   static String coverageShortLabel(String code) =>
       lineByCode(code)?.shortLabel ?? code;
@@ -600,7 +604,8 @@ abstract final class PipeBuyerInsuranceTaxonomy {
         'thirty_day_cancellation_notice',
         'hired_non_owned_auto',
       ],
-      licenseSummary: 'Illustrative MGA Program • Multi-State Surplus & Admitted Binding',
+      licenseSummary:
+          'Illustrative MGA Program • Multi-State Surplus & Admitted Binding',
       amBestRating: 'A+ (Superior)',
       maxLimitUsd: 25000000,
       minimumPremiumUsd: 8500,
@@ -704,7 +709,8 @@ abstract final class PipeBuyerInsuranceTaxonomy {
         'thirty_day_cancellation_notice',
         'sudden_accidental_pollution',
       ],
-      licenseSummary: 'Illustrative Admitted & E&S Commercial Carrier Program (48 US States)',
+      licenseSummary:
+          'Illustrative Admitted & E&S Commercial Carrier Program (48 US States)',
       amBestRating: 'A+ (Superior)',
       maxLimitUsd: 50000000,
       minimumPremiumUsd: 15000,

@@ -7,6 +7,8 @@ import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_auth_page.dart';
 import 'marketplace_subscription_billing_policy.dart';
+import 'pipebuyer_business_logo_uploader.dart';
+import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_country_flag_icon.dart';
 import 'pipebuyer_site_footer.dart';
 import 'pipebuyer_yellow_pages_client.dart';
@@ -32,6 +34,8 @@ class PipeBuyerListServicesPage extends StatefulWidget {
     this.initialRegionCode = 'AB',
     this.initialPhone = '',
     this.initialTier = 'paid_verified',
+    this.initialLogoUrl = '',
+    this.logoUploader,
   });
 
   final PipeBuyerYellowPagesClient? client;
@@ -42,6 +46,8 @@ class PipeBuyerListServicesPage extends StatefulWidget {
   final String initialRegionCode;
   final String initialPhone;
   final String initialTier;
+  final String initialLogoUrl;
+  final PipeBuyerBusinessLogoUploader? logoUploader;
 
   @override
   State<PipeBuyerListServicesPage> createState() =>
@@ -67,6 +73,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
   late String _selectedTier;
   late String _countryCode;
   late String _regionCode;
+  late String _logoUrl = widget.initialLogoUrl;
   bool _annualBilling = true;
   bool _emergency24x7 = false;
   final Set<String> _selectedCategories = <String>{};
@@ -175,6 +182,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
         tollFreePhone: _tollFreeController.text.trim(),
         email: _emailController.text.trim(),
         website: _websiteController.text.trim(),
+        logoUrl: _logoUrl.trim(),
         countryCode: _countryCode,
         regionCode: _regionCode,
         city: _cityController.text.trim(),
@@ -475,6 +483,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                               const SizedBox(height: 14),
                               TextFormField(
                                 controller: _companyNameController,
+                                onChanged: (_) => setState(() {}),
                                 decoration: const InputDecoration(
                                   labelText:
                                       'Legal or Operating Company Name *',
@@ -484,6 +493,20 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                     (v == null || v.trim().isEmpty)
                                         ? 'Enter company name'
                                         : null,
+                              ),
+                              const SizedBox(height: 12),
+                              PipeBuyerBusinessLogoField(
+                                fieldKeyPrefix: 'business_directory_logo',
+                                logoUrl: _logoUrl,
+                                companyName: _companyNameController.text,
+                                purpose: 'business_directory',
+                                uploader: widget.logoUploader,
+                                title:
+                                    'Business Logo (Optional — Displayed on Directory Card)',
+                                subtitle:
+                                    'Upload your company logo for Oilfield Directory cards & profile • PNG, JPG, or WebP (max 2 MB)',
+                                onChanged: (url) =>
+                                    setState(() => _logoUrl = url),
                               ),
                               const SizedBox(height: 12),
                               LayoutBuilder(
