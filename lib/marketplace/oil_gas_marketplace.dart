@@ -1300,6 +1300,10 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             MarketplaceNavigation.openListServices(context);
             return;
           }
+          if (target == 10) {
+            MarketplaceNavigation.openInsuranceHub(context);
+            return;
+          }
           if (target == 2) {
             _openCreate();
             return;
@@ -1395,6 +1399,12 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             selectedIcon: Icon(Icons.workspace_premium_rounded),
           ),
           const MarketplaceShellDestination(
+            pageIndex: 10,
+            label: 'Commercial Insurance',
+            icon: Icon(Icons.shield_outlined),
+            selectedIcon: Icon(Icons.shield_rounded),
+          ),
+          const MarketplaceShellDestination(
             pageIndex: 4,
             label: 'Messages',
             icon: _NavMessageIcon(selected: false),
@@ -1445,6 +1455,12 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
               MarketplaceNavigation.openListServices(context),
           onYellowPagesAdmin: () =>
               MarketplaceNavigation.openYellowPagesAdmin(context),
+          onInsuranceHub: () =>
+              MarketplaceNavigation.openInsuranceHub(context),
+          onInsuranceProviderApply: () =>
+              MarketplaceNavigation.openInsuranceProviderApply(context),
+          onInsuranceAdmin: () =>
+              MarketplaceNavigation.openInsuranceAdmin(context),
         ),
         railLeading: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
@@ -1623,6 +1639,26 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                         MarketplaceNavigation.openListServices(context);
                       },
                     ),
+                    _DrawerDestination(
+                      icon: Icons.shield_outlined,
+                      label: 'Commercial Insurance',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        MarketplaceNavigation.openInsuranceHub(context);
+                      },
+                    ),
+                    _DrawerDestination(
+                      icon: Icons.domain_add_outlined,
+                      label: 'List Insurance Company',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        MarketplaceNavigation.openInsuranceProviderApply(
+                          context,
+                        );
+                      },
+                    ),
                     if (_isAdminUser)
                       _DrawerDestination(
                         icon: Icons.contact_phone_outlined,
@@ -1631,6 +1667,16 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
                         onTap: () {
                           Navigator.of(context).pop();
                           MarketplaceNavigation.openYellowPagesAdmin(context);
+                        },
+                      ),
+                    if (_isAdminUser)
+                      _DrawerDestination(
+                        icon: Icons.admin_panel_settings_outlined,
+                        label: 'Insurance Admin',
+                        selected: false,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          MarketplaceNavigation.openInsuranceAdmin(context);
                         },
                       ),
                     if (_features.auctions)
@@ -2230,6 +2276,12 @@ class _HomeQuickActions extends StatelessWidget {
         label: 'List services',
         color: const Color(0xFF0F52BA),
         onTap: () => MarketplaceNavigation.openListServices(context),
+      ),
+      _QuickAction(
+        icon: Icons.shield_outlined,
+        label: 'Commercial insurance',
+        color: const Color(0xFF0E7490),
+        onTap: () => MarketplaceNavigation.openInsuranceHub(context),
       ),
     ];
 

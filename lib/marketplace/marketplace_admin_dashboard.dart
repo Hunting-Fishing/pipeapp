@@ -168,6 +168,14 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
         ),
         actions: [
           Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: OutlinedButton.icon(
+              onPressed: () => MarketplaceNavigation.openInsuranceAdmin(context),
+              icon: const Icon(Icons.shield_outlined, size: 18),
+              label: const Text('Commercial Insurance Admin'),
+            ),
+          ),
+          Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton.icon(
               onPressed: () => MarketplaceNavigation.openYellowPagesAdmin(context),

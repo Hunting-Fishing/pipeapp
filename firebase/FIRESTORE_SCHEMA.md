@@ -227,3 +227,36 @@ The design-only policy fixtures are stored under
 Mexico, but do not contain a subdivision licence, compliance owner, legal
 approval, or enabled publishing feature and therefore cannot authorize a live
 listing.
+
+## Commercial & Oilfield Insurance Hub
+
+All writes to `insurance_*` collections are server-controlled via callable
+Cloud Functions (`allow write: if false;` in `firestore.rules`):
+
+- `insurance_public_providers/{providerId}`: public read projection of active,
+  approved commercial insurance carriers, MGAs, and specialty oil & gas brokers
+  (`allow read: if true;`). Internal administrator notes and private underwriting
+  contacts are stripped before publication.
+- `insurance_providers/{providerId}`: administrator master records containing
+  provider profiles, licensing summaries, status flags, and internal review
+  notes (`allow read: if isAdmin();`).
+- `insurance_provider_applications/{applicationId}`: onboarding applications
+  submitted by insurance carriers, MGAs, and specialty brokers to list on Pipe
+  Buyer (`allow read: if isAdmin() || (signedIn() && resource.data.submitterUid == request.auth.uid);`).
+- `insurance_rate_applications/{applicationId}`: company commercial insurance
+  rate quote applications submitted directly from Pipe Buyer, either distributed
+  multi-carrier or targeted to a specific listed provider
+  (`allow read: if isAdmin() || (signedIn() && resource.data.submitterUid == request.auth.uid);`).
+- `insurance_audit_events/{eventId}`: immutable administrator audit trail for
+  provider approvals, master directory updates, and rate application status
+  transitions (`allow read: if isAdmin();`).
+
+Callable commands:
+- `listInsuranceProviders`
+- `submitInsuranceRateApplication`
+- `listMyInsuranceRateApplications`
+- `submitInsuranceProviderApplication`
+- `listAdminInsuranceDashboard`
+- `reviewInsuranceProviderApplication`
+- `upsertInsuranceProvider`
+- `updateInsuranceRateApplicationStatus`

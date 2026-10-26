@@ -22,6 +22,8 @@ class MarketplaceHomeWelcome extends StatelessWidget {
         onSearchServices: () =>
             MarketplaceNavigation.openSearchServices(context),
         onListServices: () => MarketplaceNavigation.openListServices(context),
+        onCommercialInsurance: () =>
+            MarketplaceNavigation.openInsuranceHub(context),
       );
     }
 
@@ -56,6 +58,8 @@ class MarketplaceHomeWelcome extends StatelessWidget {
           onSearchServices: () =>
               MarketplaceNavigation.openSearchServices(context),
           onListServices: () => MarketplaceNavigation.openListServices(context),
+          onCommercialInsurance: () =>
+              MarketplaceNavigation.openInsuranceHub(context),
         );
       },
     );
@@ -78,6 +82,7 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
     this.onWanted,
     this.onSearchServices,
     this.onListServices,
+    this.onCommercialInsurance,
   });
 
   final String? name;
@@ -88,6 +93,7 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
   final VoidCallback? onWanted;
   final VoidCallback? onSearchServices;
   final VoidCallback? onListServices;
+  final VoidCallback? onCommercialInsurance;
 
   bool get _signedIn => name != null && name!.trim().isNotEmpty;
 
@@ -109,6 +115,7 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
           title: title,
           subtitle: subtitle,
           onSearchServices: onSearchServices,
+          onCommercialInsurance: onCommercialInsurance,
         ),
         const SizedBox(height: 12),
         MarketplaceHomeIntentActions(
@@ -118,6 +125,7 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
           onWanted: onWanted,
           onSearchServices: onSearchServices,
           onListServices: onListServices,
+          onCommercialInsurance: onCommercialInsurance,
         ),
         const SizedBox(height: 12),
         const PipeBuyerTrustBand(
@@ -161,6 +169,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
     this.onWanted,
     this.onSearchServices,
     this.onListServices,
+    this.onCommercialInsurance,
   });
 
   final VoidCallback? onBrowse;
@@ -169,6 +178,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
   final VoidCallback? onWanted;
   final VoidCallback? onSearchServices;
   final VoidCallback? onListServices;
+  final VoidCallback? onCommercialInsurance;
 
   @override
   Widget build(BuildContext context) {
@@ -266,6 +276,16 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                         onTap: onWanted,
                       ),
                     ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _MarketplaceIntentCard(
+                        icon: Icons.shield_outlined,
+                        title: 'Commercial insurance',
+                        subtitle:
+                            'Compare MSA-ready fleet, rig, cargo & liability rates.',
+                        onTap: onCommercialInsurance,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -356,6 +376,7 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.onSearchServices,
+    this.onCommercialInsurance,
   });
 
   final bool signedIn;
@@ -363,6 +384,7 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback? onSearchServices;
+  final VoidCallback? onCommercialInsurance;
 
   @override
   Widget build(BuildContext context) {
@@ -507,6 +529,11 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
                               icon: Icons.manage_search_rounded,
                               label: 'Services Directory',
                               onTap: onSearchServices,
+                            ),
+                            _HeroCapabilityChip(
+                              icon: Icons.shield_outlined,
+                              label: 'Commercial Insurance',
+                              onTap: onCommercialInsurance,
                             ),
                           ],
                         ),

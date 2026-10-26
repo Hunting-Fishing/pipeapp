@@ -19,6 +19,10 @@ class MarketplaceDeepLinks {
   static const servicesDirectoryRouteName = 'yellow-pages-services';
   static const listServicesRouteName = 'yellow-pages-list-services';
   static const contactCenterRouteName = 'yellow-pages-contact-center';
+  static const insuranceHubRouteName = 'commercial-insurance-hub';
+  static const insuranceProviderApplyRouteName =
+      'commercial-insurance-provider-apply';
+  static const insuranceAdminRouteName = 'commercial-insurance-admin';
 
   static const privacyPath = '/privacy';
   static const termsPath = '/terms';
@@ -27,6 +31,9 @@ class MarketplaceDeepLinks {
   static const servicesDirectoryPath = '/services';
   static const listServicesPath = '/services/list';
   static const contactCenterPath = '/contact-center';
+  static const insuranceHubPath = '/insurance';
+  static const insuranceProviderApplyPath = '/insurance/list-provider';
+  static const insuranceAdminPath = '/admin/insurance';
 
   static String listing(String listingId) =>
       '/listings/${Uri.encodeComponent(_requiredId(listingId))}';
