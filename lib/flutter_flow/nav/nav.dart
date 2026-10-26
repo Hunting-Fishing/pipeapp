@@ -280,7 +280,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: MarketplaceDeepLinks.partnerWithUsRouteName,
           path: MarketplaceDeepLinks.partnerWithUsPath,
           builder: (context, params) {
-            final section = params.getParam<String>('section', ParamType.string);
+            final section =
+                params.getParam<String>('section', ParamType.string);
             return PipeBuyerPartnerWithUsPage(
               initialSection: switch (section) {
                 'showcase' => PartnerPageSection.showcase,
@@ -320,7 +321,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
             };
             return PipeBuyerInsuranceHubPage(
               initialTab: initialTab,
-              initialQuery: params.getParam<String>('q', ParamType.string) ?? '',
+              initialQuery:
+                  params.getParam<String>('q', ParamType.string) ?? '',
               initialCoverageLine:
                   params.getParam<String>('line', ParamType.string) ?? '',
               initialCountryCode:
