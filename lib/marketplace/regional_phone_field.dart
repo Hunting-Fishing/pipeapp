@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
+import 'pipebuyer_country_flag_icon.dart';
 
 class PhoneRegion {
   const PhoneRegion(this.code, this.name, this.dialCode, this.flag,
@@ -319,10 +320,10 @@ class _RegionalPhoneFieldState extends State<RegionalPhoneField> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            region.flag,
-                            textScaler: TextScaler.noScaling,
-                            style: const TextStyle(fontSize: 18),
+                          PipeBuyerCountryFlagIcon(
+                            countryCode: region.code,
+                            width: 20,
+                            height: 14,
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -344,8 +345,11 @@ class _RegionalPhoneFieldState extends State<RegionalPhoneField> {
                       value: region,
                       child: Row(
                         children: [
-                          Text(region.flag,
-                              style: const TextStyle(fontSize: 18)),
+                          PipeBuyerCountryFlagIcon(
+                            countryCode: region.code,
+                            width: 20,
+                            height: 14,
+                          ),
                           const SizedBox(width: 9),
                           SizedBox(
                             width: 44,

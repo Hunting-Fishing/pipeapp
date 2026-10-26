@@ -3,9 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_app/marketplace/marketplace_dispatch_navigation.dart';
 import 'package:pipe_app/marketplace/marketplace_grouped_navigation.dart';
 import 'package:pipe_app/marketplace/marketplace_home_welcome.dart';
+import 'package:pipe_app/marketplace/pipebuyer_country_flag_icon.dart';
+import 'package:pipe_app/marketplace/pipebuyer_list_services_page.dart';
 import 'package:pipe_app/marketplace/pipebuyer_yellow_pages_client.dart';
 import 'package:pipe_app/marketplace/pipebuyer_yellow_pages_directory_page.dart';
 import 'package:pipe_app/marketplace/pipebuyer_yellow_pages_taxonomy.dart';
+import 'package:pipe_app/marketplace/regional_phone_field.dart';
 
 class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
   @override
@@ -41,9 +44,8 @@ class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
       12,
       (i) => <String, dynamic>{
         'companyId': 'comp-$i',
-        'companyName': i == 0
-            ? 'Apex Permian Hydrovac'
-            : 'Northern Rig Service ${i + 1}',
+        'companyName':
+            i == 0 ? 'Apex Permian Hydrovac' : 'Northern Rig Service ${i + 1}',
         'effectiveTier': i == 0
             ? 'featured_platinum'
             : (i == 1 ? 'paid_verified' : 'free_verified'),
@@ -65,7 +67,9 @@ class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
 }
 
 void main() {
-  test('Oilfield Directory taxonomy covers Global Continents, 197 Countries, Popular Quick-Search + A-Z, Town Index, Towing, and clean Pipe & OCTG icon', () {
+  test(
+      'Oilfield Directory taxonomy covers Global Continents, 197 Countries, Popular Quick-Search + A-Z, Town Index, Towing, and clean Pipe & OCTG icon',
+      () {
     expect(PipeBuyerYellowPagesTaxonomy.categories.length, 24);
     expect(PipeBuyerYellowPagesTaxonomy.continents.length, 7);
     expect(PipeBuyerYellowPagesTaxonomy.countries.length, 197);
@@ -97,9 +101,8 @@ void main() {
     final meCodes = PipeBuyerYellowPagesTaxonomy.countriesForContinent(
       'middle_east',
     ).map((c) => c.code);
-    final asiaCodes =
-        PipeBuyerYellowPagesTaxonomy.countriesForContinent('asia')
-            .map((c) => c.code);
+    final asiaCodes = PipeBuyerYellowPagesTaxonomy.countriesForContinent('asia')
+        .map((c) => c.code);
     expect(meCodes, containsAll(['AE', 'SA', 'QA', 'KW', 'OM']));
     expect(asiaCodes, containsAll(['AE', 'SA', 'QA', 'KW', 'OM', 'SG', 'MY']));
 
@@ -149,9 +152,91 @@ void main() {
       ),
       isTrue,
     );
+    expect(PipeBuyerYellowPagesTaxonomy.oilfieldHubs.length, greaterThan(240));
+    expect(
+        PipeBuyerYellowPagesTaxonomy.basins.length, greaterThanOrEqualTo(35));
+    expect(
+      PipeBuyerYellowPagesTaxonomy.certifications.length,
+      greaterThanOrEqualTo(12),
+    );
+    for (final intlCode in <String>[
+      'GB',
+      'NO',
+      'AE',
+      'SA',
+      'BR',
+      'AU',
+      'MX',
+      'TT',
+      'IN',
+      'NG',
+    ]) {
+      expect(
+        PipeBuyerYellowPagesTaxonomy.regionsForCountry(intlCode),
+        isNotEmpty,
+        reason: 'Expected sub-regions for $intlCode',
+      );
+    }
+    expect(
+      PipeBuyerYellowPagesTaxonomy.formatLocationLabel(
+        city: 'Midland',
+        regionCode: 'TX',
+        countryCode: 'US',
+      ),
+      'Midland, TX',
+    );
+    expect(
+      PipeBuyerYellowPagesTaxonomy.formatLocationLabel(
+        city: 'Aberdeen',
+        regionCode: 'SCT',
+        countryCode: 'GB',
+      ),
+      'Aberdeen, SCT, UK',
+    );
+    expect(
+      PipeBuyerYellowPagesTaxonomy.formatLocationLabel(
+        city: 'Doha',
+        regionCode: 'QA',
+        countryCode: 'QA',
+      ),
+      'Doha, Qatar',
+    );
   });
 
-  test('PipeBuyerYellowPagesAccess resolves agent, manager, and administrator privileges', () {
+  test(
+      'PipeBuyerCountryFlagIcon supplies pure vector 3:2 SVG flags for all 197 directory countries and 195+ phone regions',
+      () {
+    expect(
+        PipeBuyerCountryFlagIcon.supportedFlagCount, greaterThanOrEqualTo(250));
+    for (final country in PipeBuyerYellowPagesTaxonomy.countries) {
+      final svg = PipeBuyerCountryFlagIcon.svgForCountry(country.code);
+      expect(
+        svg,
+        isNotNull,
+        reason:
+            'Missing SVG flag for directory country ${country.code} (${country.name})',
+      );
+      expect(svg, startsWith('<svg '));
+    }
+    for (final region in phoneRegions) {
+      final svg = PipeBuyerCountryFlagIcon.svgForCountry(region.code);
+      expect(
+        svg,
+        isNotNull,
+        reason:
+            'Missing SVG flag for phone region ${region.code} (${region.name})',
+      );
+      expect(svg, startsWith('<svg '));
+    }
+    expect(PipeBuyerCountryFlagIcon.svgForCountry('UK'), isNotNull);
+    expect(PipeBuyerCountryFlagIcon.svgForCountry('UAE'), isNotNull);
+    expect(PipeBuyerCountryFlagIcon.svgForCountry('USA'), isNotNull);
+    expect(PipeBuyerCountryFlagIcon.svgForCountry('KSA'), isNotNull);
+  });
+
+  test(
+      'PipeBuyerYellowPagesAccess resolves agent, manager, and administrator privileges',
+      () {
     final admin = PipeBuyerYellowPagesAccess.fromJson(const {
       'authorized': true,
       'role': 'administrator',
@@ -324,7 +409,8 @@ void main() {
     );
     expect(find.textContaining('Yellow Pages'), findsNothing);
     expect(find.textContaining('Claim'), findsNothing);
-    expect(find.textContaining('12,762 verified service providers'), findsOneWidget);
+    expect(find.textContaining('12,762 verified service providers'),
+        findsOneWidget);
 
     // Unified wrapping filter dropdown boxes
     expect(find.text('FILTER BY SERVICE'), findsOneWidget);
@@ -334,7 +420,10 @@ void main() {
     expect(find.text('ALPHABETICAL & SORT'), findsOneWidget);
     expect(find.text('BASIN & OPTIONS'), findsOneWidget);
 
-    // Open World Region & Country modal and verify Continents + Popular Quick-Search + A-Z
+    // Country flag icons render on directory cards
+    expect(find.byType(PipeBuyerCountryFlagIcon), findsWidgets);
+
+    // Open World Region & Country modal and verify Continents + Popular Quick-Search + A-Z + Flags
     await tester.tap(find.text('WORLD REGION & COUNTRY'));
     await tester.pumpAndSettle();
     expect(
@@ -349,6 +438,7 @@ void main() {
       find.text('POPULAR OIL & GAS COUNTRIES — QUICK SEARCH'),
       findsOneWidget,
     );
+    expect(find.byType(PipeBuyerCountryFlagIcon), findsWidgets);
     await tester.tap(find.text('North America'));
     await tester.pumpAndSettle();
     expect(
@@ -404,6 +494,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Apex Permian Hydrovac'), findsOneWidget);
     expect(find.textContaining('Claim'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'List Services page renders country flag icons in Popular Quick-Select, 197-country dropdown, and phone prefix',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PipeBuyerListServicesPage(
+          client: _FakeYellowPagesClient(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Popular Oil & Gas Markets (Quick Select):'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Submit Service Listing (Verified Pro)', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(find.byType(PipeBuyerCountryFlagIcon), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 }

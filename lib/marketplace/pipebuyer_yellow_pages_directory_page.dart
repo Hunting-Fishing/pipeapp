@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_request_service_page.dart';
 import 'pipebuyer_contact_center_dashboard.dart';
+import 'pipebuyer_country_flag_icon.dart';
 import 'pipebuyer_list_services_page.dart';
 import 'pipebuyer_yellow_pages_client.dart';
 import 'pipebuyer_yellow_pages_taxonomy.dart';
@@ -44,7 +45,8 @@ class _PipeBuyerYellowPagesDirectoryPageState
 
   // View & Grid density state
   YellowPagesViewMode _viewMode = YellowPagesViewMode.grid;
-  int? _manualGridColumns; // null => responsive Auto (4-6 on desktop, 1-3 on mobile/tablet)
+  int?
+      _manualGridColumns; // null => responsive Auto (4-6 on desktop, 1-3 on mobile/tablet)
 
   // Unified Filter & Sort state
   String _continentCode = '';
@@ -71,8 +73,33 @@ class _PipeBuyerYellowPagesDirectoryPageState
   List<Map<String, dynamic>> _entries = const <Map<String, dynamic>>[];
 
   static const _alphabet = <String>[
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '#',
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'G',
+    'H',
+    'I',
+    'J',
+    'K',
+    'L',
+    'M',
+    'N',
+    'O',
+    'P',
+    'Q',
+    'R',
+    'S',
+    'T',
+    'U',
+    'V',
+    'W',
+    'X',
+    'Y',
+    'Z',
+    '#',
   ];
 
   @override
@@ -189,7 +216,8 @@ class _PipeBuyerYellowPagesDirectoryPageState
         startsWith: _startsWith,
         sortBy: _sortBy,
         offset: offset,
-        pageSize: 60, // LCM(4, 5, 6) = 60 so 4/5/6-col grids always fill complete rows
+        pageSize:
+            60, // LCM(4, 5, 6) = 60 so 4/5/6-col grids always fill complete rows
       );
       if (!mounted) return;
       setState(() {
@@ -391,14 +419,14 @@ class _PipeBuyerYellowPagesDirectoryPageState
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6FA),
       appBar: AppBar(
-        leading: !Navigator.of(context).canPop() &&
-                GoRouter.maybeOf(context) != null
-            ? IconButton(
-                tooltip: 'Back to Pipe Buyer',
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => GoRouter.of(context).go('/'),
-              )
-            : null,
+        leading:
+            !Navigator.of(context).canPop() && GoRouter.maybeOf(context) != null
+                ? IconButton(
+                    tooltip: 'Back to Pipe Buyer',
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    onPressed: () => GoRouter.of(context).go('/'),
+                  )
+                : null,
         title: Text(
           compactAppBar
               ? 'OILFIELD DIRECTORY'
@@ -827,6 +855,28 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
     return city;
   }
 
+  Widget? _townFlagIcon() {
+    if (city.isEmpty) return null;
+    if (countryCode.isNotEmpty) {
+      return PipeBuyerCountryFlagIcon(
+        countryCode: countryCode,
+        width: 19,
+        height: 13,
+      );
+    }
+    final q = city.trim().toLowerCase();
+    for (final hub in PipeBuyerYellowPagesTaxonomy.oilfieldHubs) {
+      if (hub.city.toLowerCase() == q) {
+        return PipeBuyerCountryFlagIcon(
+          countryCode: hub.countryCode,
+          width: 19,
+          height: 13,
+        );
+      }
+    }
+    return null;
+  }
+
   String _alphabeticalValueLabel() {
     final sortLabel = switch (sortBy) {
       'name_asc' => 'A → Z',
@@ -875,8 +925,7 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
                   : width >= 380
                       ? 2
                       : 1;
-          final itemWidth =
-              (width - (spacing * (filterCols - 1))) / filterCols;
+          final itemWidth = (width - (spacing * (filterCols - 1))) / filterCols;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -992,6 +1041,13 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
                       label: 'WORLD REGION & COUNTRY',
                       value: _regionValueLabel(),
                       icon: Icons.public_rounded,
+                      leading: countryCode.isNotEmpty
+                          ? PipeBuyerCountryFlagIcon(
+                              countryCode: countryCode,
+                              width: 20,
+                              height: 14,
+                            )
+                          : null,
                       active: continentCode.isNotEmpty ||
                           countryCode.isNotEmpty ||
                           regionCode.isNotEmpty,
@@ -1004,6 +1060,7 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
                       label: 'FILTER BY TOWN / CITY',
                       value: _townValueLabel(),
                       icon: Icons.location_city_outlined,
+                      leading: _townFlagIcon(),
                       active: city.isNotEmpty,
                       onTap: onTapTown,
                     ),
@@ -1019,9 +1076,8 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
                     ),
                   ),
                   SizedBox(
-                    width: filterCols == 3
-                        ? (itemWidth * 2 + spacing)
-                        : itemWidth,
+                    width:
+                        filterCols == 3 ? (itemWidth * 2 + spacing) : itemWidth,
                     child: _FilterSelectBox(
                       label: 'BASIN & OPTIONS',
                       value: _moreFiltersValueLabel(),
@@ -1047,6 +1103,7 @@ class _FilterSelectBox extends StatelessWidget {
     required this.icon,
     required this.active,
     required this.onTap,
+    this.leading,
   });
 
   final String label;
@@ -1054,6 +1111,7 @@ class _FilterSelectBox extends StatelessWidget {
   final IconData icon;
   final bool active;
   final VoidCallback onTap;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -1078,11 +1136,12 @@ class _FilterSelectBox extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                icon,
-                size: 17,
-                color: active ? Colors.amberAccent : Colors.white70,
-              ),
+              leading ??
+                  Icon(
+                    icon,
+                    size: 17,
+                    color: active ? Colors.amberAccent : Colors.white70,
+                  ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -1232,9 +1291,8 @@ class _GridDensitySelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final options = <({String label, int? value})>[
       (
-        label: manualColumns == null
-            ? 'Auto ($resolvedAutoColumns/row)'
-            : 'Auto',
+        label:
+            manualColumns == null ? 'Auto ($resolvedAutoColumns/row)' : 'Auto',
         value: null,
       ),
       (label: '4/row', value: 4),
@@ -1337,7 +1395,8 @@ class _ActiveFilterBreadcrumbStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeCountry = PipeBuyerYellowPagesTaxonomy.countryByCode(countryCode);
+    final activeCountry =
+        PipeBuyerYellowPagesTaxonomy.countryByCode(countryCode);
     final activeContinent =
         PipeBuyerYellowPagesTaxonomy.continentByCode(continentCode);
 
@@ -1355,6 +1414,11 @@ class _ActiveFilterBreadcrumbStrip extends StatelessWidget {
         ),
       if (countryCode.isNotEmpty && regionCode.isEmpty)
         _RemovableFilterChip(
+          avatar: PipeBuyerCountryFlagIcon(
+            countryCode: countryCode,
+            width: 16,
+            height: 11,
+          ),
           label: activeCountry != null
               ? '${activeCountry.name} (${activeCountry.code})'
               : countryCode,
@@ -1362,8 +1426,15 @@ class _ActiveFilterBreadcrumbStrip extends StatelessWidget {
         ),
       if (regionCode.isNotEmpty)
         _RemovableFilterChip(
+          avatar: countryCode.isNotEmpty
+              ? PipeBuyerCountryFlagIcon(
+                  countryCode: countryCode,
+                  width: 16,
+                  height: 11,
+                )
+              : null,
           label:
-              'Prov/State: $regionCode${countryCode.isNotEmpty ? ' ($countryCode)' : ''}',
+              'Region: $regionCode${countryCode.isNotEmpty ? ' ($countryCode)' : ''}',
           onDeleted: onClearRegion,
         ),
       if (city.isNotEmpty)
@@ -1438,10 +1509,15 @@ class _ActiveFilterBreadcrumbStrip extends StatelessWidget {
 }
 
 class _RemovableFilterChip extends StatelessWidget {
-  const _RemovableFilterChip({required this.label, required this.onDeleted});
+  const _RemovableFilterChip({
+    required this.label,
+    required this.onDeleted,
+    this.avatar,
+  });
 
   final String label;
   final VoidCallback onDeleted;
+  final Widget? avatar;
 
   @override
   Widget build(BuildContext context) {
@@ -1449,6 +1525,7 @@ class _RemovableFilterChip extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       backgroundColor: Colors.white,
+      avatar: avatar,
       label: Text(
         label,
         style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
@@ -1488,7 +1565,11 @@ class _GridCompanyCard extends StatelessWidget {
     final city = '${entry['city'] ?? ''}'.trim();
     final region = '${entry['regionCode'] ?? ''}'.trim();
     final country = '${entry['countryCode'] ?? ''}'.trim();
-    final locShort = [city, region].where((s) => s.isNotEmpty).join(', ');
+    final locShort = PipeBuyerYellowPagesTaxonomy.formatLocationLabel(
+      city: city,
+      regionCode: region,
+      countryCode: country,
+    );
     final regionCountryBadge =
         [region, country].where((s) => s.isNotEmpty).join(' • ');
 
@@ -1583,7 +1664,8 @@ class _GridCompanyCard extends StatelessWidget {
                               ],
                             ),
                           ),
-                          if (regionCountryBadge.isNotEmpty) ...[
+                          if (regionCountryBadge.isNotEmpty ||
+                              country.isNotEmpty) ...[
                             const SizedBox(width: 4),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -1594,13 +1676,29 @@ class _GridCompanyCard extends StatelessWidget {
                                 color: const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(5),
                               ),
-                              child: Text(
-                                regionCountryBadge,
-                                style: const TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF334155),
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (country.isNotEmpty) ...[
+                                    PipeBuyerCountryFlagIcon(
+                                      countryCode: country,
+                                      width: 14,
+                                      height: 9.5,
+                                      borderRadius: 2,
+                                    ),
+                                    if (regionCountryBadge.isNotEmpty)
+                                      const SizedBox(width: 4),
+                                  ],
+                                  if (regionCountryBadge.isNotEmpty)
+                                    Text(
+                                      regionCountryBadge,
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF334155),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           ],
@@ -1882,7 +1980,7 @@ class _LinesDirectoryView extends StatelessWidget {
                 Expanded(
                   flex: 19,
                   child: Text(
-                    'TOWN & PROV / STATE',
+                    'TOWN & COUNTRY / REGION',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 11,
@@ -1998,8 +2096,12 @@ class _DirectoryLineRow extends StatelessWidget {
     final city = '${entry['city'] ?? ''}'.trim();
     final region = '${entry['regionCode'] ?? ''}'.trim();
     final country = '${entry['countryCode'] ?? ''}'.trim();
-    final location =
-        [city, region, country].where((s) => s.isNotEmpty).join(', ');
+    final location = PipeBuyerYellowPagesTaxonomy.formatLocationLabel(
+      city: city,
+      regionCode: region,
+      countryCode: country,
+      includeCountryForNorthAmerica: true,
+    );
 
     final basins = _asStringList(entry['basins']);
     final categories = _asStringList(entry['categories']);
@@ -2060,11 +2162,20 @@ class _DirectoryLineRow extends StatelessWidget {
                 const SizedBox(height: 5),
                 Row(
                   children: [
+                    if (country.isNotEmpty) ...[
+                      PipeBuyerCountryFlagIcon(
+                        countryCode: country,
+                        width: 15,
+                        height: 10.5,
+                      ),
+                      const SizedBox(width: 6),
+                    ],
                     Expanded(
                       child: Text(
-                        [location, if (serviceSummary.isNotEmpty) serviceSummary]
-                            .where((s) => s.isNotEmpty)
-                            .join('  •  '),
+                        [
+                          location,
+                          if (serviceSummary.isNotEmpty) serviceSummary
+                        ].where((s) => s.isNotEmpty).join('  •  '),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -2169,15 +2280,29 @@ class _DirectoryLineRow extends StatelessWidget {
                 flex: 19,
                 child: Padding(
                   padding: const EdgeInsets.only(right: 10),
-                  child: Text(
-                    location,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF334155),
-                    ),
+                  child: Row(
+                    children: [
+                      if (country.isNotEmpty) ...[
+                        PipeBuyerCountryFlagIcon(
+                          countryCode: country,
+                          width: 16,
+                          height: 11,
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Expanded(
+                        child: Text(
+                          location,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -2368,9 +2493,7 @@ class _ServicePickerDialogState extends State<_ServicePickerDialog> {
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final cols = constraints.maxWidth >= 680
-                        ? 2
-                        : 1;
+                    final cols = constraints.maxWidth >= 680 ? 2 : 1;
                     return GridView.builder(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: cols,
@@ -2487,15 +2610,15 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
     if (widget.selectedContinentCode.isNotEmpty) {
       _activeContinent = widget.selectedContinentCode;
     } else if (widget.selectedCountryCode.isNotEmpty) {
-      final matched =
-          PipeBuyerYellowPagesTaxonomy.countryByCode(widget.selectedCountryCode);
+      final matched = PipeBuyerYellowPagesTaxonomy.countryByCode(
+          widget.selectedCountryCode);
       _activeContinent = matched?.continentCode ?? '';
     } else {
       _activeContinent = '';
     }
     if (widget.selectedCountryCode.isNotEmpty &&
-        PipeBuyerYellowPagesTaxonomy
-            .regionsForCountry(widget.selectedCountryCode)
+        PipeBuyerYellowPagesTaxonomy.regionsForCountry(
+                widget.selectedCountryCode)
             .isNotEmpty) {
       _expandedRegionCountryCode = widget.selectedCountryCode;
     }
@@ -2530,7 +2653,8 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
 
     final countriesWithSubRegions = alphabeticalCountries
         .where(
-          (c) => PipeBuyerYellowPagesTaxonomy.regionsForCountry(c.code).isNotEmpty,
+          (c) =>
+              PipeBuyerYellowPagesTaxonomy.regionsForCountry(c.code).isNotEmpty,
         )
         .toList(growable: false);
 
@@ -2599,7 +2723,8 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                     visualDensity: VisualDensity.compact,
                     label: const Text(
                       'All Global',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                     ),
                     selected: _activeContinent.isEmpty,
                     onSelected: (_) => setState(() {
@@ -2623,7 +2748,7 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                         _activeContinent = cont.code;
                         if (_expandedRegionCountryCode.isNotEmpty) {
                           final nextAllowed = PipeBuyerYellowPagesTaxonomy
-                              .countriesForContinent(cont.code)
+                                  .countriesForContinent(cont.code)
                               .any((c) => c.code == _expandedRegionCountryCode);
                           if (!nextAllowed) {
                             _expandedRegionCountryCode = '';
@@ -2672,7 +2797,11 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                               return ListTile(
                                 dense: true,
                                 selected: selected,
-                                leading: _CountryCodeBadge(code: c.code),
+                                leading: PipeBuyerCountryFlagIcon(
+                                  countryCode: c.code,
+                                  width: 26,
+                                  height: 18,
+                                ),
                                 title: Text(
                                   '${c.name} (${c.code})',
                                   style: const TextStyle(
@@ -2708,14 +2837,17 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                               ),
                             ),
                             ...searchedRegions.map((r) {
-                              final selected =
-                                  widget.selectedRegionCode == r.regionCode &&
-                                      widget.selectedCountryCode ==
-                                          r.countryCode;
+                              final selected = widget.selectedRegionCode ==
+                                      r.regionCode &&
+                                  widget.selectedCountryCode == r.countryCode;
                               return ListTile(
                                 dense: true,
                                 selected: selected,
-                                leading: _CountryCodeBadge(code: r.countryCode),
+                                leading: PipeBuyerCountryFlagIcon(
+                                  countryCode: r.countryCode,
+                                  width: 24,
+                                  height: 16,
+                                ),
                                 title: Text(
                                   '${r.name} (${r.regionCode}, ${r.countryCode})',
                                   style: const TextStyle(
@@ -2821,17 +2953,10 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                                         ? PipeBuyerColors.orange
                                         : const Color(0xFFFED7AA),
                                   ),
-                                  avatar: CircleAvatar(
-                                    radius: 10,
-                                    backgroundColor: PipeBuyerColors.orange,
-                                    child: Text(
-                                      c.code,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 8.5,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
+                                  avatar: PipeBuyerCountryFlagIcon(
+                                    countryCode: c.code,
+                                    width: 19,
+                                    height: 13,
                                   ),
                                   label: Text(
                                     c.name,
@@ -2872,6 +2997,11 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                                     _expandedRegionCountryCode == c.code;
                                 return ChoiceChip(
                                   visualDensity: VisualDensity.compact,
+                                  avatar: PipeBuyerCountryFlagIcon(
+                                    countryCode: c.code,
+                                    width: 16,
+                                    height: 11,
+                                  ),
                                   label: Text(
                                     '${c.name} Regions',
                                     style: const TextStyle(
@@ -2902,11 +3032,11 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                                   spacing: 6,
                                   runSpacing: 6,
                                   children: subRegionsToDisplay.map((r) {
-                                    final selected = widget
-                                                .selectedRegionCode ==
-                                            r.regionCode &&
-                                        widget.selectedCountryCode ==
-                                            r.countryCode;
+                                    final selected =
+                                        widget.selectedRegionCode ==
+                                                r.regionCode &&
+                                            widget.selectedCountryCode ==
+                                                r.countryCode;
                                     return ActionChip(
                                       visualDensity: VisualDensity.compact,
                                       backgroundColor: selected
@@ -2950,16 +3080,21 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
                             final selected =
                                 widget.selectedCountryCode == c.code &&
                                     widget.selectedRegionCode.isEmpty;
-                            final hasSub = PipeBuyerYellowPagesTaxonomy
-                                .regionsForCountry(c.code)
-                                .isNotEmpty;
+                            final hasSub =
+                                PipeBuyerYellowPagesTaxonomy.regionsForCountry(
+                                        c.code)
+                                    .isNotEmpty;
                             return ListTile(
                               dense: true,
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 6,
                               ),
                               selected: selected,
-                              leading: _CountryCodeBadge(code: c.code),
+                              leading: PipeBuyerCountryFlagIcon(
+                                countryCode: c.code,
+                                width: 26,
+                                height: 18,
+                              ),
                               title: Text(
                                 '${c.name} (${c.code})',
                                 style: const TextStyle(
@@ -3017,38 +3152,6 @@ class _RegionPickerDialogState extends State<_RegionPickerDialog> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CountryCodeBadge extends StatelessWidget {
-  const _CountryCodeBadge({required this.code});
-
-  final String code;
-
-  @override
-  Widget build(BuildContext context) {
-    final isCa = code == 'CA';
-    final isUs = code == 'US';
-    return CircleAvatar(
-      radius: 14,
-      backgroundColor: isCa
-          ? const Color(0xFFFEE2E2)
-          : isUs
-              ? const Color(0xFFDBEAFE)
-              : const Color(0xFFE2E8F0),
-      child: Text(
-        code,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-          color: isCa
-              ? const Color(0xFFB91C1C)
-              : isUs
-                  ? const Color(0xFF1D4ED8)
-                  : const Color(0xFF334155),
         ),
       ),
     );
@@ -3199,21 +3302,28 @@ class _TownPickerDialogState extends State<_TownPickerDialog> {
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, idx) {
                     final hub = filtered[idx];
-                    final selected =
-                        hub.city.toLowerCase() ==
+                    final selected = hub.city.toLowerCase() ==
                         widget.selectedCity.toLowerCase();
                     return ListTile(
                       dense: true,
                       selected: selected,
-                      leading: const Icon(Icons.location_on_outlined, size: 18),
+                      leading: PipeBuyerCountryFlagIcon(
+                        countryCode: hub.countryCode,
+                        width: 22,
+                        height: 15,
+                      ),
                       title: Text(
                         hub.city,
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       trailing: Text(
-                        [hub.regionCode, hub.countryCode]
-                            .where((s) => s.isNotEmpty)
-                            .join(', '),
+                        [
+                          hub.regionCode,
+                          PipeBuyerYellowPagesTaxonomy.countryByCode(
+                                hub.countryCode,
+                              )?.name ??
+                              hub.countryCode,
+                        ].where((s) => s.isNotEmpty).join(', '),
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -3512,9 +3622,10 @@ class _MoreFiltersDialogState extends State<_MoreFiltersDialog> {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
-                initialValue: PipeBuyerYellowPagesTaxonomy.basins.contains(_basin)
-                    ? _basin
-                    : '',
+                initialValue:
+                    PipeBuyerYellowPagesTaxonomy.basins.contains(_basin)
+                        ? _basin
+                        : '',
                 decoration: const InputDecoration(
                   labelText: 'Oil & Gas Basin',
                   border: OutlineInputBorder(),
@@ -3552,10 +3663,10 @@ class _MoreFiltersDialogState extends State<_MoreFiltersDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue:
-                    const {'', 'featured_only', 'paid_only'}.contains(_tierFilter)
-                        ? _tierFilter
-                        : '',
+                initialValue: const {'', 'featured_only', 'paid_only'}
+                        .contains(_tierFilter)
+                    ? _tierFilter
+                    : '',
                 decoration: const InputDecoration(
                   labelText: 'Verification & Priority Tier',
                   border: OutlineInputBorder(),
@@ -3667,8 +3778,12 @@ class _CompanyDetailSheet extends StatelessWidget {
     final city = '${entry['city'] ?? ''}'.trim();
     final region = '${entry['regionCode'] ?? ''}'.trim();
     final country = '${entry['countryCode'] ?? ''}'.trim();
-    final location =
-        [city, region, country].where((s) => s.isNotEmpty).join(', ');
+    final location = PipeBuyerYellowPagesTaxonomy.formatLocationLabel(
+      city: city,
+      regionCode: region,
+      countryCode: country,
+      includeCountryForNorthAmerica: true,
+    );
     final phone = '${entry['publicPhone'] ?? ''}'.trim();
     final tollFree = '${entry['tollFreePhone'] ?? ''}'.trim();
     final email = '${entry['publicEmail'] ?? ''}'.trim();
@@ -3718,15 +3833,29 @@ class _CompanyDetailSheet extends StatelessWidget {
               ),
             ),
             if (location.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                [location, if (basins.isNotEmpty) basins.join(' • ')]
-                    .join('  |  '),
-                style: const TextStyle(
-                  fontSize: 13.5,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
-                ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  if (country.isNotEmpty) ...[
+                    PipeBuyerCountryFlagIcon(
+                      countryCode: country,
+                      width: 20,
+                      height: 14,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      [location, if (basins.isNotEmpty) basins.join(' • ')]
+                          .join('  |  '),
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        color: Color(0xFF64748B),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
             if (description.isNotEmpty) ...[
@@ -3756,9 +3885,7 @@ class _CompanyDetailSheet extends StatelessWidget {
                       ),
                     ),
                   ),
-                  ...services
-                      .where((s) => !categories.contains(s))
-                      .map(
+                  ...services.where((s) => !categories.contains(s)).map(
                         (s) => Chip(
                           visualDensity: VisualDensity.compact,
                           backgroundColor: const Color(0xFFF1F5F9),
@@ -3912,8 +4039,8 @@ class _EmptyDirectoryState extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     hasFilters
-                        ? 'Broaden your town, province/state, or service filter, or post a live service request in Dispatch so nearby providers can quote directly.'
-                        : 'Verified North American Oil & Gas service businesses appear here ranked by Priority Tier.',
+                        ? 'Broaden your town, country, region, or service filter, or post a live service request in Dispatch so nearby providers can quote directly.'
+                        : 'Verified Global Oil & Gas service businesses across 197 countries appear here ranked by Priority Tier.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: PipeBuyerColors.muted),
                   ),
