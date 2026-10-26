@@ -16,10 +16,12 @@ class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
   });
 
   final PipeBuyerYellowPagesDirectoryCounts counts;
+  List<Map<String, dynamic>>? customItems;
   String lastContinentCode = '';
   String lastCountryCode = '';
   String lastRegionCode = '';
   String lastCity = '';
+  String lastTierFilter = '';
 
   @override
   Future<PipeBuyerYellowPagesAccess> getAccess() async {
@@ -59,6 +61,16 @@ class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
     lastCountryCode = countryCode;
     lastRegionCode = regionCode;
     lastCity = city;
+    lastTierFilter = tierFilter;
+    if (customItems != null) {
+      final filtered = tierFilter == 'verified_only'
+          ? customItems!.where((e) => e['verified'] == true).toList()
+          : customItems!;
+      return PipeBuyerYellowPagesPage<Map<String, dynamic>>(
+        items: filtered,
+        totalMatched: filtered.length,
+      );
+    }
     final sample = List<Map<String, dynamic>>.generate(
       12,
       (i) => <String, dynamic>{
@@ -67,7 +79,10 @@ class _FakeYellowPagesClient extends PipeBuyerYellowPagesClient {
             i == 0 ? 'Apex Permian Hydrovac' : 'Northern Rig Service ${i + 1}',
         'effectiveTier': i == 0
             ? 'featured_platinum'
-            : (i == 1 ? 'paid_verified' : 'free_verified'),
+            : (i == 1
+                ? 'paid_verified'
+                : (i == 2 ? 'free_verified' : 'free_basic')),
+        'verified': i <= 2,
         'city': i.isEven ? 'Midland' : 'Nisku',
         'regionCode': i.isEven ? 'TX' : 'AB',
         'countryCode': i.isEven ? 'US' : 'CA',
@@ -428,8 +443,10 @@ void main() {
     );
     expect(find.textContaining('Yellow Pages'), findsNothing);
     expect(find.textContaining('Claim'), findsNothing);
-    expect(find.textContaining('12,762 verified service providers'),
-        findsOneWidget);
+    expect(
+      find.textContaining('12,762 service providers listed'),
+      findsOneWidget,
+    );
 
     // Unified wrapping filter dropdown boxes
     expect(find.text('FILTER BY SERVICE'), findsOneWidget);
@@ -693,6 +710,118 @@ void main() {
     expect(fakeClient.lastCity, 'Grande Prairie');
     expect(fakeClient.lastCountryCode, 'CA');
     expect(fakeClient.lastRegionCode, 'AB');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'Unverified directory businesses show zero grey VERIFIED badges while verified businesses show green checkmark badge',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1500, 960);
+    await tester.binding.setSurfaceSize(const Size(1500, 960));
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      tester.binding.setSurfaceSize(null);
+    });
+
+    final fakeClient = _FakeYellowPagesClient()
+      ..customItems = <Map<String, dynamic>>[
+        <String, dynamic>{
+          'companyId': 'unver-1',
+          'companyName': 'Unverified Standard Trucking Ltd.',
+          'effectiveTier': 'free_basic',
+          'verified': false,
+          'city': 'Red Deer',
+          'regionCode': 'AB',
+          'countryCode': 'CA',
+          'publicPhone': '(403) 555-0191',
+          'categories': const ['Trucking, Towing, Winch & Heavy Haul'],
+          'services': const ['Winch Truck'],
+          'basins': const ['WCSB'],
+          'emergency24x7': false,
+        },
+        <String, dynamic>{
+          'companyId': 'unver-2',
+          'companyName': 'Second Unverified Welding Inc.',
+          'effectiveTier': 'free_basic',
+          'verified': false,
+          'city': 'Odessa',
+          'regionCode': 'TX',
+          'countryCode': 'US',
+          'publicPhone': '(432) 555-0192',
+          'categories': const ['Welding, Machining & Custom Fabrication'],
+          'services': const ['Rig Welding'],
+          'basins': const ['Permian Basin'],
+          'emergency24x7': false,
+        },
+      ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PipeBuyerYellowPagesDirectoryPage(client: fakeClient),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. With 100% unverified records: zero VERIFIED badges or green checkmarks appear in Grid View
+    expect(find.text('Unverified Standard Trucking Ltd.'), findsOneWidget);
+    expect(find.byType(PipeBuyerVerifiedCheckBadge), findsNothing);
+    expect(find.text('VERIFIED'), findsNothing);
+
+    // Tap unverified company -> detail sheet shows STANDARD DIRECTORY LISTING (not VERIFIED DIRECTORY)
+    await tester.tap(find.text('Unverified Standard Trucking Ltd.'));
+    await tester.pumpAndSettle();
+    expect(find.text('STANDARD DIRECTORY LISTING'), findsOneWidget);
+    expect(find.text('VERIFIED DIRECTORY'), findsNothing);
+    expect(find.byType(PipeBuyerVerifiedCheckBadge), findsNothing);
+    Navigator.of(tester.element(find.text('STANDARD DIRECTORY LISTING'))).pop();
+    await tester.pumpAndSettle();
+
+    // 2. Switch to Lines View -> zero VERIFIED badges appear on unverified rows
+    await tester.tap(find.text('Lines View'));
+    await tester.pumpAndSettle();
+    expect(find.text('STATUS'), findsOneWidget);
+    expect(find.byType(PipeBuyerVerifiedCheckBadge), findsNothing);
+    expect(find.text('VERIFIED'), findsNothing);
+
+    // 3. Add a genuinely verified business -> green checkmark PipeBuyerVerifiedCheckBadge appears!
+    fakeClient.customItems = <Map<String, dynamic>>[
+      ...fakeClient.customItems!,
+      <String, dynamic>{
+        'companyId': 'ver-1',
+        'companyName': 'Green Check Verified Wireline Ltd.',
+        'effectiveTier': 'free_verified',
+        'verified': true,
+        'city': 'Leduc',
+        'regionCode': 'AB',
+        'countryCode': 'CA',
+        'publicPhone': '(780) 555-0188',
+        'categories': const ['Completions, Frac, Coiled Tubing & Wireline'],
+        'services': const ['Wireline'],
+        'basins': const ['WCSB'],
+        'emergency24x7': false,
+      },
+    ];
+
+    // Switch back to Grid View and filter to Verified Only (Green Checkmark)
+    await tester.tap(find.text('Grid View'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('BASIN & OPTIONS'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All Listed Providers'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Verified Only (Green Checkmark)').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Apply Options'));
+    await tester.pumpAndSettle();
+
+    expect(fakeClient.lastTierFilter, 'verified_only');
+    expect(find.text('Green Check Verified Wireline Ltd.'), findsOneWidget);
+    expect(find.text('Unverified Standard Trucking Ltd.'), findsNothing);
+    expect(find.byType(PipeBuyerVerifiedCheckBadge), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+    expect(find.text('VERIFIED'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

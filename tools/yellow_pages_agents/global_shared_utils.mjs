@@ -453,7 +453,7 @@ export function buildGlobalCompanyRecords({
     });
   }
 
-  const hasVerifiedPhone = Boolean(bestPhone?.validPhone);
+  const hasDialablePhone = Boolean(bestPhone?.validPhone);
   const privateRecord = {
     schemaVersion: 3,
     companyId: docId,
@@ -486,14 +486,14 @@ export function buildGlobalCompanyRecords({
     certifications: [],
     emergency24x7: Boolean(audit?.emergency24x7),
     description: String(audit?.metaDesc || "").slice(0, 280),
-    verificationStatus: hasVerifiedPhone ? "verified" : "needs_phone_verification",
-    operationalStatus: hasVerifiedPhone ? "active_in_operation" : "unverified",
+    verificationStatus: "unverified",
+    operationalStatus: hasDialablePhone ? "active_in_operation" : "unverified",
     outreachStatus: "not_contacted",
     billingStatus: "unpaid",
-    listingTier: "free_verified",
+    listingTier: "free_basic",
     nonExpiringPaid: false,
     allowUnpaidPublic: true,
-    publicationStatus: hasVerifiedPhone ? "published" : "unpublished",
+    publicationStatus: hasDialablePhone ? "published" : "unpublished",
     adminViewingEnabled: true,
     isFlaggedProhibited: false,
     flagReason: "",
@@ -514,14 +514,14 @@ export function buildGlobalCompanyRecords({
       httpStatus: audit?.status || 0,
       phoneE164: bestPhone?.e164 || "",
     },
-    publishedAt: hasVerifiedPhone ? nowIso : null,
+    publishedAt: hasDialablePhone ? nowIso : null,
     createdAt: nowIso,
     updatedAt: nowIso,
   };
   privateRecord.adminSearchTokens = buildAdminSearchTokens(privateRecord);
 
   let publicRecord = null;
-  if (hasVerifiedPhone && isPublicationEligible(privateRecord)) {
+  if (hasDialablePhone && isPublicationEligible(privateRecord)) {
     publicRecord = buildPublicEntry(privateRecord, docId, nowIso);
   }
 

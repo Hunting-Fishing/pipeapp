@@ -152,11 +152,12 @@ function buildPreparedRecords(auditedCompanies, blockedDigitsSet = new Set()) {
       .find((p) => p.validNanpa && blockedDigitsSet.has(p.digits10));
 
     const isFlagged = Boolean(hitBlocked);
-    const isVerifiedActive =
+    const isPublishableActive =
       !isFlagged &&
       (c.operationalStatus === "active_in_operation" ||
         c.operationalStatus === "active_number_updated") &&
       Boolean(c.mainPhone || c.tollFreePhone);
+    const isHumanVerified = Boolean(c.verifiedByUid) && !isFlagged;
 
     const geo = inferCountryAndRegion(c.countryCode || "CA", c.regionCode || "");
     const categoryLabels = (c.categoryCodes || [])
@@ -192,21 +193,23 @@ function buildPreparedRecords(auditedCompanies, blockedDigitsSet = new Set()) {
       certifications: c.certifications || [],
       emergency24x7: c.emergency24x7 === true,
       description: "",
-      verificationStatus: isVerifiedActive ? "verified" : c.verificationStatus || "unverified",
+      verificationStatus: isHumanVerified ?
+        "verified" :
+        (isFlagged ? "rejected" : "unverified"),
       operationalStatus: isFlagged ? "flagged_prohibited" : c.operationalStatus || "unverified",
       outreachStatus: "not_contacted",
       billingStatus: "unpaid",
-      listingTier: "free_verified",
+      listingTier: isHumanVerified ? "free_verified" : "free_basic",
       nonExpiringPaid: false,
       allowUnpaidPublic: true,
-      publicationStatus: isVerifiedActive ? "published" : "unpublished",
+      publicationStatus: isPublishableActive ? "published" : "unpublished",
       adminViewingEnabled: !isFlagged,
       isFlaggedProhibited: isFlagged,
       flagReason: hitBlocked ? `Matched blocked phone ${hitBlocked.display}` : "",
       doNotContact: isFlagged,
       sourceReferences: normalizeSourceRefs(c.sourceReferences),
       liveAuditSummary: c.liveAudit || {},
-      publishedAt: isVerifiedActive ? nowIso : null,
+      publishedAt: isPublishableActive ? nowIso : null,
       createdAt: nowIso,
       updatedAt: nowIso,
     };

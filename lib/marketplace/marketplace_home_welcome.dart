@@ -242,7 +242,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                         icon: Icons.manage_search_rounded,
                         title: 'Search for services',
                         subtitle:
-                            'Search 13,480+ verified Oil & Gas providers across 197 countries.',
+                            'Search 13,480+ Oil & Gas service providers across 197 countries.',
                         onTap: onSearchServices,
                       ),
                     ),

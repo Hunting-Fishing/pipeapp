@@ -166,6 +166,7 @@ async function writeDirectoryCountsDoc(projectId, countsDoc) {
   const fields = {
     schemaVersion: toFirestoreValue(1),
     totalBusinesses: toFirestoreValue(countsDoc.totalBusinesses),
+    verifiedBusinesses: toFirestoreValue(countsDoc.verifiedBusinesses || 0),
     byContinent: toFirestoreValue(countsDoc.byContinent),
     byCountry: toFirestoreValue(countsDoc.byCountry),
     byRegion: toFirestoreValue(countsDoc.byRegion),
@@ -203,6 +204,7 @@ async function main() {
   const docs = await fetchAllPublicEntries(PROJECT_ID);
 
   let totalBusinesses = 0;
+  let verifiedBusinesses = 0;
   const byContinent = {};
   const byCountry = {};
   const byRegion = {};
@@ -212,14 +214,23 @@ async function main() {
 
   for (const doc of docs) {
     const f = doc.fields || {};
-    if (boolVal(f, "verified", true) !== true) continue;
     if (boolVal(f, "publicVisible", true) === false) continue;
     const pubStatus = strVal(f, "publicationStatus");
     if (pubStatus && pubStatus !== "published") continue;
     if (boolVal(f, "isFlaggedProhibited", false) === true) continue;
     if (boolVal(f, "adminViewingEnabled", true) === false) continue;
+    const effTier = strVal(f, "effectiveTier");
+    if (
+      effTier &&
+      !["featured_platinum", "paid_verified", "free_verified", "free_basic"].includes(effTier)
+    ) {
+      continue;
+    }
 
     totalBusinesses += 1;
+    if (boolVal(f, "verified", false) === true) {
+      verifiedBusinesses += 1;
+    }
     const cc = strVal(f, "countryCode").trim().toUpperCase();
     const rawRc = strVal(f, "regionCode");
     const rc = canonicalizeRegionCode(rawRc, cc);
@@ -289,7 +300,7 @@ async function main() {
       .join("\n");
 
   console.log(`[bot13] Summary:`);
-  console.log(`  • Total Active Public Businesses: ${totalBusinesses}`);
+  console.log(`  • Total Active Public Businesses: ${totalBusinesses} (Verified: ${verifiedBusinesses})`);
   console.log(`  • Continents:`, byContinent);
   console.log(`  • Populated Countries: ${Object.keys(byCountry).length}`);
   console.log(`  • Populated Sub-Regions: ${Object.keys(byRegion).length}`);

@@ -1023,8 +1023,9 @@ class _AdminCompanyRowCard extends StatelessWidget {
     final viewingEnabled = company['adminViewingEnabled'] != false && !flagged;
     final published =
         company['publicationStatus'] == 'published' && viewingEnabled;
+    final isVerified = company['verificationStatus'] == 'verified';
     final tier =
-        '${company['effectiveTier'] ?? company['listingTier'] ?? 'free_verified'}';
+        '${company['effectiveTier'] ?? company['listingTier'] ?? 'free_basic'}';
     final opStatus = '${company['operationalStatus'] ?? 'unverified'}';
     final mainPhone =
         '${company['mainPhone'] ?? company['publicPhone'] ?? ''}'.trim();
@@ -1098,11 +1099,49 @@ class _AdminCompanyRowCard extends StatelessWidget {
                                   ? PipeBuyerColors.slate
                                   : PipeBuyerColors.danger),
                         ),
+                        if (isVerified)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(999),
+                              border:
+                                  Border.all(color: const Color(0xFF4ADE80)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 13,
+                                  color: Color(0xFF16A34A),
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'VERIFIED',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF15803D),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          const _PillBadge(
+                            label: 'UNVERIFIED',
+                            color: PipeBuyerColors.slate,
+                          ),
                         _PillBadge(
                           label: switch (tier) {
                             'featured_platinum' => 'Tier 1: Featured Partner',
                             'paid_verified' => 'Tier 2: Verified Pro (Paid)',
-                            _ => 'Tier 3: Basic Verified',
+                            'free_verified' => 'Tier 3: Basic (Verified)',
+                            _ => 'Tier 3: Basic (Unverified)',
                           },
                           color: tier == 'featured_platinum'
                               ? PipeBuyerColors.orange
@@ -1413,11 +1452,13 @@ class _CompanyControlSheetState extends State<_CompanyControlSheet> {
                       _PillBadge(
                         label:
                             'Verification: ${_company['verificationStatus'] ?? 'unverified'}',
-                        color: PipeBuyerColors.slate,
+                        color: _company['verificationStatus'] == 'verified'
+                            ? PipeBuyerColors.success
+                            : PipeBuyerColors.slate,
                       ),
                       _PillBadge(
                         label:
-                            'Billing: ${_company['billingStatus'] ?? 'unpaid'} (${_company['listingTier'] ?? 'free_verified'})',
+                            'Billing: ${_company['billingStatus'] ?? 'unpaid'} (${_company['listingTier'] ?? 'free_basic'})',
                         color: PipeBuyerColors.orange,
                       ),
                     ],
@@ -1497,7 +1538,11 @@ class _CompanyControlSheetState extends State<_CompanyControlSheet> {
                                     () => widget.client.setBillingStatus(
                                       id,
                                       status: 'unpaid',
-                                      listingTier: 'free_verified',
+                                      listingTier:
+                                          _company['verificationStatus'] ==
+                                                  'verified'
+                                              ? 'free_verified'
+                                              : 'free_basic',
                                     ),
                                   ),
                           child: const Text('Set Tier 3: Unpaid Basic'),
@@ -1529,9 +1574,28 @@ class _CompanyControlSheetState extends State<_CompanyControlSheet> {
                                           'Confirmed active in operation',
                                     ),
                                   ),
-                          icon: const Icon(Icons.check_circle_outline),
-                          label: const Text('Mark Verified & In Operation'),
+                          icon: const Icon(
+                            Icons.check_circle_rounded,
+                            color: Color(0xFF16A34A),
+                          ),
+                          label: const Text('Mark Verified (Green Checkmark)'),
                         ),
+                        if (_company['verificationStatus'] == 'verified')
+                          OutlinedButton.icon(
+                            onPressed: _mutating
+                                ? null
+                                : () => _runAction(
+                                      () => widget.client.reviewVerification(
+                                        id,
+                                        status: 'unverified',
+                                        operationalStatus:
+                                            'active_in_operation',
+                                        reviewNote: 'Reset to unverified',
+                                      ),
+                                    ),
+                            icon: const Icon(Icons.remove_moderator_outlined),
+                            label: const Text('Reset to Unverified'),
+                          ),
                         OutlinedButton.icon(
                           onPressed: _mutating
                               ? null

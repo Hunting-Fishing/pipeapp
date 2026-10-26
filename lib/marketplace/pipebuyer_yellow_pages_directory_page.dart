@@ -691,7 +691,7 @@ class _PipeBuyerYellowPagesDirectoryPageState
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(
-                              Icons.verified_outlined,
+                              Icons.storefront_outlined,
                               size: 16,
                               color: PipeBuyerColors.industrialBlue,
                             ),
@@ -699,9 +699,9 @@ class _PipeBuyerYellowPagesDirectoryPageState
                             Flexible(
                               child: Text(
                                 compactBar
-                                    ? '${_formatCount(_totalMatched)} verified providers'
-                                    : '${_formatCount(_totalMatched)} verified service provider${_totalMatched == 1 ? '' : 's'}'
-                                        '${_expandedCategories.isNotEmpty ? ' • Smart-matched categories' : ' • Featured -> Pro -> Verified'}',
+                                    ? '${_formatCount(_totalMatched)} listed providers'
+                                    : '${_formatCount(_totalMatched)} service provider${_totalMatched == 1 ? '' : 's'} listed'
+                                        '${_expandedCategories.isNotEmpty ? ' • Smart-matched categories' : ' • Featured -> Pro -> Verified -> Standard'}',
                                 style: const TextStyle(
                                   fontSize: 12.5,
                                   color: Color(0xFF334155),
@@ -1569,9 +1569,11 @@ class _ActiveFilterBreadcrumbStrip extends StatelessWidget {
         ),
       if (tierFilter.isNotEmpty || paidOnly)
         _RemovableFilterChip(
-          label: tierFilter == 'featured_only'
-              ? 'Featured Partners'
-              : 'Featured & Pro',
+          label: switch (tierFilter) {
+            'featured_only' => 'Featured Partners',
+            'verified_only' => 'Verified Only',
+            _ => 'Featured & Pro',
+          },
           onDeleted: onClearTier,
         ),
       if (emergency24x7)
@@ -1664,9 +1666,10 @@ class _GridCompanyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final companyId = '${entry['companyId'] ?? entry['id'] ?? ''}'.trim();
     final companyName = '${entry['companyName'] ?? 'Service Provider'}'.trim();
-    final effectiveTier = '${entry['effectiveTier'] ?? 'free_verified'}';
+    final effectiveTier = '${entry['effectiveTier'] ?? 'free_basic'}';
     final isFeatured = effectiveTier == 'featured_platinum';
     final isPaid = isFeatured || effectiveTier == 'paid_verified';
+    final isVerified = entry['verified'] == true || isPaid;
 
     final city = '${entry['city'] ?? ''}'.trim();
     final region = '${entry['regionCode'] ?? ''}'.trim();
@@ -1727,7 +1730,9 @@ class _GridCompanyCard extends StatelessWidget {
                     ? PipeBuyerColors.orange
                     : isPaid
                         ? PipeBuyerColors.industrialBlue
-                        : const Color(0xFF94A3B8),
+                        : isVerified
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFCBD5E1),
               ),
               Expanded(
                 child: Padding(
@@ -1740,7 +1745,7 @@ class _GridCompanyCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Row 1: Tier Badge + 24/7 + Country/State Pill
+                      // Row 1: Tier / Green Verified Checkmark + 24/7 + Country/State Pill
                       Row(
                         children: [
                           Expanded(
@@ -1760,14 +1765,12 @@ class _GridCompanyCard extends StatelessWidget {
                                     label: 'PRO',
                                     compact: true,
                                   )
-                                else
-                                  const PipeBuyerVisualBadge(
-                                    variant:
-                                        PipeBuyerBadgeVariant.verifiedBasic,
-                                    label: 'VERIFIED',
+                                else if (isVerified)
+                                  const PipeBuyerVerifiedCheckBadge(
                                     compact: true,
                                   ),
-                                if (emergency24x7)
+                                if (emergency24x7 &&
+                                    (!compact || (!isFeatured && !isPaid)))
                                   const PipeBuyerVisualBadge(
                                     variant: PipeBuyerBadgeVariant.fastCoi24x7,
                                     label: '24/7',
@@ -2082,9 +2085,9 @@ class _LinesDirectoryView extends StatelessWidget {
             child: const Row(
               children: [
                 SizedBox(
-                  width: 92,
+                  width: 124,
                   child: Text(
-                    'TIER',
+                    'STATUS',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 11,
@@ -2225,9 +2228,10 @@ class _DirectoryLineRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final companyId = '${entry['companyId'] ?? entry['id'] ?? ''}'.trim();
     final companyName = '${entry['companyName'] ?? 'Service Provider'}'.trim();
-    final effectiveTier = '${entry['effectiveTier'] ?? 'free_verified'}';
+    final effectiveTier = '${entry['effectiveTier'] ?? 'free_basic'}';
     final isFeatured = effectiveTier == 'featured_platinum';
     final isPaid = isFeatured || effectiveTier == 'paid_verified';
+    final isVerified = entry['verified'] == true || isPaid;
     final emergency = entry['emergency24x7'] == true;
 
     final city = '${entry['city'] ?? ''}'.trim();
@@ -2269,22 +2273,31 @@ class _DirectoryLineRow extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    PipeBuyerVisualBadge(
-                      variant: isFeatured
-                          ? PipeBuyerBadgeVariant.featured
-                          : isPaid
-                              ? PipeBuyerBadgeVariant.verifiedPro
-                              : (emergency
-                                  ? PipeBuyerBadgeVariant.fastCoi24x7
-                                  : PipeBuyerBadgeVariant.verifiedBasic),
-                      label: isFeatured
-                          ? 'FEATURED'
-                          : isPaid
-                              ? 'PRO'
-                              : (emergency ? '24/7' : 'VERIFIED'),
-                      compact: true,
-                    ),
-                    const SizedBox(width: 8),
+                    if (isFeatured) ...[
+                      const PipeBuyerVisualBadge(
+                        variant: PipeBuyerBadgeVariant.featured,
+                        label: 'FEATURED',
+                        compact: true,
+                      ),
+                      const SizedBox(width: 8),
+                    ] else if (isPaid) ...[
+                      const PipeBuyerVisualBadge(
+                        variant: PipeBuyerBadgeVariant.verifiedPro,
+                        label: 'PRO',
+                        compact: true,
+                      ),
+                      const SizedBox(width: 8),
+                    ] else if (isVerified) ...[
+                      const PipeBuyerVerifiedCheckBadge(compact: true),
+                      const SizedBox(width: 8),
+                    ] else if (emergency) ...[
+                      const PipeBuyerVisualBadge(
+                        variant: PipeBuyerBadgeVariant.fastCoi24x7,
+                        label: '24/7',
+                        compact: true,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     if (logoUrl.isNotEmpty) ...[
                       PipeBuyerCompanyLogoBadge(
                         logoUrl: logoUrl,
@@ -2380,7 +2393,9 @@ class _DirectoryLineRow extends StatelessWidget {
                     ? PipeBuyerColors.orange
                     : isPaid
                         ? PipeBuyerColors.industrialBlue
-                        : Colors.transparent,
+                        : isVerified
+                            ? const Color(0xFF16A34A)
+                            : Colors.transparent,
                 width: 3,
               ),
               bottom: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -2389,24 +2404,37 @@ class _DirectoryLineRow extends StatelessWidget {
           child: Row(
             children: [
               SizedBox(
-                width: 89,
+                width: 121,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: PipeBuyerVisualBadge(
-                    variant: isFeatured
-                        ? PipeBuyerBadgeVariant.featured
-                        : isPaid
-                            ? PipeBuyerBadgeVariant.verifiedPro
-                            : (emergency
-                                ? PipeBuyerBadgeVariant.fastCoi24x7
-                                : PipeBuyerBadgeVariant.verifiedBasic),
-                    label: isFeatured
-                        ? 'FEATURED'
-                        : isPaid
-                            ? 'PRO'
-                            : (emergency ? '24/7' : 'VERIFIED'),
-                    compact: true,
-                  ),
+                  child: isFeatured
+                      ? const PipeBuyerVisualBadge(
+                          variant: PipeBuyerBadgeVariant.featured,
+                          label: 'FEATURED',
+                          compact: true,
+                        )
+                      : isPaid
+                          ? const PipeBuyerVisualBadge(
+                              variant: PipeBuyerBadgeVariant.verifiedPro,
+                              label: 'PRO',
+                              compact: true,
+                            )
+                          : isVerified
+                              ? const PipeBuyerVerifiedCheckBadge(compact: true)
+                              : emergency
+                                  ? const PipeBuyerVisualBadge(
+                                      variant:
+                                          PipeBuyerBadgeVariant.fastCoi24x7,
+                                      label: '24/7',
+                                      compact: true,
+                                    )
+                                  : const Text(
+                                      '—',
+                                      style: TextStyle(
+                                        color: Color(0xFF94A3B8),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                 ),
               ),
               Expanded(
@@ -4699,6 +4727,7 @@ class _MoreFiltersDialogState extends State<_MoreFiltersDialog> {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue:
                     PipeBuyerYellowPagesTaxonomy.basins.contains(_basin)
                         ? _basin
@@ -4711,13 +4740,17 @@ class _MoreFiltersDialogState extends State<_MoreFiltersDialog> {
                 items: [
                   const DropdownMenuItem(value: '', child: Text('All Basins')),
                   ...PipeBuyerYellowPagesTaxonomy.basins.map(
-                    (b) => DropdownMenuItem(value: b, child: Text(b)),
+                    (b) => DropdownMenuItem(
+                      value: b,
+                      child: Text(b, overflow: TextOverflow.ellipsis),
+                    ),
                   ),
                 ],
                 onChanged: (v) => setState(() => _basin = v ?? ''),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: PipeBuyerYellowPagesTaxonomy.certifications
                         .contains(_certification)
                     ? _certification
@@ -4733,15 +4766,23 @@ class _MoreFiltersDialogState extends State<_MoreFiltersDialog> {
                     child: Text('All Certifications'),
                   ),
                   ...PipeBuyerYellowPagesTaxonomy.certifications.map(
-                    (c) => DropdownMenuItem(value: c, child: Text(c)),
+                    (c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(c, overflow: TextOverflow.ellipsis),
+                    ),
                   ),
                 ],
                 onChanged: (v) => setState(() => _certification = v ?? ''),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: const {'', 'featured_only', 'paid_only'}
-                        .contains(_tierFilter)
+                isExpanded: true,
+                initialValue: const {
+                  '',
+                  'verified_only',
+                  'featured_only',
+                  'paid_only',
+                }.contains(_tierFilter)
                     ? _tierFilter
                     : '',
                 decoration: const InputDecoration(
@@ -4752,15 +4793,31 @@ class _MoreFiltersDialogState extends State<_MoreFiltersDialog> {
                 items: const [
                   DropdownMenuItem(
                     value: '',
-                    child: Text('All Verified Providers'),
+                    child: Text(
+                      'All Listed Providers',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'verified_only',
+                    child: Text(
+                      'Verified Only (Green Checkmark)',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   DropdownMenuItem(
                     value: 'featured_only',
-                    child: Text('Featured Partners (#1 Spotlight)'),
+                    child: Text(
+                      'Featured Partners (#1 Spotlight)',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   DropdownMenuItem(
                     value: 'paid_only',
-                    child: Text('Featured Partners & Verified Pro'),
+                    child: Text(
+                      'Featured Partners & Verified Pro',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
                 onChanged: (v) => setState(() {
@@ -4848,9 +4905,10 @@ class _CompanyDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final companyId = '${entry['companyId'] ?? entry['id'] ?? ''}'.trim();
     final companyName = '${entry['companyName'] ?? 'Service Provider'}'.trim();
-    final effectiveTier = '${entry['effectiveTier'] ?? 'free_verified'}';
+    final effectiveTier = '${entry['effectiveTier'] ?? 'free_basic'}';
     final isFeatured = effectiveTier == 'featured_platinum';
     final isPaid = isFeatured || effectiveTier == 'paid_verified';
+    final isVerified = entry['verified'] == true || isPaid;
 
     final city = '${entry['city'] ?? ''}'.trim();
     final region = '${entry['regionCode'] ?? ''}'.trim();
@@ -4882,19 +4940,30 @@ class _CompanyDetailSheet extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                PipeBuyerVisualBadge(
-                  variant: isFeatured
-                      ? PipeBuyerBadgeVariant.featured
-                      : isPaid
-                          ? PipeBuyerBadgeVariant.verifiedPro
-                          : PipeBuyerBadgeVariant.verifiedBasic,
-                  label: isFeatured
-                      ? 'FEATURED PARTNER'
-                      : isPaid
-                          ? 'VERIFIED PRO'
-                          : 'VERIFIED DIRECTORY',
-                ),
+                if (isFeatured)
+                  const PipeBuyerVisualBadge(
+                    variant: PipeBuyerBadgeVariant.featured,
+                    label: 'FEATURED PARTNER',
+                  )
+                else if (isPaid)
+                  const PipeBuyerVisualBadge(
+                    variant: PipeBuyerBadgeVariant.verifiedPro,
+                    label: 'VERIFIED PRO',
+                  ),
+                if (isVerified)
+                  const PipeBuyerVerifiedCheckBadge()
+                else
+                  const Text(
+                    'STANDARD DIRECTORY LISTING',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF64748B),
+                      letterSpacing: 0.4,
+                    ),
+                  ),
                 if (entry['emergency24x7'] == true)
                   const PipeBuyerVisualBadge(
                     variant: PipeBuyerBadgeVariant.fastCoi24x7,
@@ -5055,6 +5124,26 @@ class _CompanyDetailSheet extends StatelessWidget {
   }
 }
 
+class PipeBuyerVerifiedCheckBadge extends StatelessWidget {
+  const PipeBuyerVerifiedCheckBadge({
+    super.key,
+    this.label = 'VERIFIED',
+    this.compact = false,
+  });
+
+  final String label;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return PipeBuyerVisualBadge(
+      variant: PipeBuyerBadgeVariant.verifiedBasic,
+      label: label,
+      compact: compact,
+    );
+  }
+}
+
 class _TierBadge extends StatelessWidget {
   const _TierBadge({required this.label, required this.color});
 
@@ -5119,7 +5208,7 @@ class _EmptyDirectoryState extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     hasFilters
-                        ? 'No verified providers matched these filters'
+                        ? 'No service providers matched these filters'
                         : 'PipeBuyer Oilfield Directory',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
@@ -5131,7 +5220,7 @@ class _EmptyDirectoryState extends StatelessWidget {
                   Text(
                     hasFilters
                         ? 'Broaden your town, country, region, or service filter, or post a live service request in Dispatch so nearby providers can quote directly.'
-                        : 'Verified Global Oil & Gas service businesses across 197 countries appear here ranked by Priority Tier.',
+                        : 'Global Oil & Gas service businesses across 197 countries appear here ranked by Priority Tier.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: PipeBuyerColors.muted),
                   ),
