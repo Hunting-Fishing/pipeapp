@@ -3,8 +3,8 @@
 This suite discovers, cross-references, live-audits (`Old Number -> New Number` + DNS/HTTP liveness + phone/website verification), and publishes **Worldwide (197-Country)** Oil & Gas service, OCTG/pipe, midstream, marine/offshore, and EPCM companies for the **PipeBuyer Oilfield Directory** (`/services`).
 
 ## Live Production Coverage (`flutter-flow-pipe`)
-- **Worldwide Public Verified Providers:** `13,480`
-  - **North America (`CA`, `US`, `MX`, `TT`, Caribbean & Central America):** `12,810` public verified (`22,738` private Contact Center records)
+- **Worldwide Public Active Providers:** `20,049+` (`0` pre-verified; `0` non-canonical city spellings)
+  - **North America (`CA`, `US`, `MX`, `TT`, Caribbean & Central America):** `19,372+` active public entries (including `1,190+` **Oil & Gas Training Facilities & Courses**)
   - **Europe (`GB`, `DE`, `NO`, `IT`, `NL`, `GR`, `FR`, `AT`, `CH`, `ES`, `DK`, `RO`, `PL`, etc.):** `276` public verified (`472` private)
   - **Asia & Middle East (`IN`, `AE`, `SA`, `CN`, `MY`, `SG`, `TR`, `JP`, `QA`, `IL`, `KW`, `ID`, `OM`, `IQ`, `VN`, `KR`, `KZ`, `AZ`, etc.):** `208` public verified (`353` private) — including `111` Middle East public verified (`164` private)
   - **Africa (`NG`, `EG`, `DZ`, `ZA`, `AO`, `GH`, `KE`, `MZ`, `LY`, `TN`, `NA`, `SN`, `CI`, etc.):** `74` public verified (`181` private)
@@ -37,8 +37,11 @@ This suite discovers, cross-references, live-audits (`Old Number -> New Number` 
 15. **`bot13_directory_facet_counts.mjs`** — **Live Directory Area & Town Business Counts Indexer** canonicalizing town/city spellings across `yellow_pages_public_entries` & `yellow_pages_companies` and publishing `yellow_pages_meta/directory_counts` (`25` service sectors including **Oil & Gas Training Facilities & Courses**).
 16. **`bot14_reset_preverified_status.mjs`** — **Zero Pre-Verification Enforcer** ensuring crawled/seeded listings remain `unverified` (`free_basic`, `verified: false`) while preserving live public visibility and reserving the green checkmark badge strictly for genuinely verified/paid businesses.
 17. **`bot15_full_consistency_auditor.mjs`** — **Full Directory Field Consistency & Town Consolidation Auditor** consolidating county/MD/RM/USDOT/FMCSA town variants (`Co of GrandPr`, `County of Grande Prairie`, `Grand Prairie` in AB -> `Grande Prairie`, etc.), recovering missing `city` / `regionCode` / `countryCode` via NANPA area & exchange codes, normalizing ALL-CAPS company names, backfilling `basins`, and tagging **Oil & Gas Training Facilities & Courses**.
-18. **`bot16_google_alphabetical_audit_fleet.mjs`** — **8-Agent Parallel Google Maps Alphabetical (`A–Z`) & Training Discovery Fleet** sweeping North America (`Canada` first across 46 oilpatch hubs, then `USA` across 58 oilpatch hubs) alphabetically (`A -> Z`), across all `25` sectors, and across **Oil & Gas Training Facilities & Courses** (`H2S Alive`, `IWCF / IADC WellSharp`, `OPITO / BOSIET`, `PEC SafeLand`, `Polytechnics`, `Class 1 / CDL`, `Crane`, `Welding & NDT`).
-19. **`verify_global_live_counts.mjs`** — Live production verification harness calling `searchPipeBuyerYellowPages` across Worldwide, all 7 World Regions, and 45+ Popular Oil & Gas Countries.
+18. **`bot16_google_alphabetical_audit_fleet.mjs`** — **12-Agent Parallel Google Maps Alphabetical (`A–Z`) & Training Discovery Fleet** sweeping North America (`Canada` first across 46 oilpatch hubs, then `USA` across 58 oilpatch hubs) alphabetically (`A -> Z`), across all `25` sectors, and across **Oil & Gas Training Facilities & Courses** (`H2S Alive`, `IWCF / IADC WellSharp`, `OPITO / BOSIET`, `PEC SafeLand`, `Polytechnics`, `Class 1 / CDL`, `Crane`, `Welding & NDT`).
+19. **`bot17_microtown_atlas_planner.mjs`** — **North America (`CA -> US`) Micro-Town Atlas & Adaptive 4-Stage Frontier Planner** combining `680+` curated unlisted oilpatch micro-towns with `2,670+` proven database towns and dynamically mined rural street-address towns, escalating productive micro-towns across `PROBE -> SECTOR_SWEEP -> ALPHA_SWEEP -> EXTENDED_TAIL -> EXHAUSTED`.
+20. **`bot18_exhaustive_microtown_harvester.mjs`** — **12-Agent Parallel Google Maps Micro-Town Harvester & True-Town Geo-Resolver** executing memory-bounded waves (`450` queries/wave), preventing intra-state zoom-out city misattribution via `KNOWN_TOWNS_BY_REGION`, and streaming unverified (`verified: false`) Oil & Gas + Training listings live to Firestore.
+21. **`bot19_run_until_exhausted_supervisor.mjs`** — **Autonomous Run-Until-Zero-New-Yield Convergence Supervisor** looping `Bot 17 -> Bot 18 -> Bot 13` in isolated child processes until every North American micro-town converges to `0` pending queries / `0` new businesses.
+22. **`verify_global_live_counts.mjs`** — Live production verification harness calling `searchPipeBuyerYellowPages` across Worldwide, all 7 World Regions, and 45+ Popular Oil & Gas Countries.
 
 ## Usage
 
@@ -58,6 +61,9 @@ node tools/yellow_pages_agents/bot12_basin_hub_boost.mjs --apply --project flutt
 # 5. Canonicalize Town Spellings & Publish Live Area/Town Counts Index
 node tools/yellow_pages_agents/bot13_directory_facet_counts.mjs --apply --fix-cities --project flutter-flow-pipe
 
-# 6. Live Production Verification Smoke Suite
+# 6. Autonomous North America Micro-Town Exhaustive Convergence Loop (Canada -> USA until 0 new yield)
+node tools/yellow_pages_agents/bot19_run_until_exhausted_supervisor.mjs --agents 12 --wave-size 450 --project flutter-flow-pipe
+
+# 7. Live Production Verification Smoke Suite
 node tools/yellow_pages_agents/verify_global_live_counts.mjs
 ```
