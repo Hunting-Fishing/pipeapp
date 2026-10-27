@@ -731,10 +731,26 @@ export async function runMicrotownPlanner({projectId = PROJECT_ID, reset = RESET
   }
 
   // 4. Evaluate Adaptive Stage Transitions ("Run Till No More Come Up")
+  // Empirical yield order: Stage 1 (PROBE, 3q) -> Stage 2 (SECTOR_SWEEP, 15q) ->
+  // Stage 4 (EXTENDED_TAIL, 10q) -> Stage 3 (ALPHA_SWEEP A-Z, 26q for high-density hubs) -> Stage 5 (EXHAUSTED).
   let promotionsCount = 0;
   let newlyExhaustedCount = 0;
   for (const town of Object.values(state.towns)) {
-    while (town.currentStage >= 1 && town.currentStage <= 4) {
+    // Fast-path: if a town was placed in Stage 3 under the old rule before reaching 25+ businesses,
+    // route it to Stage 4 (EXTENDED_TAIL) if not yet run, or EXHAUSTED if already run.
+    if (town.currentStage === 3 && (town.totalNewBusinesses || 0) < 25) {
+      const s4Done = buildQueriesForTownStage(town, 4).filter((q) => visitedSet.has(q.id)).length >= 10;
+      const st2 = town.stageStats[2] || {newBusinesses: 0, localCards: 0};
+      if (!s4Done && (st2.newBusinesses >= 2 || st2.localCards >= 8)) {
+        town.currentStage = 4;
+      } else {
+        town.currentStage = 5;
+        newlyExhaustedCount += 1;
+      }
+    }
+
+    let guard = 0;
+    while (town.currentStage >= 1 && town.currentStage <= 4 && guard++ < 8) {
       const stageQueries = buildQueriesForTownStage(town, town.currentStage);
       const completedInStage = stageQueries.filter((q) => visitedSet.has(q.id)).length;
       const st = town.stageStats[town.currentStage] || {queriesDone: 0, localCards: 0, newBusinesses: 0};
@@ -755,15 +771,7 @@ export async function runMicrotownPlanner({projectId = PROJECT_ID, reset = RESET
           newlyExhaustedCount += 1;
         }
       } else if (town.currentStage === 2) {
-        if (st.newBusinesses >= 1) {
-          town.currentStage = 3;
-          promotionsCount += 1;
-        } else {
-          town.currentStage = 5;
-          newlyExhaustedCount += 1;
-        }
-      } else if (town.currentStage === 3) {
-        if (st.newBusinesses >= 3) {
+        if (st.newBusinesses >= 2 || st.localCards >= 8) {
           town.currentStage = 4;
           promotionsCount += 1;
         } else {
@@ -771,8 +779,23 @@ export async function runMicrotownPlanner({projectId = PROJECT_ID, reset = RESET
           newlyExhaustedCount += 1;
         }
       } else if (town.currentStage === 4) {
-        town.currentStage = 5;
-        newlyExhaustedCount += 1;
+        const s3Done = buildQueriesForTownStage(town, 3).filter((q) => visitedSet.has(q.id)).length >= 26;
+        if (!s3Done && (st.newBusinesses >= 6 || (town.totalNewBusinesses || 0) >= 25)) {
+          town.currentStage = 3;
+          promotionsCount += 1;
+        } else {
+          town.currentStage = 5;
+          newlyExhaustedCount += 1;
+        }
+      } else if (town.currentStage === 3) {
+        const s4Done = buildQueriesForTownStage(town, 4).filter((q) => visitedSet.has(q.id)).length >= 10;
+        if (!s4Done && (st.newBusinesses >= 3 || (town.totalNewBusinesses || 0) >= 25)) {
+          town.currentStage = 4;
+          promotionsCount += 1;
+        } else {
+          town.currentStage = 5;
+          newlyExhaustedCount += 1;
+        }
       }
     }
   }

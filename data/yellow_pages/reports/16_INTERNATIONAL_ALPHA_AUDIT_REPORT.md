@@ -1,0 +1,87 @@
+# Bot 16 — International Oil & Gas + Training Alphabetical (A–Z) Audit Dashboard
+
+- **Updated At**: `2026-10-27T13:52:49.192Z`
+- **Active Parallel Agents**: **16** Chromium Google Maps Agents
+- **International Queries Audited**: **2,587 / 2,587**
+- **Google Business Cards Inspected**: **19,277**
+- **Brand-New International Businesses Discovered**: **4,398**
+  - **UK / Norway & North Sea (`GB`, `NO`, `NL`, `DE`)**: **1,422**
+  - **Middle East (`AE`, `SA`, `QA`, `OM`, `KW`, `BH`)**: **1,494**
+  - **Latin America (`BR`, `MX`, `AR`, `CO`, `GY`, `TT`)**: **805**
+  - **Australia (`AU`)**: **677**
+  - **International Oil & Gas Training Facilities & Courses**: **1,406**
+- **Already in PipeBuyer Directory (Verified Active)**: **7,718**
+- **Permanently Closed Businesses Caught on Google**: **1**
+- **Consumer / Noise / Foreign Zoom-Out Cards Blocked**: **7,160**
+
+## New Businesses by Country
+
+- **`GB`**: 824 new businesses
+- **`AU`**: 677 new businesses
+- **`AE`**: 620 new businesses
+- **`NO`**: 467 new businesses
+- **`SA`**: 281 new businesses
+- **`BR`**: 218 new businesses
+- **`OM`**: 206 new businesses
+- **`QA`**: 184 new businesses
+- **`MX`**: 180 new businesses
+- **`TT`**: 169 new businesses
+- **`BH`**: 113 new businesses
+- **`NL`**: 98 new businesses
+- **`KW`**: 90 new businesses
+- **`CO`**: 85 new businesses
+- **`AR`**: 83 new businesses
+- **`GY`**: 70 new businesses
+- **`DE`**: 33 new businesses
+
+## New Businesses by Sub-Region
+
+- **`GB-ENG`**: 510 new businesses
+- **`GB-SCT`**: 314 new businesses
+- **`AE-AZ`**: 274 new businesses
+- **`AU-WA`**: 259 new businesses
+- **`SA-EP`**: 244 new businesses
+- **`AE-DU`**: 230 new businesses
+- **`AU-QLD`**: 229 new businesses
+- **`NO-RO`**: 208 new businesses
+- **`BR-RJ`**: 183 new businesses
+- **`QA-DA`**: 155 new businesses
+- **`OM-MA`**: 145 new businesses
+- **`NO-VL`**: 118 new businesses
+- **`TT-SFO`**: 116 new businesses
+- **`BH-CA`**: 113 new businesses
+- **`NO-OS`**: 103 new businesses
+- **`AU-SA`**: 88 new businesses
+- **`GY-DE`**: 70 new businesses
+- **`KW-AH`**: 69 new businesses
+- **`AU-NT`**: 69 new businesses
+- **`CO-DC`**: 68 new businesses
+- **`AE-SH`**: 66 new businesses
+- **`NL-ZH`**: 58 new businesses
+- **`TT-POS`**: 53 new businesses
+- **`MX-TAB`**: 51 new businesses
+- **`AE-FU`**: 50 new businesses
+- **`AR-NQ`**: 48 new businesses
+- **`MX-TAM`**: 46 new businesses
+- **`MX-VER`**: 41 new businesses
+- **`MX-CAM`**: 40 new businesses
+- **`NO-TR`**: 38 new businesses
+- **`OM-BN`**: 35 new businesses
+- **`NL-NH`**: 33 new businesses
+- **`DE-NI`**: 33 new businesses
+- **`AU-VIC`**: 32 new businesses
+- **`AR-CH`**: 30 new businesses
+- **`BR-SP`**: 28 new businesses
+- **`QA-RL`**: 23 new businesses
+- **`KW-KU`**: 21 new businesses
+- **`SA-RI`**: 19 new businesses
+- **`SA-MK`**: 18 new businesses
+- **`OM-WU`**: 15 new businesses
+- **`OM-DA`**: 11 new businesses
+- **`CO-CAS`**: 10 new businesses
+- **`NL-GR`**: 7 new businesses
+- **`CO-SAN`**: 7 new businesses
+- **`BR-ES`**: 7 new businesses
+- **`QA-MS`**: 6 new businesses
+- **`AR-BA`**: 5 new businesses
+- **`MX-NL`**: 2 new businesses
