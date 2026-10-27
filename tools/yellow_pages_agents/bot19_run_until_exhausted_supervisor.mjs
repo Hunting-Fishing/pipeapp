@@ -19,6 +19,7 @@
  */
 
 import {spawn} from "node:child_process";
+import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
@@ -26,14 +27,16 @@ import {runMicrotownPlanner} from "./bot17_microtown_atlas_planner.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
+const LEDGER_DIR = path.join(REPO_ROOT, "data/yellow_pages/ledger");
 const REPORTS_DIR = path.join(REPO_ROOT, "data/yellow_pages/reports");
 const SUPERVISOR_REPORT_PATH = path.join(REPORTS_DIR, "19_EXHAUSTIVE_CONVERGENCE_REPORT.md");
+const HISTORY_JSON_PATH = path.join(LEDGER_DIR, "19_supervisor_wave_history.json");
 
 const args = process.argv.slice(2);
 const agentsIdx = args.indexOf("--agents");
-const NUM_AGENTS = agentsIdx !== -1 ? Number(args[agentsIdx + 1] || 12) : 12;
+const NUM_AGENTS = agentsIdx !== -1 ? Number(args[agentsIdx + 1] || 20) : 20;
 const waveSizeIdx = args.indexOf("--wave-size");
-const WAVE_SIZE = waveSizeIdx !== -1 ? Number(args[waveSizeIdx + 1] || 450) : 450;
+const WAVE_SIZE = waveSizeIdx !== -1 ? Number(args[waveSizeIdx + 1] || 900) : 900;
 const maxWavesIdx = args.indexOf("--max-waves");
 const MAX_WAVES = maxWavesIdx !== -1 ? Number(args[maxWavesIdx + 1] || 999) : 999;
 const countryIdx = args.indexOf("--country");
@@ -98,18 +101,56 @@ async function writeSupervisorReport(waveHistory, latestSummary, statusLabel) {
   await fsp.writeFile(SUPERVISOR_REPORT_PATH, md.join("\n"), "utf8");
 }
 
+async function loadWaveHistory() {
+  await fsp.mkdir(LEDGER_DIR, {recursive: true});
+  if (fs.existsSync(HISTORY_JSON_PATH)) {
+    try {
+      return JSON.parse(await fsp.readFile(HISTORY_JSON_PATH, "utf8"));
+    } catch (_) {}
+  }
+  if (fs.existsSync(SUPERVISOR_REPORT_PATH)) {
+    try {
+      const md = await fsp.readFile(SUPERVISOR_REPORT_PATH, "utf8");
+      const rows = [];
+      for (const line of md.split("\n")) {
+        const m = line.match(
+          /^\|\s*(\d+)\s*\|\s*([\d,]+)\s*\|\s*\*\*\+([\d,]+)\*\*\s*\|\s*\*\*\+([\d,]+)\*\*\s*\|\s*([\d,]+)\s*\|\s*\*\*([\d,—]+)\*\*\s*\|/u,
+        );
+        if (m) {
+          rows.push({
+            wave: Number(m[1]),
+            waveQueries: Number(m[2].replace(/,/gu, "")),
+            waveNew: Number(m[3].replace(/,/gu, "")),
+            cumNew: Number(m[4].replace(/,/gu, "")),
+            exhausted: Number(m[5].replace(/,/gu, "")),
+            liveTotal: Number(m[6].replace(/\D+/gu, "")) || 0,
+          });
+        }
+      }
+      if (rows.length > 0) {
+        await fsp.writeFile(HISTORY_JSON_PATH, JSON.stringify(rows, null, 2), "utf8");
+        return rows;
+      }
+    } catch (_) {}
+  }
+  return [];
+}
+
 async function main() {
   console.log(
     `[bot19] Starting Autonomous Run-Until-Exhausted Micro-Town Supervisor (agents=${NUM_AGENTS}, waveSize=${WAVE_SIZE}, maxWaves=${MAX_WAVES}, project=${PROJECT_ID})...`,
   );
 
-  const waveHistory = [];
+  const waveHistory = await loadWaveHistory();
+  let startWaveNum = waveHistory.length > 0 ? waveHistory[waveHistory.length - 1].wave + 1 : 1;
+  let lastKnownLiveTotal = waveHistory.length > 0 ? waveHistory[waveHistory.length - 1].liveTotal || 20049 : 20049;
   let prevCumNew = 0;
 
-  for (let wave = 1; wave <= MAX_WAVES; wave++) {
+  for (let i = 0; i < MAX_WAVES; i++) {
+    const wave = startWaveNum + i;
     console.log(`\n==================== [bot19] CONVERGENCE WAVE ${wave} ====================`);
     const summaryBefore = await runMicrotownPlanner({projectId: PROJECT_ID});
-    if (wave === 1) prevCumNew = summaryBefore.totalNewBusinessesFromMicroTowns;
+    if (i === 0) prevCumNew = summaryBefore.totalNewBusinessesFromMicroTowns;
 
     await writeSupervisorReport(waveHistory, summaryBefore, `RUNNING WAVE ${wave}`);
 
@@ -121,13 +162,19 @@ async function main() {
         "--project",
         PROJECT_ID,
       ]);
-      await runNodeScript("tools/yellow_pages_agents/bot13_directory_facet_counts.mjs", [
+      const finalBot13 = await runNodeScript("tools/yellow_pages_agents/bot13_directory_facet_counts.mjs", [
         "--apply",
         "--fix-cities",
         "--project",
         PROJECT_ID,
       ]);
-      await writeSupervisorReport(waveHistory, summaryBefore, "CONVERGED — 100% MICRO-TOWNS EXHAUSTED");
+      const finalMatch = finalBot13.stdoutTail.match(/Total Active Public Businesses:\s*(\d+)/u);
+      if (finalMatch && waveHistory.length > 0) {
+        waveHistory[waveHistory.length - 1].liveTotal = Number(finalMatch[1]);
+        await fsp.writeFile(HISTORY_JSON_PATH, JSON.stringify(waveHistory, null, 2), "utf8");
+      }
+      const verifiedFinalSummary = await runMicrotownPlanner({projectId: PROJECT_ID});
+      await writeSupervisorReport(waveHistory, verifiedFinalSummary, "CONVERGED — 100% MICRO-TOWNS EXHAUSTED");
       process.exit(0);
     }
 
@@ -145,19 +192,23 @@ async function main() {
     const prevVisited = summaryBefore.visitedQueries;
     await runNodeScript("tools/yellow_pages_agents/bot18_exhaustive_microtown_harvester.mjs", bot18Args);
 
-    const bot13Res = await runNodeScript("tools/yellow_pages_agents/bot13_directory_facet_counts.mjs", [
-      "--apply",
-      "--fix-cities",
-      "--project",
-      PROJECT_ID,
-    ]);
-    const liveMatch = bot13Res.stdoutTail.match(/Total Active Public Businesses:\s*(\d+)/u);
-    const liveTotal = liveMatch ? Number(liveMatch[1]) : 0;
-
     const summaryAfter = await runMicrotownPlanner({projectId: PROJECT_ID});
     const waveNew = Math.max(0, summaryAfter.totalNewBusinessesFromMicroTowns - prevCumNew);
     const waveQueries = Math.max(0, summaryAfter.visitedQueries - prevVisited);
     prevCumNew = summaryAfter.totalNewBusinessesFromMicroTowns;
+
+    let liveTotal = lastKnownLiveTotal + waveNew;
+    if (wave % 4 === 0 || summaryAfter.pendingQueriesInFrontier === 0) {
+      const bot13Res = await runNodeScript("tools/yellow_pages_agents/bot13_directory_facet_counts.mjs", [
+        "--apply",
+        "--fix-cities",
+        "--project",
+        PROJECT_ID,
+      ]);
+      const liveMatch = bot13Res.stdoutTail.match(/Total Active Public Businesses:\s*(\d+)/u);
+      if (liveMatch) liveTotal = Number(liveMatch[1]);
+    }
+    lastKnownLiveTotal = liveTotal;
 
     waveHistory.push({
       wave,
@@ -167,10 +218,11 @@ async function main() {
       exhausted: summaryAfter.exhaustedTowns,
       liveTotal,
     });
+    await fsp.writeFile(HISTORY_JSON_PATH, JSON.stringify(waveHistory, null, 2), "utf8");
 
     await writeSupervisorReport(waveHistory, summaryAfter, `COMPLETED WAVE ${wave}`);
     console.log(
-      `[bot19] Wave ${wave} Summary: +${waveNew} new micro-town businesses | Live Directory Total: ${liveTotal} | Exhausted Towns: ${summaryAfter.exhaustedTowns}/${summaryAfter.totalMicroTowns}`,
+      `[bot19] Wave ${wave} Summary: +${waveNew} new micro-town businesses (${waveQueries} queries) | Live Directory Total: ~${liveTotal} | Exhausted Towns: ${summaryAfter.exhaustedTowns}/${summaryAfter.totalMicroTowns} | Pending Queue: ${summaryAfter.pendingQueriesInFrontier}`,
     );
   }
 

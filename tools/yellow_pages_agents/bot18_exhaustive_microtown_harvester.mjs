@@ -39,14 +39,16 @@ const REPO_ROOT = path.resolve(__dirname, "../..");
 const LEDGER_DIR = path.join(REPO_ROOT, "data/yellow_pages/ledger");
 const REPORTS_DIR = path.join(REPO_ROOT, "data/yellow_pages/reports");
 const DISCOVERED_JSONL_PATH = path.join(LEDGER_DIR, "18_microtown_discovered.jsonl");
+const INDEX_CACHE_PATH = path.join(LEDGER_DIR, "18_firestore_index_cache.json");
 const WAVE_REPORT_PATH = path.join(REPORTS_DIR, "18_MICROTOWN_HARVEST_REPORT.md");
 
 const args = process.argv.slice(2);
 const SYNC = args.includes("--sync");
+const REFRESH_INDEX = args.includes("--refresh-index");
 const agentsIdx = args.indexOf("--agents");
-const NUM_AGENTS = agentsIdx !== -1 ? Math.max(1, Math.min(16, Number(args[agentsIdx + 1] || 12))) : 12;
+const NUM_AGENTS = agentsIdx !== -1 ? Math.max(1, Math.min(28, Number(args[agentsIdx + 1] || 20))) : 20;
 const waveIdx = args.indexOf("--wave-size");
-const WAVE_SIZE = waveIdx !== -1 ? Math.max(1, Number(args[waveIdx + 1] || 450)) : 450;
+const WAVE_SIZE = waveIdx !== -1 ? Math.max(1, Number(args[waveIdx + 1] || 900)) : 900;
 const countryIdx = args.indexOf("--country");
 const COUNTRY_FILTER = countryIdx !== -1 ? String(args[countryIdx + 1] || "").toUpperCase() : "";
 const projIdx = args.indexOf("--project");
@@ -169,7 +171,52 @@ function buildRegionTownMatcher(knownTownsByRegion) {
   return compiled;
 }
 
+async function mergeLocalDiscoveredIntoIndex(indexState) {
+  if (!fs.existsSync(DISCOVERED_JSONL_PATH)) return;
+  const raw = await fsp.readFile(DISCOVERED_JSONL_PATH, "utf8");
+  for (const line of raw.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const obj = JSON.parse(line);
+      const pr = obj.privateRecord || {};
+      const rc = String(pr.regionCode || "").toUpperCase();
+      const norm = pr.normalizedCompanyName || normalizedCompanyName(pr.companyName || "");
+      if (norm && rc) indexState.existingNameRegion.add(`${norm}|${rc}`);
+      for (const k of ["publicPhone", "tollFreePhone", "mainPhone"]) {
+        const d10 = String(pr[k] || "").replace(/\D+/gu, "").slice(-10);
+        if (d10.length === 10) {
+          indexState.existingPhones.add(d10);
+          if (pr.companyId) {
+            if (!indexState.phoneToDocIds.has(d10)) indexState.phoneToDocIds.set(d10, []);
+            const arr = indexState.phoneToDocIds.get(d10);
+            if (!arr.includes(pr.companyId)) arr.push(pr.companyId);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+}
+
 async function loadExistingFirestoreIndex(projectId) {
+  if (!REFRESH_INDEX && fs.existsSync(INDEX_CACHE_PATH)) {
+    try {
+      const cached = JSON.parse(await fsp.readFile(INDEX_CACHE_PATH, "utf8"));
+      if (cached && Date.now() - Number(cached.fetchedAtMs || 0) < 90 * 60 * 1000) {
+        const indexState = {
+          existingPhones: new Set(cached.existingPhones || []),
+          existingNameRegion: new Set(cached.existingNameRegion || []),
+          phoneToDocIds: new Map(cached.phoneToDocIds || []),
+          blockedPhones: new Set(cached.blockedPhones || []),
+        };
+        await mergeLocalDiscoveredIntoIndex(indexState);
+        console.log(
+          `[bot18] Loaded cached Firestore index + local ledger (${indexState.existingPhones.size} phones, ${indexState.existingNameRegion.size} companies).`,
+        );
+        return indexState;
+      }
+    } catch (_) {}
+  }
+
   console.log(`[bot18] Loading existing Firestore phone & company index from ${projectId}...`);
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`;
   const existingPhones = new Set();
@@ -241,13 +288,27 @@ async function loadExistingFirestoreIndex(projectId) {
     }
     if (docs.length < 3000) break;
   }
-  console.log(`[bot18] Indexed ${total} live public entries (${existingPhones.size} phones).`);
-  return {existingPhones, existingNameRegion, phoneToDocIds, blockedPhones};
+
+  const indexState = {existingPhones, existingNameRegion, phoneToDocIds, blockedPhones};
+  await mergeLocalDiscoveredIntoIndex(indexState);
+  await fsp.writeFile(
+    INDEX_CACHE_PATH,
+    JSON.stringify({
+      fetchedAtMs: Date.now(),
+      existingPhones: [...indexState.existingPhones],
+      existingNameRegion: [...indexState.existingNameRegion],
+      phoneToDocIds: [...indexState.phoneToDocIds.entries()],
+      blockedPhones: [...indexState.blockedPhones],
+    }),
+    "utf8",
+  );
+  console.log(`[bot18] Indexed & cached ${total} live public entries (${indexState.existingPhones.size} phones).`);
+  return indexState;
 }
 
 async function scrapeGoogleMapsQuery(page, task) {
   const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(task.query)}?hl=en`;
-  await page.goto(searchUrl, {waitUntil: "domcontentloaded", timeout: 22000});
+  await page.goto(searchUrl, {waitUntil: "domcontentloaded", timeout: 20000});
 
   const title = await page.title().catch(() => "");
   if (/before you continue/iu.test(title)) {
@@ -255,39 +316,80 @@ async function scrapeGoogleMapsQuery(page, task) {
     if (btn) await btn.click().catch(() => {});
   }
 
-  await page.waitForSelector('div.Nv2PK, div[role="main"]', {timeout: 7500}).catch(() => {});
-  await page.waitForTimeout(850);
+  await page
+    .waitForSelector('div.Nv2PK, h1.DUwDvf, div.Q2vNVc, div[role="main"]', {timeout: 5500})
+    .catch(() => {});
+  await page.waitForTimeout(450);
 
-  for (let s = 0; s < 3; s++) {
-    const scrolled = await page.evaluate(() => {
-      const feed = document.querySelector('div[role="feed"]');
-      if (!feed) return false;
-      const prev = feed.scrollTop;
-      feed.scrollTop = feed.scrollHeight;
-      return feed.scrollTop > prev;
-    });
-    if (!scrolled) break;
-    await page.waitForTimeout(500);
+  const initialCount = await page.evaluate(() => document.querySelectorAll("div.Nv2PK").length).catch(() => 0);
+  if (initialCount >= 6) {
+    for (let s = 0; s < 3; s++) {
+      const scrolled = await page.evaluate(() => {
+        const feed = document.querySelector('div[role="feed"]');
+        if (!feed) return false;
+        const prev = feed.scrollTop;
+        feed.scrollTop = feed.scrollHeight;
+        return feed.scrollTop > prev;
+      });
+      if (!scrolled) break;
+      await page.waitForTimeout(350);
+    }
   }
 
   return page.evaluate(() => {
     const cards = Array.from(document.querySelectorAll("div.Nv2PK"));
-    return cards.map((card) => {
-      const placeLink = card.querySelector('a[href*="/maps/place/"]');
-      const webLink = card.querySelector('a[data-value="Website"], a[aria-label*="website" i]');
-      const phoneSpan = card.querySelector("span.UsdlK");
-      const lines = card.innerText
+    if (cards.length > 0) {
+      return cards.map((card) => {
+        const placeLink = card.querySelector('a[href*="/maps/place/"]');
+        const webLink = card.querySelector('a[data-value="Website"], a[aria-label*="website" i]');
+        const phoneSpan = card.querySelector("span.UsdlK");
+        const lines = card.innerText
+          .split("\n")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0 && !/^[\ue000-\uf8ff]+$/u.test(s));
+        return {
+          name: placeLink?.getAttribute("aria-label") || lines[0] || "",
+          phone: phoneSpan?.textContent?.trim() || "",
+          website: webLink?.getAttribute("href") || "",
+          placeUrl: placeLink?.href || "",
+          lines,
+        };
+      });
+    }
+
+    // Fallback: Direct Single-Place Panel when a micro-town has exactly 1 matching business
+    const h1 = document.querySelector("h1.DUwDvf");
+    if (h1 && h1.textContent?.trim()) {
+      const mainEl = document.querySelector('div[role="main"]') || document.body;
+      const phoneBtn = mainEl.querySelector('button[data-item-id^="phone:tel:"], [aria-label*="Phone:" i]');
+      let phone = "";
+      const dtid = phoneBtn?.getAttribute("data-item-id") || "";
+      if (dtid.startsWith("phone:tel:")) {
+        phone = dtid.replace("phone:tel:", "").trim();
+      } else {
+        phone = phoneBtn?.textContent?.trim() || "";
+      }
+      const webLink = mainEl.querySelector('a[data-item-id="authority"], a[aria-label*="Website:" i]');
+      const addrBtn = mainEl.querySelector('button[data-item-id="address"], [aria-label*="Address:" i]');
+      const catBtn = mainEl.querySelector('button[jsaction*="pane.rating.category"]');
+      const rawLines = (mainEl.innerText || "")
         .split("\n")
         .map((s) => s.trim())
-        .filter((s) => s.length > 0 && !/^[\ue000-\uf8ff]+$/u.test(s));
-      return {
-        name: placeLink?.getAttribute("aria-label") || lines[0] || "",
-        phone: phoneSpan?.textContent?.trim() || "",
-        website: webLink?.getAttribute("href") || "",
-        placeUrl: placeLink?.href || "",
-        lines,
-      };
-    });
+        .filter((s) => s.length > 0 && s.length < 180 && !/^[\ue000-\uf8ff]+$/u.test(s))
+        .slice(0, 25);
+      const extra = [catBtn?.textContent?.trim(), addrBtn?.textContent?.trim()].filter(Boolean);
+      return [
+        {
+          name: h1.textContent.trim(),
+          phone,
+          website: webLink?.getAttribute("href") || "",
+          placeUrl: location.href,
+          lines: [...extra, ...rawLines],
+        },
+      ];
+    }
+
+    return [];
   });
 }
 
@@ -645,7 +747,12 @@ async function main() {
   const browser = await chromium.launch({
     executablePath: findBrowserExe(),
     headless: true,
-    args: ["--disable-blink-features=AutomationControlled", "--disable-gpu", "--disable-dev-shm-usage"],
+    args: [
+      "--disable-blink-features=AutomationControlled",
+      "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--renderer-process-limit=24",
+    ],
   });
 
   const waveStats = {
@@ -666,36 +773,42 @@ async function main() {
   const unsyncedBuffer = [];
   const closedBuffer = [];
   const dynamicTownBuffer = [];
+  let persistChain = Promise.resolve();
 
-  const persistProgress = async () => {
-    state.visitedQueryIds = [...visitedSet];
-    state.updatedAt = new Date().toISOString();
-    await fsp.writeFile(STATE_PATH, JSON.stringify(state, null, 2), "utf8");
+  const persistProgress = () => {
+    persistChain = persistChain
+      .then(async () => {
+        state.visitedQueryIds = [...visitedSet];
+        state.updatedAt = new Date().toISOString();
+        await fsp.writeFile(STATE_PATH, JSON.stringify(state, null, 2), "utf8");
 
-    if (dynamicTownBuffer.length > 0) {
-      const batch = dynamicTownBuffer.splice(0, dynamicTownBuffer.length);
-      await fsp.appendFile(DYNAMIC_TOWNS_PATH, `${batch.map((d) => JSON.stringify(d)).join("\n")}\n`, "utf8");
-    }
+        if (dynamicTownBuffer.length > 0) {
+          const batch = dynamicTownBuffer.splice(0, dynamicTownBuffer.length);
+          await fsp.appendFile(DYNAMIC_TOWNS_PATH, `${batch.map((d) => JSON.stringify(d)).join("\n")}\n`, "utf8");
+        }
 
-    if (SYNC && (unsyncedBuffer.length > 0 || closedBuffer.length > 0)) {
-      const toSync = unsyncedBuffer.splice(0, unsyncedBuffer.length);
-      const toClose = closedBuffer.splice(0, closedBuffer.length);
-      await syncBatchToFirestore(PROJECT_ID, toSync, toClose);
-    }
+        if (SYNC && (unsyncedBuffer.length > 0 || closedBuffer.length > 0)) {
+          const toSync = unsyncedBuffer.splice(0, unsyncedBuffer.length);
+          const toClose = closedBuffer.splice(0, closedBuffer.length);
+          await syncBatchToFirestore(PROJECT_ID, toSync, toClose);
+        }
 
-    const md = [
-      "# Bot 18 — Latest Micro-Town Harvester Wave Report",
-      "",
-      `- **Updated At**: \`${new Date().toISOString()}\``,
-      `- **Wave Queries Completed**: **${waveStats.queriesCompleted} / ${filteredQueue.length}**`,
-      `- **Google Business Cards Inspected**: **${waveStats.cardsInspected.toLocaleString()}**`,
-      `- **New Businesses Discovered in Wave**: **${waveStats.newBusinesses.toLocaleString()}** (\`CA\`: **${waveStats.newCanada}**, \`US\`: **${waveStats.newUSA}**, \`Training\`: **${waveStats.newTraining}**)`,
-      `- **Existing Active Verified**: **${waveStats.duplicates.toLocaleString()}**`,
-      `- **Closed Businesses Unpublished**: **${waveStats.closedRemoved}**`,
-      `- **Zoom-Out / Consumer Noise Blocked**: **${waveStats.rejectedNoiseOrZoomOut.toLocaleString()}**`,
-      "",
-    ];
-    await fsp.writeFile(WAVE_REPORT_PATH, md.join("\n"), "utf8");
+        const md = [
+          "# Bot 18 — Latest Micro-Town Harvester Wave Report",
+          "",
+          `- **Updated At**: \`${new Date().toISOString()}\``,
+          `- **Wave Queries Completed**: **${waveStats.queriesCompleted} / ${filteredQueue.length}**`,
+          `- **Google Business Cards Inspected**: **${waveStats.cardsInspected.toLocaleString()}**`,
+          `- **New Businesses Discovered in Wave**: **${waveStats.newBusinesses.toLocaleString()}** (\`CA\`: **${waveStats.newCanada}**, \`US\`: **${waveStats.newUSA}**, \`Training\`: **${waveStats.newTraining}**)`,
+          `- **Existing Active Verified**: **${waveStats.duplicates.toLocaleString()}**`,
+          `- **Closed Businesses Unpublished**: **${waveStats.closedRemoved}**`,
+          `- **Zoom-Out / Consumer Noise Blocked**: **${waveStats.rejectedNoiseOrZoomOut.toLocaleString()}**`,
+          "",
+        ];
+        await fsp.writeFile(WAVE_REPORT_PATH, md.join("\n"), "utf8");
+      })
+      .catch((err) => console.warn(`[bot18] persistProgress warning: ${err.message}`));
+    return persistChain;
   };
 
   const openSession = async () => {
@@ -705,8 +818,17 @@ async function main() {
       viewport: {width: 1280, height: 900},
     });
     await context.route("**/*", (route) => {
-      const rt = route.request().resourceType();
+      const req = route.request();
+      const rt = req.resourceType();
       if (rt === "image" || rt === "media" || rt === "font") return route.abort();
+      const url = req.url();
+      if (
+        /\/maps\/vt|\/kh\/|streetview|photometa|ggpht\.com|googleusercontent\.com|play\.google\.com\/log|gen_204/iu.test(
+          url,
+        )
+      ) {
+        return route.abort();
+      }
       return route.continue();
     });
     const page = await context.newPage();
