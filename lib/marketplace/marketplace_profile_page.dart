@@ -418,7 +418,13 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Complete your profile'),
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).maybePop(true),
+            child: const Text('Skip for now'),
+          ),
+        ],
       ),
       body: SafeArea(child: content),
     );

@@ -26,6 +26,7 @@ class MarketplaceDeepLinks {
   static const insuranceProviderApplyRouteName =
       'commercial-insurance-provider-apply';
   static const insuranceAdminRouteName = 'commercial-insurance-admin';
+  static const authActionRouteName = 'marketplace-auth-action';
 
   static const privacyPath = '/privacy';
   static const termsPath = '/terms';
@@ -40,6 +41,7 @@ class MarketplaceDeepLinks {
   static const insuranceHubPath = '/insurance';
   static const insuranceProviderApplyPath = '/insurance/list-provider';
   static const insuranceAdminPath = '/admin/insurance';
+  static const authActionPath = '/auth/action';
 
   static String listing(String listingId) =>
       '/listings/${Uri.encodeComponent(_requiredId(listingId))}';

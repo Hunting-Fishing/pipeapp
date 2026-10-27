@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -5,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_auth_action_page.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_payout_settings.dart';
 import 'marketplace_profile_page.dart';
@@ -15,12 +18,14 @@ class MarketplaceAccountSecurityPage extends StatefulWidget {
   const MarketplaceAccountSecurityPage({
     super.key,
     this.onboarding = false,
+    this.embedded = false,
     this.initialPhone,
     this.initialAccountType = 'personal',
     this.initialNotice,
   });
 
   final bool onboarding;
+  final bool embedded;
   final String? initialPhone;
   final String initialAccountType;
   final String? initialNotice;
@@ -31,23 +36,23 @@ class MarketplaceAccountSecurityPage extends StatefulWidget {
 }
 
 class _MarketplaceAccountSecurityPageState
-    extends State<MarketplaceAccountSecurityPage> {
+    extends State<MarketplaceAccountSecurityPage> with WidgetsBindingObserver {
   final _code = TextEditingController();
   final _mfaCode = TextEditingController();
   final _commands = MarketplaceCommandClient();
-  final _readinessKey = GlobalKey();
-  final _identityKey = GlobalKey();
-  final _advancedSecurityKey = GlobalKey();
   String _phone = '';
   String? _verificationId;
   String? _mfaVerificationId;
   ConfirmationResult? _webConfirmation;
   bool _busy = false;
+  bool _silentChecking = false;
   bool _codeSent = false;
   bool _mfaCodeSent = false;
   List<MultiFactorInfo> _enrolledFactors = const [];
   String? _message;
   bool _error = false;
+  Timer? _emailPollTimer;
+  StreamSubscription<User?>? _authSubscription;
 
   User? get _user => FirebaseAuth.instance.currentUser;
   bool get _emailVerified => _user?.emailVerified == true;
@@ -62,23 +67,79 @@ class _MarketplaceAccountSecurityPageState
         phoneVerified: _phoneVerified,
         mfaEnrolled: _mfaEnrolled,
       );
-  bool get _marketplaceAccessReady => _readiness.marketplaceAccessReady;
   int get _trustScore => _readiness.score;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _phone = normalizePhoneNumber(widget.initialPhone ?? '');
     _message = widget.initialNotice;
     _loadPendingPhone();
     _loadMfaFactors();
+    _configureEmailPolling();
+    _authSubscription = FirebaseAuth.instance.userChanges().listen((_) {
+      if (!mounted) return;
+      _configureEmailPolling();
+      setState(() {});
+    });
+    if (!_emailVerified) {
+      unawaited(_silentCheckEmailVerified());
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _emailPollTimer?.cancel();
+    _authSubscription?.cancel();
     _code.dispose();
     _mfaCode.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_emailVerified) {
+      unawaited(_silentCheckEmailVerified());
+    }
+  }
+
+  void _configureEmailPolling() {
+    if (_emailVerified || _user == null) {
+      _emailPollTimer?.cancel();
+      _emailPollTimer = null;
+      return;
+    }
+    _emailPollTimer ??= Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => unawaited(_silentCheckEmailVerified()),
+    );
+  }
+
+  Future<void> _silentCheckEmailVerified() async {
+    if (_silentChecking || _busy || !mounted) return;
+    final user = _user;
+    if (user == null || user.emailVerified) {
+      _configureEmailPolling();
+      return;
+    }
+    _silentChecking = true;
+    try {
+      await user.reload();
+      final refreshed = FirebaseAuth.instance.currentUser;
+      if (refreshed?.emailVerified == true) {
+        _configureEmailPolling();
+        await refreshed?.getIdToken(true);
+        await _syncVerificationBestEffort();
+        if (!mounted) return;
+        _notice('Email ownership verified.');
+      }
+    } catch (_) {
+      // Ignore transient network errors during background checks.
+    } finally {
+      _silentChecking = false;
+    }
   }
 
   Future<void> _loadPendingPhone() async {
@@ -110,428 +171,224 @@ class _MarketplaceAccountSecurityPageState
   Widget build(BuildContext context) {
     final user = _user;
     if (user == null) {
-      return const Scaffold(body: Center(child: Text('Sign in to continue.')));
+      const signedOutBody = Center(child: Text('Sign in to continue.'));
+      if (widget.embedded) return signedOutBody;
+      return const Scaffold(body: signedOutBody);
     }
-    final marketplaceAccessReady = _marketplaceAccessReady;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.onboarding ? 'Verify your account' : 'Trust Center'),
-        automaticallyImplyLeading: !widget.onboarding,
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 980),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                PipeBuyerPageHeader(
-                  eyebrow: widget.onboarding
-                      ? 'Account protection'
-                      : 'Identity & security',
-                  title: widget.onboarding
-                      ? 'Protect your Pipe Buyer account'
-                      : 'Pipe Buyer Trust Center',
-                  subtitle:
-                      'Verify either your email or mobile number to enter Pipe Buyer. Additional verification increases account protection and unlocks sensitive security features.',
-                  icon: Icons.verified_user_outlined,
-                  actions: [
-                    PipeBuyerStatusBadge(
-                      label: marketplaceAccessReady
-                          ? 'MARKETPLACE ACCESS READY'
-                          : 'VERIFY EMAIL OR MOBILE',
-                      tone: marketplaceAccessReady
-                          ? PipeBuyerStatusTone.success
-                          : PipeBuyerStatusTone.warning,
-                      icon: marketplaceAccessReady
-                          ? Icons.verified_rounded
-                          : Icons.pending_actions_rounded,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                PipeBuyerMetricGrid(
-                  children: [
-                    PipeBuyerMetricCard(
-                      label: 'Trust readiness',
-                      value: '$_trustScore / 100',
-                      icon: Icons.security_rounded,
-                      caption: _trustScore == 100
-                          ? 'All protection points earned'
-                          : '${_readiness.missingPoints} points available • Tap for breakdown',
-                      tone: _trustScore == 100
-                          ? PipeBuyerStatusTone.success
-                          : PipeBuyerStatusTone.premium,
-                      onTap: () => _scrollTo(_readinessKey),
-                    ),
-                    PipeBuyerMetricCard(
-                      label: 'Email ownership',
-                      value: _emailVerified ? 'Verified' : 'Pending',
-                      icon: Icons.mark_email_read_outlined,
-                      caption: _emailVerified
-                          ? '+40 points earned'
-                          : '+40 points available',
-                      tone: _emailVerified
-                          ? PipeBuyerStatusTone.success
-                          : PipeBuyerStatusTone.warning,
-                      onTap: () => _scrollTo(_identityKey),
-                    ),
-                    PipeBuyerMetricCard(
-                      label: 'Mobile ownership',
-                      value: _phoneVerified ? 'Verified' : 'Pending',
-                      icon: Icons.phone_android_outlined,
-                      caption: _phoneVerified
-                          ? '+40 points earned'
-                          : '+40 points available',
-                      tone: _phoneVerified
-                          ? PipeBuyerStatusTone.success
-                          : PipeBuyerStatusTone.warning,
-                      onTap: () => _scrollTo(_identityKey),
-                    ),
-                    PipeBuyerMetricCard(
-                      label: 'Two-step security',
-                      value: _mfaEnrolled ? 'Enabled' : 'Optional',
-                      icon: Icons.phonelink_lock_outlined,
-                      caption: _mfaEnrolled
-                          ? '+20 points earned'
-                          : '+20 optional protection points',
-                      tone: _mfaEnrolled
-                          ? PipeBuyerStatusTone.success
-                          : PipeBuyerStatusTone.info,
-                      onTap: () => _scrollTo(_advancedSecurityKey),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _trustReadinessExplanation(),
-                const SizedBox(height: 18),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final identity = KeyedSubtree(
-                      key: _identityKey,
-                      child: _identitySection(user),
-                    );
-                    final advanced = KeyedSubtree(
-                      key: _advancedSecurityKey,
-                      child: _advancedSecuritySection(),
-                    );
-                    if (constraints.maxWidth < 800) {
-                      return Column(children: [
-                        identity,
-                        const SizedBox(height: 14),
-                        advanced,
-                      ]);
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: identity),
-                        const SizedBox(width: 14),
-                        Expanded(child: advanced),
-                      ],
-                    );
-                  },
-                ),
-                if (_message != null) ...[
-                  const SizedBox(height: 14),
-                  PipeBuyerSectionCard(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          _error
-                              ? Icons.error_outline
-                              : Icons.check_circle_outline,
-                          color: _error
-                              ? PipeBuyerColors.danger
-                              : PipeBuyerColors.success,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(_message!)),
-                      ],
-                    ),
-                  ),
-                ],
+
+    final content = Align(
+      alignment: Alignment.topCenter,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1020),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _summaryHeader(),
+              if (_message != null) ...[
                 const SizedBox(height: 14),
                 PipeBuyerSectionCard(
-                  title: 'Payments & payout readiness',
-                  subtitle:
-                      'Connect protected banking details separately from your public marketplace identity.',
-                  leading: Container(
-                    width: 42,
-                    height: 42,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        _error
+                            ? Icons.error_outline
+                            : Icons.check_circle_outline,
+                        color: _error
+                            ? PipeBuyerColors.danger
+                            : PipeBuyerColors.success,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(_message!)),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final identity = _identitySection(user);
+                  final rightColumn = Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _advancedSecuritySection(),
+                      const SizedBox(height: 14),
+                      _payoutsCard(),
+                    ],
+                  );
+                  if (constraints.maxWidth < 820) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        identity,
+                        const SizedBox(height: 14),
+                        rightColumn,
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: identity),
+                      const SizedBox(width: 14),
+                      Expanded(child: rightColumn),
+                    ],
+                  );
+                },
+              ),
+              if (widget.onboarding) ...[
+                const SizedBox(height: 18),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _busy ? null : _skipForNow,
+                      icon: const Icon(Icons.explore_outlined),
+                      label: const Text('Explore Pipe Buyer'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _busy ? null : _continueToProfile,
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      label: const Text('Edit profile'),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (widget.embedded) return content;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Verification & Security'),
+      ),
+      body: content,
+    );
+  }
+
+  Widget _summaryHeader() {
+    final allCoreVerified = _emailVerified && _phoneVerified;
+    final badgeLabel = _trustScore == MarketplaceTrustReadiness.totalPoints
+        ? 'FULLY PROTECTED'
+        : allCoreVerified
+            ? 'EMAIL & MOBILE VERIFIED'
+            : _emailVerified
+                ? 'EMAIL VERIFIED'
+                : _phoneVerified
+                    ? 'MOBILE VERIFIED'
+                    : 'OPTIONAL SETUP';
+    final badgeTone = allCoreVerified || _emailVerified || _phoneVerified
+        ? PipeBuyerStatusTone.success
+        : PipeBuyerStatusTone.info;
+
+    return PipeBuyerSectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: PipeBuyerColors.orangeSoft,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
-                      Icons.account_balance_outlined,
+                      Icons.verified_user_outlined,
                       color: PipeBuyerColors.orange,
                     ),
                   ),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const MarketplacePayoutSettingsPage(),
-                        ),
-                      ),
-                      icon: const Icon(Icons.lock_outline_rounded),
-                      label: const Text('Configure Banking & Payout Vault'),
-                    ),
-                  ),
-                ),
-                if (widget.onboarding) ...[
-                  const SizedBox(height: 18),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: (_marketplaceAccessReady
-                              ? PipeBuyerColors.success
-                              : PipeBuyerColors.warning)
-                          .withValues(alpha: .08),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: (_marketplaceAccessReady
-                                ? PipeBuyerColors.success
-                                : PipeBuyerColors.warning)
-                            .withValues(alpha: .24),
-                      ),
-                    ),
-                    child: Row(
+                  const SizedBox(width: 12),
+                  const Flexible(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          _marketplaceAccessReady
-                              ? Icons.lock_open_rounded
-                              : Icons.lock_clock_outlined,
-                          color: _marketplaceAccessReady
-                              ? PipeBuyerColors.success
-                              : PipeBuyerColors.warning,
+                        Text(
+                          'Verification & Security',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _marketplaceAccessReady
-                                ? 'Marketplace access is unlocked because ${_emailVerified ? 'email' : 'mobile'} ownership is verified. You can finish the remaining trust steps later.'
-                                : 'Verify either your email or mobile number to enter Pipe Buyer.',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                        SizedBox(height: 3),
+                        Text(
+                          'Confirm your email and mobile number at your own pace to strengthen buyer trust and protect account recovery.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: PipeBuyerColors.muted,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: _marketplaceAccessReady && !_busy
-                        ? _continueToProfile
-                        : null,
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(54),
-                    ),
-                    icon: const Icon(Icons.arrow_forward_rounded),
-                    label: const Text('Continue to your profile'),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 10,
-                    runSpacing: 6,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: _marketplaceAccessReady && !_busy
-                            ? _skipForNow
-                            : null,
-                        icon: const Icon(Icons.skip_next_rounded),
-                        label: const Text('Skip for now'),
-                      ),
-                      TextButton.icon(
-                        onPressed: _busy ? null : _signOut,
-                        icon: const Icon(Icons.logout),
-                        label: const Text('Sign out and finish later'),
-                      ),
-                    ],
-                  ),
                 ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _trustReadinessExplanation() => KeyedSubtree(
-        key: _readinessKey,
-        child: PipeBuyerSectionCard(
-          title: 'How Trust Readiness works',
-          subtitle:
-              'Trust Readiness is a 100-point account-protection score. It does not block marketplace access once either email or mobile ownership is verified.',
-          trailing: PipeBuyerStatusBadge(
-            label: '$_trustScore / ${MarketplaceTrustReadiness.totalPoints}',
-            tone: _trustScore == MarketplaceTrustReadiness.totalPoints
-                ? PipeBuyerStatusTone.success
-                : PipeBuyerStatusTone.premium,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  value: _trustScore / MarketplaceTrustReadiness.totalPoints,
-                  minHeight: 8,
-                ),
               ),
-              const SizedBox(height: 14),
-              _readinessRow(
-                icon: Icons.mark_email_read_outlined,
-                title: 'Email ownership',
-                points: MarketplaceTrustReadiness.emailOwnershipPoints,
-                complete: _emailVerified,
-                note: _emailVerified
-                    ? 'Verified — marketplace access requirement satisfied.'
-                    : 'Verify your email to unlock marketplace access.',
-                onTap: () => _scrollTo(_identityKey),
-              ),
-              const Divider(height: 18),
-              _readinessRow(
-                icon: Icons.phone_android_outlined,
-                title: 'Mobile ownership',
-                points: MarketplaceTrustReadiness.phoneOwnershipPoints,
-                complete: _phoneVerified,
-                note: _phoneVerified
-                    ? 'Verified — marketplace access requirement satisfied.'
-                    : 'Optional for entry if email is verified; adds stronger ownership proof.',
-                onTap: () => _scrollTo(_identityKey),
-              ),
-              const Divider(height: 18),
-              _readinessRow(
-                icon: Icons.phonelink_lock_outlined,
-                title: 'Two-step security',
-                points: MarketplaceTrustReadiness.twoStepPoints,
-                complete: _mfaEnrolled,
-                note: _mfaEnrolled
-                    ? 'Enabled for stronger sensitive-action protection.'
-                    : 'Optional for standard marketplace access; required for administrator access.',
-                onTap: () => _scrollTo(_advancedSecurityKey),
-              ),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: (_marketplaceAccessReady
-                          ? PipeBuyerColors.success
-                          : PipeBuyerColors.warning)
-                      .withValues(alpha: .08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      _marketplaceAccessReady
-                          ? Icons.check_circle_outline_rounded
-                          : Icons.info_outline_rounded,
-                      color: _marketplaceAccessReady
-                          ? PipeBuyerColors.success
-                          : PipeBuyerColors.warning,
-                    ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        _marketplaceAccessReady
-                            ? 'Marketplace access: READY. Complete the remaining ${_readiness.missingPoints} points when convenient.'
-                            : 'Marketplace access: LOCKED. Verify either email or mobile ownership first.',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ],
-                ),
+              PipeBuyerStatusBadge(
+                label: badgeLabel,
+                tone: badgeTone,
+                icon: (_emailVerified || _phoneVerified)
+                    ? Icons.verified_rounded
+                    : Icons.shield_outlined,
               ),
             ],
           ),
-        ),
-      );
-
-  Widget _readinessRow({
-    required IconData icon,
-    required String title,
-    required int points,
-    required bool complete,
-    required String note,
-    required VoidCallback onTap,
-  }) {
-    final accent = complete ? PipeBuyerColors.success : PipeBuyerColors.orange;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(complete ? Icons.check_circle_rounded : icon,
-                color: accent, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      Text(
-                        complete ? '+$points earned' : '+$points available',
-                        style: TextStyle(
-                          color: accent,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(note),
-                  const SizedBox(height: 4),
-                  Text(
-                    complete ? 'Review' : 'Go to this step',
-                    style: const TextStyle(
-                      color: PipeBuyerColors.industrialBlue,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: _trustScore / MarketplaceTrustReadiness.totalPoints,
+              minHeight: 7,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _StatusSummaryChip(
+                icon: Icons.mark_email_read_outlined,
+                label: _emailVerified ? 'Email verified' : 'Email unverified',
+                complete: _emailVerified,
+              ),
+              _StatusSummaryChip(
+                icon: Icons.phone_android_outlined,
+                label: _phoneVerified
+                    ? 'Mobile verified'
+                    : 'Mobile optional',
+                complete: _phoneVerified,
+              ),
+              _StatusSummaryChip(
+                icon: Icons.phonelink_lock_outlined,
+                label: _mfaEnrolled ? '2-step SMS on' : '2-step SMS optional',
+                complete: _mfaEnrolled,
+              ),
+            ],
+          ),
+        ],
       ),
-    );
-  }
-
-  void _scrollTo(GlobalKey key) {
-    final target = key.currentContext;
-    if (target == null) return;
-    Scrollable.ensureVisible(
-      target,
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutCubic,
-      alignment: .08,
     );
   }
 
   Widget _identitySection(User user) => PipeBuyerSectionCard(
-        title: 'Identity ownership',
+        title: 'Contact verification',
         subtitle:
-            'Confirm that the marketplace contact methods belong to this account.',
+            'Confirm the email address and optional mobile phone connected to your account.',
         leading: Container(
           width: 42,
           height: 42,
@@ -547,29 +404,42 @@ class _MarketplaceAccountSecurityPageState
           children: [
             _VerificationCard(
               icon: Icons.mark_email_read_outlined,
-              title: 'Email ownership',
+              title: 'Email address',
               value: user.email ?? 'No email available',
               verified: _emailVerified,
-              actionLabel: _emailVerified ? 'Verified' : 'Resend email',
+              pendingLabel: 'UNVERIFIED',
+              actionLabel:
+                  _emailVerified ? null : 'Resend verification email',
               onAction: _emailVerified || _busy ? null : _resendEmail,
             ),
             if (!_emailVerified) ...[
               const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _busy ? null : _refreshEmail,
-                icon: const Icon(Icons.refresh),
-                label: const Text('I verified my email — refresh status'),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _busy ? null : _refreshEmail,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Refresh email status'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Click the link in your email to verify automatically — this status updates as soon as you return.',
+                style: TextStyle(fontSize: 12, color: PipeBuyerColors.muted),
               ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             _VerificationCard(
               icon: Icons.phone_android_outlined,
-              title: 'Mobile phone ownership',
+              title: 'Mobile phone (optional)',
               value: _phoneVerified
                   ? formatPhoneNumber(user.phoneNumber ?? '')
-                  : 'A one-time SMS code is required',
+                  : 'Add an SMS-verified number for stronger trust and account recovery',
               verified: _phoneVerified,
-              actionLabel: _phoneVerified ? 'Verified' : null,
+              pendingLabel: 'OPTIONAL',
             ),
             if (!_phoneVerified) ...[
               const SizedBox(height: 10),
@@ -585,7 +455,7 @@ class _MarketplaceAccountSecurityPageState
                 FilledButton.icon(
                   onPressed: _busy ? null : _sendPhoneCode,
                   icon: const Icon(Icons.sms_outlined),
-                  label: Text(_busy ? 'Sending…' : 'Send verification code'),
+                  label: Text(_busy ? 'Sending…' : 'Send SMS verification code'),
                 )
               else ...[
                 TextField(
@@ -620,9 +490,9 @@ class _MarketplaceAccountSecurityPageState
       );
 
   Widget _advancedSecuritySection() => PipeBuyerSectionCard(
-        title: 'Advanced account protection',
+        title: 'Two-step sign-in security',
         subtitle:
-            'Two-step verification adds a second proof of identity to sensitive account access.',
+            'Optional SMS verification when signing in from a new device.',
         leading: Container(
           width: 42,
           height: 42,
@@ -640,27 +510,21 @@ class _MarketplaceAccountSecurityPageState
           children: [
             _VerificationCard(
               icon: Icons.phonelink_lock_outlined,
-              title: 'Two-step verification',
+              title: 'Two-step verification (SMS)',
               value: !_mfaSupported
-                  ? 'Firebase MFA is not supported in the Windows desktop build.'
+                  ? 'Available on web, iOS, and Android.'
                   : _mfaEnrolled
                       ? '${_enrolledFactors.length} second factor${_enrolledFactors.length == 1 ? '' : 's'} enrolled'
-                      : 'Enroll SMS MFA before administrator access can be granted.',
+                      : 'Protect your account with a one-time text code at sign-in.',
               verified: _mfaEnrolled,
-              actionLabel: _mfaEnrolled ? 'Enabled' : null,
+              pendingLabel: 'OPTIONAL',
             ),
             if (_mfaSupported && !_mfaEnrolled) ...[
               const SizedBox(height: 10),
-              const Text(
-                'A security code will be sent to the verified phone and required for future administrator sign-ins.',
-                style: TextStyle(color: PipeBuyerColors.muted),
-              ),
-              const SizedBox(height: 10),
               if (!_emailVerified || !_phoneVerified)
-                const PipeBuyerStatusBadge(
-                  label: 'VERIFY EMAIL + MOBILE FIRST',
-                  tone: PipeBuyerStatusTone.warning,
-                  icon: Icons.lock_clock_outlined,
+                const Text(
+                  'Verify your email address and mobile phone first to turn on two-step SMS sign-in.',
+                  style: TextStyle(fontSize: 12.5, color: PipeBuyerColors.muted),
                 )
               else if (!_mfaCodeSent)
                 FilledButton.icon(
@@ -699,34 +563,46 @@ class _MarketplaceAccountSecurityPageState
                 ]),
               ],
             ],
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Theme.of(context).dividerColor),
-              ),
-              child: const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.shield_outlined, color: PipeBuyerColors.success),
-                  SizedBox(width: 9),
-                  Expanded(
-                    child: Text(
-                      'Security verification is used for protected marketplace actions and administrator access. Public profile information is managed separately.',
-                      style: TextStyle(fontSize: 12.5),
-                    ),
-                  ),
-                ],
+          ],
+        ),
+      );
+
+  Widget _payoutsCard() => PipeBuyerSectionCard(
+        title: 'Seller payouts',
+        subtitle:
+            'Selling equipment with online checkout? Connect Stripe payouts whenever you are ready.',
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: PipeBuyerColors.orangeSoft,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            Icons.account_balance_outlined,
+            color: PipeBuyerColors.orange,
+          ),
+        ),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const MarketplacePayoutSettingsPage(),
               ),
             ),
-          ],
+            icon: const Icon(Icons.payments_outlined),
+            label: const Text('Manage Seller Payouts'),
+          ),
         ),
       );
 
   Future<void> _resendEmail() async {
     await _run(() async {
-      await _user!.sendEmailVerification();
+      await _user!.sendEmailVerification(
+        marketplaceEmailActionCodeSettings(),
+      );
       _notice('Verification email sent. Check your inbox and spam folder.');
     });
   }
@@ -737,19 +613,20 @@ class _MarketplaceAccountSecurityPageState
       await FirebaseAuth.instance.currentUser?.getIdToken(true);
       if (FirebaseAuth.instance.currentUser?.emailVerified != true) {
         _notice(
-            'The email is not verified yet. Open the verification link, then try again.',
+            'Your email is not verified yet. Click the link in your email, and this page will update automatically.',
             error: true);
         return;
       }
-      await _syncVerification();
-      _notice('Email ownership verified. You can now verify your phone.');
+      _configureEmailPolling();
+      await _syncVerificationBestEffort();
+      _notice('Email ownership verified.');
       if (mounted) setState(() {});
     });
   }
 
   Future<void> _sendPhoneCode() async {
     final phone = normalizePhoneNumber(_phone);
-    if (!RegExp(r'^\+[1-9]\d{6,14}$').hasMatch(phone)) {
+    if (!RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(phone)) {
       return _notice('Enter a complete phone number including country code.',
           error: true);
     }
@@ -839,12 +716,12 @@ class _MarketplaceAccountSecurityPageState
     final user = _user;
     final phone = normalizePhoneNumber(user?.phoneNumber ?? '');
     if (user == null || !user.emailVerified) {
-      return _notice('Verify the account email before enrolling MFA.',
+      return _notice('Verify your email address before enabling two-step SMS.',
           error: true);
     }
     if (!RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(phone)) {
       return _notice(
-          'Verify a complete mobile phone number before enrolling MFA.',
+          'Verify a complete mobile phone number before enabling two-step SMS.',
           error: true);
     }
 
@@ -852,7 +729,8 @@ class _MarketplaceAccountSecurityPageState
       await user.reload();
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null || !currentUser.emailVerified) {
-        throw StateError('Verify the account email before enrolling MFA.');
+        throw StateError(
+            'Verify your email address before enabling two-step SMS.');
       }
       final session = await currentUser.multiFactor.getSession();
       await FirebaseAuth.instance.verifyPhoneNumber(
@@ -878,7 +756,7 @@ class _MarketplaceAccountSecurityPageState
             _mfaCodeSent = true;
             _busy = false;
           });
-          _notice('MFA enrollment code sent by SMS.');
+          _notice('Two-step verification code sent by SMS.');
         },
         codeAutoRetrievalTimeout: (verificationId) {
           _mfaVerificationId = verificationId;
@@ -890,11 +768,11 @@ class _MarketplaceAccountSecurityPageState
   Future<void> _confirmMfaEnrollmentCode() async {
     final code = _mfaCode.text.trim();
     if (!RegExp(r'^\d{6}$').hasMatch(code)) {
-      return _notice('Enter the 6-digit MFA code from the SMS.', error: true);
+      return _notice('Enter the 6-digit code from the SMS.', error: true);
     }
     final verificationId = _mfaVerificationId;
     if (verificationId == null) {
-      return _notice('Request a new MFA enrollment code.', error: true);
+      return _notice('Request a new enrollment code.', error: true);
     }
     await _run(() async {
       await _completeMfaEnrollment(PhoneAuthProvider.credential(
@@ -907,7 +785,7 @@ class _MarketplaceAccountSecurityPageState
   Future<void> _completeMfaEnrollment(PhoneAuthCredential credential) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      throw StateError('Sign in again before enrolling MFA.');
+      throw StateError('Sign in again before enrolling two-step SMS.');
     }
     await user.multiFactor.enroll(
       PhoneMultiFactorGenerator.getAssertion(credential),
@@ -922,8 +800,7 @@ class _MarketplaceAccountSecurityPageState
       _mfaVerificationId = null;
       _mfaCode.clear();
     });
-    _notice(
-        'Two-step verification is enabled. Sign out and sign in again to test the SMS challenge.');
+    _notice('Two-step SMS verification is enabled.');
   }
 
   Future<void> _syncVerification() async {
@@ -945,10 +822,6 @@ class _MarketplaceAccountSecurityPageState
   }
 
   Future<void> _continueToProfile() async {
-    if (!_marketplaceAccessReady) {
-      return _notice('Verify either your email or mobile number first.',
-          error: true);
-    }
     await _run(() async {
       await _syncVerificationBestEffort();
       if (!mounted) return;
@@ -962,17 +835,8 @@ class _MarketplaceAccountSecurityPageState
   }
 
   Future<void> _skipForNow() async {
-    if (!_marketplaceAccessReady) {
-      return _notice('Verify either your email or mobile number first.',
-          error: true);
-    }
     await _syncVerificationBestEffort();
     if (mounted) Navigator.of(context).pop(true);
-  }
-
-  Future<void> _signOut() async {
-    await FirebaseAuth.instance.signOut();
-    if (mounted) Navigator.of(context).pop(false);
   }
 
   Future<void> _run(Future<void> Function() work,
@@ -991,7 +855,7 @@ class _MarketplaceAccountSecurityPageState
         marketplaceCommandErrorMessage(
           error,
           fallback:
-              'Account verification could not sync right now. If your email or mobile is verified, you can still continue and try the remaining security steps later.',
+              'Account verification could not sync right now. Please try again in a moment.',
         ),
         error: true,
       );
@@ -1016,15 +880,15 @@ class _MarketplaceAccountSecurityPageState
           'This account sign-in method cannot be used with Firebase MFA.',
         'invalid-multi-factor-session' ||
         'missing-multi-factor-session' =>
-          'The MFA enrollment session expired. Sign out, sign in again, and retry.',
+          'The enrollment session expired. Sign out, sign in again, and retry.',
         'quota-exceeded' ||
         'too-many-requests' =>
-          'SMS verification is temporarily limited. Wait before trying again.',
+          'Verification requests are temporarily rate-limited. Wait a moment before trying again.',
         'operation-not-allowed' =>
           'Phone SMS authentication or SMS multi-factor authentication is not enabled in Firebase Console.',
         'requires-recent-login' =>
           'For security, sign out and sign back in before changing verification.',
-        _ => error.message ?? 'Phone verification failed (${error.code}).',
+        _ => error.message ?? 'Verification failed (${error.code}).',
       };
 
   void _notice(String message, {bool error = false}) {
@@ -1036,12 +900,65 @@ class _MarketplaceAccountSecurityPageState
   }
 }
 
+class _StatusSummaryChip extends StatelessWidget {
+  const _StatusSummaryChip({
+    required this.icon,
+    required this.label,
+    required this.complete,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool complete;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = complete ? PipeBuyerColors.success : PipeBuyerColors.muted;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        color: complete
+            ? PipeBuyerColors.success.withValues(alpha: .09)
+            : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(
+                  alpha: .45,
+                ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: complete
+              ? PipeBuyerColors.success.withValues(alpha: .28)
+              : Theme.of(context).dividerColor,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            complete ? Icons.check_circle_rounded : icon,
+            size: 16,
+            color: accent,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: complete ? PipeBuyerColors.success : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _VerificationCard extends StatelessWidget {
   const _VerificationCard({
     required this.icon,
     required this.title,
     required this.value,
     required this.verified,
+    this.pendingLabel = 'PENDING',
     this.actionLabel,
     this.onAction,
   });
@@ -1050,19 +967,25 @@ class _VerificationCard extends StatelessWidget {
   final String title;
   final String value;
   final bool verified;
+  final String pendingLabel;
   final String? actionLabel;
   final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = verified ? PipeBuyerColors.success : PipeBuyerColors.orange;
+    final isOptionalUnverified = !verified && pendingLabel == 'OPTIONAL';
+    final accent = verified
+        ? PipeBuyerColors.success
+        : isOptionalUnverified
+            ? PipeBuyerColors.industrialBlue
+            : PipeBuyerColors.orange;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: .07),
+        color: accent.withValues(alpha: .06),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: accent.withValues(alpha: .22)),
+        border: Border.all(color: accent.withValues(alpha: .20)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1096,10 +1019,12 @@ class _VerificationCard extends StatelessWidget {
                       ),
                     ),
                     PipeBuyerStatusBadge(
-                      label: verified ? 'VERIFIED' : 'PENDING',
+                      label: verified ? 'VERIFIED' : pendingLabel,
                       tone: verified
                           ? PipeBuyerStatusTone.success
-                          : PipeBuyerStatusTone.warning,
+                          : isOptionalUnverified
+                              ? PipeBuyerStatusTone.info
+                              : PipeBuyerStatusTone.warning,
                     ),
                   ],
                 ),
@@ -1107,7 +1032,7 @@ class _VerificationCard extends StatelessWidget {
                 Text(
                   value,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: .62),
+                    color: theme.colorScheme.onSurface.withValues(alpha: .68),
                   ),
                 ),
                 if (actionLabel != null) ...[

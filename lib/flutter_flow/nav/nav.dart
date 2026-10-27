@@ -12,6 +12,7 @@ import '/flutter_flow/flutter_flow_util.dart';
 
 import '/marketplace/oil_gas_marketplace.dart';
 import '/marketplace/marketplace_auctions_page.dart';
+import '/marketplace/marketplace_auth_action_page.dart';
 import '/marketplace/marketplace_deep_links.dart';
 import '/marketplace/marketplace_dispatch_page.dart';
 import '/marketplace/marketplace_dispatch_membership_page.dart';
@@ -112,6 +113,16 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       navigatorKey: appNavigatorKey,
       errorBuilder: (context, state) => const OilGasMarketplaceApp(),
       redirect: (context, state) {
+        final actionMode = state.uri.queryParameters['mode']?.trim();
+        final actionCode = state.uri.queryParameters['oobCode']?.trim() ?? '';
+        if ((state.uri.path == '/' || state.uri.path == '/__/auth/action') &&
+            actionCode.isNotEmpty &&
+            isFirebaseAuthActionMode(actionMode)) {
+          return Uri(
+            path: MarketplaceDeepLinks.authActionPath,
+            queryParameters: state.uri.queryParameters,
+          ).toString();
+        }
         final connectAction =
             state.uri.queryParameters['connect']?.trim().toLowerCase();
         if (state.uri.path == '/' &&
@@ -145,6 +156,16 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: '_initialize',
           path: '/',
           builder: (context, _) => const OilGasMarketplaceApp(),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.authActionRouteName,
+          path: MarketplaceDeepLinks.authActionPath,
+          builder: (context, params) => MarketplaceAuthActionPage(
+            mode: params.getParam<String>('mode', ParamType.string) ?? '',
+            oobCode: params.getParam<String>('oobCode', ParamType.string) ?? '',
+            continueUrl:
+                params.getParam<String>('continueUrl', ParamType.string),
+          ),
         ),
         FFRoute(
           name: MarketplaceDeepLinks.listingRouteName,

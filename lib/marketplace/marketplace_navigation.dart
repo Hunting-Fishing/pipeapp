@@ -25,6 +25,8 @@ class MarketplaceNavigation {
   static final ValueNotifier<MarketplaceDestinationRequest?>
   destinationRequests = ValueNotifier<MarketplaceDestinationRequest?>(null);
   static final ValueNotifier<int> wantedRequests = ValueNotifier<int>(0);
+  static final ValueNotifier<int?> accountSubTabRequests =
+      ValueNotifier<int?>(null);
 
   static void goHome(BuildContext context) {
     homeRequests.value++;
@@ -35,6 +37,17 @@ class MarketplaceNavigation {
     destinationRequests.value = MarketplaceDestinationRequest(pageIndex);
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
+
+  static void goToAccount(BuildContext context, {int? subTabIndex}) {
+    if (subTabIndex != null) {
+      accountSubTabRequests.value = subTabIndex;
+    }
+    goToDestination(context, 5);
+  }
+
+  /// Opens the Account section directly on the Verification & Security tab.
+  static void openVerificationAndSecurity(BuildContext context) =>
+      goToAccount(context, subTabIndex: 2);
 
   static void goToBrowse(BuildContext context) => goToDestination(context, 1);
 

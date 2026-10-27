@@ -28,7 +28,6 @@ import 'marketplace_reporting.dart';
 import 'marketplace_messages_page.dart';
 import 'marketplace_account_hub.dart';
 import 'marketplace_account_menu.dart';
-import 'marketplace_account_security_page.dart';
 import 'marketplace_grouped_navigation.dart';
 import 'marketplace_home_welcome.dart';
 import 'marketplace_support.dart';
@@ -1039,7 +1038,8 @@ class OilGasMarketplaceApp extends StatefulWidget {
   State<OilGasMarketplaceApp> createState() => _OilGasMarketplaceAppState();
 }
 
-class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
+class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
+    with WidgetsBindingObserver {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   late int _tab;
   String _search = '';
@@ -1062,6 +1062,8 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   bool _authGateScheduled = false;
   bool _authRouteOpen = false;
   bool _isAdminUser = false;
+  bool _reconcilingVerification = false;
+  final Set<String> _syncedVerificationKeys = {};
 
   void _openCreate({bool auction = false, bool wanted = false}) {
     if (!_features.marketplace) {
@@ -1144,6 +1146,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tab = widget.initialTab.clamp(0, 6);
     MarketplaceNavigation.homeRequests.addListener(_handleHomeRequest);
     MarketplaceNavigation.destinationRequests
@@ -1168,6 +1171,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     MarketplaceNavigation.homeRequests.removeListener(_handleHomeRequest);
     MarketplaceNavigation.destinationRequests
         .removeListener(_handleDestinationRequest);
@@ -1176,6 +1180,16 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
     _savedSubscription?.cancel();
     _featureSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        unawaited(_reconcileAccountVerification(user));
+      }
+    }
   }
 
   @override
@@ -1500,11 +1514,8 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
             return MarketplaceAccountMenuButton(
               extended: extended,
               onAccount: () => _selectTab(5),
-              onTrust: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const MarketplaceAccountSecurityPage(),
-                ),
-              ),
+              onTrust: () =>
+                  MarketplaceNavigation.openVerificationAndSecurity(context),
               onMemberships: () => showDialog<void>(
                 context: context,
                 builder: (_) => const MarketplaceSubscriptionPlansDialog(),
@@ -1830,11 +1841,13 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
       }
     });
     if (user == null) {
+      _syncedVerificationKeys.clear();
       _scheduleAuthGate();
       return;
     }
     unawaited(_registerCurrentDevice(user));
     unawaited(_refreshAdminAccess(user.uid));
+    unawaited(_reconcileAccountVerification(user));
     final userUid = user.uid;
     _savedSubscription = _actions.watchSavedListingIds(userUid).listen(
       (listingIds) {
@@ -1894,6 +1907,59 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp> {
         operation: 'register_account_device',
         fatal: false,
       );
+    }
+  }
+
+  Future<void> _reconcileAccountVerification(User initialUser) async {
+    if (_reconcilingVerification) return;
+    _reconcilingVerification = true;
+    try {
+      var current = FirebaseAuth.instance.currentUser;
+      if (current == null || current.uid != initialUser.uid) return;
+      final hadUnverifiedEmail =
+          (current.email ?? '').trim().isNotEmpty && !current.emailVerified;
+      if (hadUnverifiedEmail) {
+        await current.reload();
+        current = FirebaseAuth.instance.currentUser;
+        if (current == null || current.uid != initialUser.uid) return;
+      }
+
+      final emailVerified = current.emailVerified;
+      final phoneVerified = (current.phoneNumber ?? '').trim().isNotEmpty;
+      if (!emailVerified && !phoneVerified) return;
+
+      final syncKey =
+          '${current.uid}:$emailVerified:${current.phoneNumber ?? ''}';
+      if (_syncedVerificationKeys.contains(syncKey)) return;
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(current.uid)
+          .get();
+      final data = snapshot.data() ?? const <String, dynamic>{};
+      final serverEmailVerified = data['emailOwnershipVerified'] == true;
+      final serverPhoneVerified = data['phoneOwnershipVerified'] == true;
+      final needsSync = (emailVerified && !serverEmailVerified) ||
+          (phoneVerified && !serverPhoneVerified);
+      if (!needsSync) {
+        _syncedVerificationKeys.add(syncKey);
+        return;
+      }
+
+      await current.getIdToken(true);
+      await MarketplaceCommandClient().execute(
+        'syncAccountVerification',
+        const {},
+        timeout: const Duration(seconds: 6),
+      );
+      _syncedVerificationKeys.add(syncKey);
+      if (mounted && hadUnverifiedEmail && emailVerified) {
+        setState(() {});
+      }
+    } catch (_) {
+      // Best-effort background reconciliation; never block marketplace usage.
+    } finally {
+      _reconcilingVerification = false;
     }
   }
 

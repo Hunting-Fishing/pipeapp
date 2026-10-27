@@ -110,8 +110,8 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
           value: _AccountMenuAction.trust,
           child: _MenuRow(
             icon: Icons.verified_user_outlined,
-            title: 'Trust & verification',
-            subtitle: 'Ownership and account security',
+            title: 'Verification & security',
+            subtitle: 'Email, mobile and sign-in protection',
           ),
         ),
         const PopupMenuItem(
