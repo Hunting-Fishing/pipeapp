@@ -51,7 +51,7 @@ const SYNC = args.includes("--sync");
 const RESUME = !args.includes("--fresh");
 const INCLUDE_TRAINING_CODE = !args.includes("--legacy-24-cats");
 const agentsIdx = args.indexOf("--agents");
-const NUM_AGENTS = agentsIdx !== -1 ? Math.max(1, Math.min(12, Number(args[agentsIdx + 1] || 8))) : 8;
+const NUM_AGENTS = agentsIdx !== -1 ? Math.max(1, Math.min(16, Number(args[agentsIdx + 1] || 8))) : 8;
 const maxQueriesIdx = args.indexOf("--max-queries");
 const MAX_QUERIES = maxQueriesIdx !== -1 ? Number(args[maxQueriesIdx + 1] || 600) : 600;
 const countryOnlyIdx = args.indexOf("--country");
@@ -63,7 +63,44 @@ const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 const CONSUMER_NOISE_BLOCKLIST =
-  /\b(?:gas station|convenience store|service station|truck stop|car wash|auto oil change|oil change service|jiffy lube|mr\.?\s*lube|great canadian oil change|valvoline instant|take 5 oil|grease monkey|midas|meineke|kal tire|fountain tire|canadian tire|walmart|costco|7-eleven|circle k|esso|petro-canada|shell station|chevron station|mobil station|exxon station|husky|co-op gas|love's travel|pilot travel|flying j|buc-ee|quiktrip|wawa|hair|beauty|barber|nail|spa|yoga|pilates|martial arts|karate|taekwondo|dance|music school|kumon|sylvan learning|mathnasium|tutoring|daycare|preschool|montessori|dog training|pet|real estate|mortgage|dental|chiropractic|optometrist|pharmacy|restaurant|pizza|cafe|coffee|bakery|hotel|motel|inn|church|fitness|gym|crossfit)\b/iu;
+  /\b(?:gas station|convenience store|service station|truck stop|car wash|auto oil change|oil change service|jiffy lube|mr\.?\s*lube|great canadian oil change|valvoline instant|take 5 oil|grease monkey|midas|meineke|kal tire|fountain tire|canadian tire|walmart|costco|7-eleven|circle k|esso|petro-canada|shell station|chevron station|mobil station|exxon station|husky|co-op gas|love's travel|pilot travel|flying j|buc-ee|quiktrip|wawa|hair|beauty|barber|nail|spa|yoga|pilates|martial arts|karate|taekwondo|dance|music school|kumon|sylvan learning|mathnasium|tutoring|daycare|preschool|montessori|dog training|pet|real estate|mortgage|dental|chiropractic|optometrist|pharmacy|restaurant|pizza|cafe|coffee|bakery|hotel|motel|inn|church|fitness|gym|crossfit|hunter safety|wilderness survival|aviation learning|aviation maintenance|scout aviation|allcpr|hero for life|mind body|dole accredited|philippines|saferphilippines|1philsafe|feati maritime|bacoor branch)\b/iu;
+
+const EXTRA_VALID_US_NPA = new Set([
+  "209", "214", "216", "281", "330", "346", "408", "419", "440", "469",
+  "512", "513", "559", "572", "614", "682", "713", "817", "832", "850",
+  "916", "920", "928", "936", "937", "940", "956", "972", "979",
+]);
+
+function polishDiscoveredCompanyName(rawName) {
+  let s = String(rawName || "")
+    .replace(/\s+-\s+(?:Main|North|South|East|West)\s+Campus$/iu, "")
+    .trim();
+  if (s.includes(" | ")) {
+    const parts = s.split(" | ").map((x) => x.trim()).filter(Boolean);
+    if (parts.length >= 2 && (parts.length > 2 || /\b(?:best|license|testing|courses)\b/iu.test(parts[1]))) {
+      s = parts[0];
+    }
+  }
+  s = canonicalizeCompanyName(s);
+  s = s.replace(/\b(?:ndt|octg|h2s|hse|ehs|bop|iwcf|iadc|opito|cdl|osha|ems|cpr|llc|llp|plc)\b/giu, (m) =>
+    m.toUpperCase(),
+  );
+  s = s.replace(/\b(?:ltd|inc|corp)\b\.?/giu, (m) => {
+    const clean = m.replace(/\./gu, "").toLowerCase();
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  });
+  const connectors = new Set(["and", "of", "the", "in", "for", "on", "at", "to", "by", "de", "la"]);
+  s = s
+    .split(/\s+/u)
+    .map((w, idx) => {
+      if (/^[a-z]{3,}$/u.test(w) && (idx === 0 || !connectors.has(w))) {
+        return w.charAt(0).toUpperCase() + w.slice(1);
+      }
+      return w;
+    })
+    .join(" ");
+  return s;
+}
 
 const POSITIVE_OILFIELD_OR_TRAINING_SIGNAL =
   /\b(?:oilfield|oil\s*&\s*gas|oil\s+and\s+gas|petroleum|energy|drilling|well\s+service|workover|wireline|slickline|coiled\s+tubing|frac|fracturing|cementing|completions|wellhead|valve|bop|pressure\s+control|octg|casing|tubing|pipe|pipeline|midstream|hydrovac|vac\s+truck|vacuum\s+truck|water\s+hauling|fluid\s+hauling|winch|heavy\s+haul|rig\s+mov|bed\s+truck|hot\s*shot|pilot\s+car|crane|picker|rigging|welding|b-pressure|fabrication|machine\s+shop|ndt|inspection|artificial\s+lift|pumpjack|compressor|compression|tank|vessel|treater|separator|boiler|rental|downhole|fishing\s+tool|rig\s+mat|access\s+mat|lease\s+construction|earthwork|scada|instrumentation|automation|oilfield\s+electrical|h2s|industrial\s+medic|safety|fire\s+watch|remediation|reclamation|environmental|disposal|mud|chemical|lubricant|bulk\s+fuel|heavy\s+duty\s+mechanic|hydraulics|remote\s+camp|wellsite\s+trailer|skid\s+shack|surveying|geomatics|line\s+locat|training|courses|academy|institute|polytechnic|college|well\s+control|iwcf|wellsharp|opito|bosiet|safeland|veriforce|rigpass|confined\s+space|fall\s+protection|ground\s+disturbance|class\s+1|cdl\s+training)\b/iu;
@@ -510,8 +547,8 @@ async function scrapeGoogleMapsQuery(page, task) {
     if (btn) await btn.click().catch(() => {});
   }
 
-  await page.waitForSelector('div.Nv2PK, div[role="main"]', {timeout: 9000}).catch(() => {});
-  await page.waitForTimeout(1600);
+  await page.waitForSelector('div.Nv2PK, div[role="main"]', {timeout: 8000}).catch(() => {});
+  await page.waitForTimeout(950);
 
   // Scroll results feed up to 3 times to load ~30-40 local Google Business cards
   for (let s = 0; s < 3; s++) {
@@ -523,7 +560,7 @@ async function scrapeGoogleMapsQuery(page, task) {
       return feed.scrollTop > prev;
     });
     if (!scrolled) break;
-    await page.waitForTimeout(850);
+    await page.waitForTimeout(550);
   }
 
   const rawCards = await page.evaluate(() => {
@@ -562,9 +599,7 @@ function validateAndBuildRecord(card, task, indexState, seqNum) {
   }
 
   // 2. Clean & validate company name
-  let cleanName = canonicalizeCompanyName(
-    String(card.name || "").replace(/\s+-\s+(?:Main|North|South|East|West)\s+Campus$/iu, ""),
-  );
+  const cleanName = polishDiscoveredCompanyName(card.name);
   if (!cleanName || cleanName.length < 3) return {status: "rejected_invalid"};
 
   // 3. Consumer / retail / gas-station / non-industrial blocklist
@@ -584,8 +619,11 @@ function validateAndBuildRecord(card, task, indexState, seqNum) {
     }
   }
 
-  // 4. Phone validation & blocked number check
-  let rawPhone = card.phone;
+  // 4. Phone validation & blocked number check (reject foreign 09xx/+63/+91/+44 prefixes immediately)
+  let rawPhone = String(card.phone || "").trim();
+  if (/^(?:09\d\d|\+(?!1\b)\d+)/u.test(rawPhone)) {
+    return {status: "rejected_foreign_phone"};
+  }
   if (!rawPhone) {
     const m = fullText.match(/(?:\+?1[\s.-]?)?\(?([2-9]\d{2})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/u);
     if (m) rawPhone = `${m[1]}-${m[2]}-${m[3]}`;
@@ -595,6 +633,7 @@ function validateAndBuildRecord(card, task, indexState, seqNum) {
   if (indexState.blockedPhones.has(phoneNorm.digits10)) return {status: "rejected_blocked"};
 
   // 5. Anti-Zoom-Out Geographical Verification
+  const npa = phoneNorm.digits10.slice(0, 3);
   const phoneGeo = inferGeoFromNanpaPhone(phoneNorm.digits10);
   const targetCc = task.countryCode;
   let finalRc = canonicalizeRegionCode(task.regionCode, targetCc);
@@ -614,11 +653,20 @@ function validateAndBuildRecord(card, task, indexState, seqNum) {
         return {status: "rejected_zoom_out_region"};
       }
     }
-  } else {
+  } else if (phoneNorm.isTollFree) {
     // Toll-free number: verify card address doesn't explicitly belong to a different state
     const otherStateMatch = fullText.match(/,\s*([A-Z]{2})\s+\d{5}\b/u);
     if (otherStateMatch && otherStateMatch[1] !== finalRc) {
       return {status: "rejected_zoom_out_tollfree"};
+    }
+  } else {
+    // Unmapped NPA: only allow verified US NPAs when crawling US hubs (blocks unassigned/foreign 9xx zoom-outs)
+    if (targetCc !== "US" || !EXTRA_VALID_US_NPA.has(npa)) {
+      return {status: "rejected_unmapped_npa"};
+    }
+    const cityRx = new RegExp(`\\b${task.city.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}\\b`, "iu");
+    if (!cityRx.test(fullText)) {
+      return {status: "rejected_zoom_out_region"};
     }
   }
 
@@ -854,10 +902,12 @@ async function main() {
   }
 
   let visitedQueryIds = new Set();
+  let priorStats = null;
   if (RESUME && fs.existsSync(checkpointPath)) {
     try {
       const cp = JSON.parse(await fsp.readFile(checkpointPath, "utf8"));
       visitedQueryIds = new Set(cp.visitedQueryIds || []);
+      priorStats = cp.stats || null;
     } catch (_) {}
   }
 
@@ -866,31 +916,32 @@ async function main() {
   const pendingQueue = fullQueue.filter((q) => !visitedQueryIds.has(q.id)).slice(0, MAX_QUERIES);
 
   console.log(
-    `[bot16] Launching ${NUM_AGENTS} parallel Google Maps Audit Agents | Pending queries in wave: ${pendingQueue.length}/${fullQueue.length} (sync=${SYNC})...`,
+    `[bot16] Launching ${NUM_AGENTS} parallel Google Maps Audit Agents | Pending queries in wave: ${pendingQueue.length}/${fullQueue.length} (already visited=${visitedQueryIds.size}, sync=${SYNC})...`,
   );
 
   const {chromium} = await loadPlaywright();
   const browser = await chromium.launch({
     executablePath: findBrowserExe(),
     headless: true,
-    args: ["--disable-blink-features=AutomationControlled", "--disable-gpu"],
+    args: ["--disable-blink-features=AutomationControlled", "--disable-gpu", "--disable-dev-shm-usage"],
   });
 
   const stats = {
-    startedAt: new Date().toISOString(),
-    queriesCompleted: 0,
-    cardsInspected: 0,
-    newBusinessesDiscovered: 0,
-    newCanada: 0,
-    newUSA: 0,
-    newTrainingFacilities: 0,
-    duplicatesAlreadyInDb: 0,
-    closedOnGoogleRemoved: 0,
-    rejectedNoiseOrZoomOut: 0,
-    byRegion: {},
+    startedAt: priorStats?.startedAt || new Date().toISOString(),
+    queriesCompleted: priorStats?.queriesCompleted || 0,
+    cardsInspected: priorStats?.cardsInspected || 0,
+    newBusinessesDiscovered: priorStats?.newBusinessesDiscovered || 0,
+    newCanada: priorStats?.newCanada || 0,
+    newUSA: priorStats?.newUSA || 0,
+    newTrainingFacilities: priorStats?.newTrainingFacilities || 0,
+    duplicatesAlreadyInDb: priorStats?.duplicatesAlreadyInDb || 0,
+    closedOnGoogleRemoved: priorStats?.closedOnGoogleRemoved || 0,
+    rejectedNoiseOrZoomOut: priorStats?.rejectedNoiseOrZoomOut || 0,
+    byRegion: {...(priorStats?.byRegion || {})},
   };
 
   let cursor = 0;
+  let waveCompleted = 0;
   let seqCounter = Date.now() % 100000;
   const unsyncedBuffer = [];
   const closedExistingBuffer = [];
@@ -944,30 +995,52 @@ async function main() {
     await syncBatchToFirestore(PROJECT_ID, toSync, toClose);
   };
 
+  const openFreshAgentSession = async () => {
+    const context = await browser.newContext({
+      userAgent: USER_AGENT,
+      locale: "en-US",
+      viewport: {width: 1280, height: 900},
+    });
+    await context.route("**/*", (route) => {
+      const rt = route.request().resourceType();
+      if (rt === "image" || rt === "media" || rt === "font") {
+        return route.abort();
+      }
+      return route.continue();
+    });
+    const page = await context.newPage();
+    return {context, page};
+  };
+
   try {
     const workers = Array.from({length: NUM_AGENTS}, async (_, agentIdx) => {
       const agentName = `Agent-${agentIdx + 1}`;
-      const context = await browser.newContext({
-        userAgent: USER_AGENT,
-        locale: "en-US",
-        viewport: {width: 1280, height: 900},
-      });
-      await context.route("**/*", (route) => {
-        const rt = route.request().resourceType();
-        if (rt === "image" || rt === "media" || rt === "font") {
-          return route.abort();
-        }
-        return route.continue();
-      });
-      const page = await context.newPage();
+      let session = await openFreshAgentSession();
+      let queriesOnSession = 0;
 
       while (true) {
         const myIdx = cursor++;
         if (myIdx >= pendingQueue.length) break;
         const task = pendingQueue[myIdx];
 
+        if (queriesOnSession >= 25) {
+          await session.context.close().catch(() => {});
+          session = await openFreshAgentSession();
+          queriesOnSession = 0;
+        }
+
         try {
-          const cards = await scrapeGoogleMapsQuery(page, task);
+          let timerId = null;
+          const cards = await Promise.race([
+            scrapeGoogleMapsQuery(session.page, task),
+            new Promise((_, reject) => {
+              timerId = setTimeout(() => reject(new Error("Hard query watchdog 28000ms")), 28000);
+            }),
+          ]).finally(() => {
+            if (timerId) clearTimeout(timerId);
+          });
+          queriesOnSession += 1;
+          waveCompleted += 1;
           stats.queriesCompleted += 1;
           stats.cardsInspected += cards.length;
           visitedQueryIds.add(task.id);
@@ -999,29 +1072,36 @@ async function main() {
             await fsp.appendFile(jsonlPath, `${jsonlLines.join("\n")}\n`, "utf8");
           }
 
-          if (stats.queriesCompleted % 15 === 0) {
+          if (waveCompleted % 15 === 0) {
             console.log(
-              `[${agentName}] Progress ${stats.queriesCompleted}/${pendingQueue.length} | Cards: ${stats.cardsInspected} | NEW: ${stats.newBusinessesDiscovered} (CA=${stats.newCanada}, US=${stats.newUSA}, Training=${stats.newTrainingFacilities}) | Dups: ${stats.duplicatesAlreadyInDb}`,
+              `[${agentName}] Wave ${waveCompleted}/${pendingQueue.length} (Total ${visitedQueryIds.size}/${fullQueue.length}) | Cards: ${stats.cardsInspected} | NEW: ${stats.newBusinessesDiscovered} (CA=${stats.newCanada}, US=${stats.newUSA}, Training=${stats.newTrainingFacilities}) | Dups: ${stats.duplicatesAlreadyInDb}`,
             );
             await flushUnsynced();
             await saveCheckpointAndReport();
           }
         } catch (err) {
           console.warn(`[${agentName}] Query error (${task.id}): ${err.message}`);
+          await Promise.race([session.context.close().catch(() => {}), new Promise((r) => setTimeout(r, 2500))]);
+          session = await Promise.race([
+            openFreshAgentSession(),
+            new Promise((_, rej) => setTimeout(() => rej(new Error("reopen timeout")), 6000)),
+          ]).catch(() => session);
+          queriesOnSession = 0;
         }
       }
 
-      await context.close().catch(() => {});
+      await Promise.race([session.context.close().catch(() => {}), new Promise((r) => setTimeout(r, 2500))]);
     });
 
     await Promise.all(workers);
     await flushUnsynced();
     await saveCheckpointAndReport();
   } finally {
-    await browser.close().catch(() => {});
+    await Promise.race([browser.close().catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
   }
 
   console.log("[bot16] Wave complete! Final summary:", stats);
+  process.exit(0);
 }
 
 main().catch((err) => {
