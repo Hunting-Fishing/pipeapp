@@ -2,65 +2,256 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_commerce_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_auth_action_page.dart';
 import 'marketplace_home_hero_assets.dart';
 import 'marketplace_navigation.dart';
 
-class MarketplaceHomeWelcome extends StatelessWidget {
+class MarketplaceHomeWelcome extends StatefulWidget {
   const MarketplaceHomeWelcome({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return MarketplaceHomeDiscoveryHero(
-        onBrowse: () => MarketplaceNavigation.goToBrowse(context),
-        onSell: () => MarketplaceNavigation.goToSell(context),
-        onDispatch: () => MarketplaceNavigation.goToDispatch(context),
-        onWanted: () => MarketplaceNavigation.goToWanted(context),
-        onSearchServices: () =>
-            MarketplaceNavigation.openSearchServices(context),
-        onListServices: () => MarketplaceNavigation.openListServices(context),
-        onCommercialInsurance: () =>
-            MarketplaceNavigation.openInsuranceHub(context),
-      );
-    }
+  State<MarketplaceHomeWelcome> createState() => _MarketplaceHomeWelcomeState();
+}
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots(),
-      builder: (context, snapshot) {
-        final data = snapshot.data?.data() ?? const <String, dynamic>{};
-        final candidates = [
-          data['displayName'],
-          data['display_name'],
-          data['businessName'],
-          user.displayName,
-          user.email?.split('@').first,
-        ];
-        final name =
-            candidates.map((value) => '${value ?? ''}'.trim()).firstWhere(
+class _MarketplaceHomeWelcomeState extends State<MarketplaceHomeWelcome> {
+  String? _dismissedForUid;
+  bool _sendingVerification = false;
+
+  Future<void> _resendVerificationEmail(User user) async {
+    if (_sendingVerification) return;
+    setState(() => _sendingVerification = true);
+    try {
+      await user.sendEmailVerification(marketplaceEmailActionCodeSettings());
+      if (!mounted) return;
+      final email = (user.email ?? '').trim();
+      PipeFeedback.show(
+        context,
+        message: email.isEmpty
+            ? 'Verification email sent. Check your inbox.'
+            : 'Verification email sent to $email.',
+        tone: PipeStatusTone.success,
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      final message = error.code == 'too-many-requests'
+          ? 'A verification email was just sent. Check your inbox or wait a moment before resending.'
+          : (error.message ?? 'Could not send verification email right now.');
+      PipeFeedback.show(
+        context,
+        message: message,
+        tone: PipeStatusTone.warning,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      PipeFeedback.show(
+        context,
+        message: 'Could not send verification email right now.',
+        tone: PipeStatusTone.warning,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _sendingVerification = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.userChanges(),
+      initialData: FirebaseAuth.instance.currentUser,
+      builder: (context, authSnapshot) {
+        final user = authSnapshot.data;
+        if (user == null) {
+          return MarketplaceHomeDiscoveryHero(
+            onBrowse: () => MarketplaceNavigation.goToBrowse(context),
+            onSell: () => MarketplaceNavigation.goToSell(context),
+            onDispatch: () => MarketplaceNavigation.goToDispatch(context),
+            onWanted: () => MarketplaceNavigation.goToWanted(context),
+            onSearchServices: () =>
+                MarketplaceNavigation.openSearchServices(context),
+            onListServices: () =>
+                MarketplaceNavigation.openListServices(context),
+            onCommercialInsurance: () =>
+                MarketplaceNavigation.openInsuranceHub(context),
+          );
+        }
+
+        final email = (user.email ?? '').trim();
+        final showVerificationReminder = email.isNotEmpty &&
+            !user.emailVerified &&
+            _dismissedForUid != user.uid;
+
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .snapshots(),
+          builder: (context, snapshot) {
+            final data = snapshot.data?.data() ?? const <String, dynamic>{};
+            final candidates = [
+              data['displayName'],
+              data['display_name'],
+              data['businessName'],
+              user.displayName,
+              user.email?.split('@').first,
+            ];
+            final name = candidates
+                .map((value) => '${value ?? ''}'.trim())
+                .firstWhere(
                   (value) => value.isNotEmpty,
                   orElse: () => 'Pipe Buyer member',
                 );
-        final accountType = '${data['accountType'] ?? 'personal'}';
-        return MarketplaceHomeDiscoveryHero(
-          name: name,
-          accountType: accountType,
-          onBrowse: () => MarketplaceNavigation.goToBrowse(context),
-          onSell: () => MarketplaceNavigation.goToSell(context),
-          onDispatch: () => MarketplaceNavigation.goToDispatch(context),
-          onWanted: () => MarketplaceNavigation.goToWanted(context),
-          onSearchServices: () =>
-              MarketplaceNavigation.openSearchServices(context),
-          onListServices: () => MarketplaceNavigation.openListServices(context),
-          onCommercialInsurance: () =>
-              MarketplaceNavigation.openInsuranceHub(context),
+            final accountType = '${data['accountType'] ?? 'personal'}';
+            final hero = MarketplaceHomeDiscoveryHero(
+              name: name,
+              accountType: accountType,
+              onBrowse: () => MarketplaceNavigation.goToBrowse(context),
+              onSell: () => MarketplaceNavigation.goToSell(context),
+              onDispatch: () => MarketplaceNavigation.goToDispatch(context),
+              onWanted: () => MarketplaceNavigation.goToWanted(context),
+              onSearchServices: () =>
+                  MarketplaceNavigation.openSearchServices(context),
+              onListServices: () =>
+                  MarketplaceNavigation.openListServices(context),
+              onCommercialInsurance: () =>
+                  MarketplaceNavigation.openInsuranceHub(context),
+            );
+            if (!showVerificationReminder) {
+              return hero;
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                MarketplaceEmailVerificationReminderBanner(
+                  email: email,
+                  sending: _sendingVerification,
+                  onResend: () => _resendVerificationEmail(user),
+                  onOpenVerification: () =>
+                      MarketplaceNavigation.openVerificationAndSecurity(
+                    context,
+                  ),
+                  onDismiss: () => setState(() => _dismissedForUid = user.uid),
+                ),
+                const SizedBox(height: 12),
+                hero,
+              ],
+            );
+          },
         );
       },
+    );
+  }
+}
+
+/// Non-blocking, dismissible email verification reminder card.
+///
+/// Kept Firebase-free so it can be widget-tested independently.
+class MarketplaceEmailVerificationReminderBanner extends StatelessWidget {
+  const MarketplaceEmailVerificationReminderBanner({
+    super.key,
+    required this.email,
+    required this.onResend,
+    required this.onOpenVerification,
+    required this.onDismiss,
+    this.sending = false,
+  });
+
+  final String email;
+  final bool sending;
+  final VoidCallback onResend;
+  final VoidCallback onOpenVerification;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: PipeBuyerColors.orange.withValues(alpha: .35),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: PipeBuyerColors.orangeSoft,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.mark_email_unread_outlined,
+                size: 20,
+                color: PipeBuyerColors.orangePressed,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Confirm your email when convenient',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'We sent a verification link to $email. You have full access to browse Pipe Buyer now, and can manage verification anytime under Account > Verification & Security.',
+                    style: const TextStyle(
+                      color: PipeBuyerColors.muted,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: sending ? null : onResend,
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        icon: const Icon(Icons.outgoing_mail, size: 16),
+                        label: Text(
+                          sending ? 'Sending…' : 'Resend email',
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: onOpenVerification,
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: const Text('Verification & Security'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Dismiss reminder',
+              visualDensity: VisualDensity.compact,
+              onPressed: onDismiss,
+              icon: const Icon(Icons.close_rounded, size: 18),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

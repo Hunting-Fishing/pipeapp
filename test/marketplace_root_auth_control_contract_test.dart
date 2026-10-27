@@ -55,7 +55,11 @@ void main() {
     );
     expect(
       authSource,
-      contains('MarketplaceAccountSecurityPage('),
+      isNot(contains('MarketplaceAccountSecurityPage(')),
+    );
+    expect(
+      authSource,
+      contains('marketplaceEmailActionCodeSettings('),
     );
   });
 }

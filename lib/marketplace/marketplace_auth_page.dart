@@ -8,7 +8,7 @@ import '../auth/firebase_auth/google_auth.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
-import 'marketplace_account_security_page.dart';
+import 'marketplace_auth_action_page.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_mfa.dart';
@@ -666,16 +666,6 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
       }
 
       if (!mounted) return;
-      final googlePhoneVerified =
-          normalizePhoneNumber(user.phoneNumber ?? '').isNotEmpty;
-      if (!user.emailVerified && !googlePhoneVerified) {
-        await Navigator.of(context).pushReplacement(MaterialPageRoute(
-            builder: (_) => const MarketplaceAccountSecurityPage(
-                  onboarding: true,
-                  initialAccountType: 'personal',
-                )));
-        return;
-      }
       await _syncVerificationBestEffort();
       if (mounted) Navigator.pop(context, true);
     } on FirebaseAuthException catch (error) {
@@ -745,21 +735,25 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
           await credential.user?.delete();
           rethrow;
         }
-        String? verificationNotice;
+        bool verificationSent = true;
         try {
-          await credential.user?.sendEmailVerification();
+          await credential.user?.sendEmailVerification(
+            marketplaceEmailActionCodeSettings(),
+          );
         } on FirebaseAuthException {
-          verificationNotice =
-              'Your account was created, but the verification email was not delivered yet. Use “Resend email” on the next screen.';
+          verificationSent = false;
         }
+        await _syncVerificationBestEffort();
         if (!mounted) return;
-        await Navigator.of(context).pushReplacement(MaterialPageRoute(
-            builder: (_) => MarketplaceAccountSecurityPage(
-                  onboarding: true,
-                  initialPhone: normalizedPhone,
-                  initialAccountType: _accountType,
-                  initialNotice: verificationNotice,
-                )));
+        PipeFeedback.show(
+          context,
+          message: verificationSent
+              ? 'Welcome to Pipe Buyer! We sent a verification link to ${_email.text.trim()} — feel free to explore right away.'
+              : 'Welcome to Pipe Buyer! You can send a verification email anytime from Account > Verification & Security.',
+          tone: PipeStatusTone.success,
+          icon: Icons.celebration_outlined,
+        );
+        Navigator.pop(context, true);
         return;
       } else {
         if (kIsWeb) {
@@ -785,30 +779,6 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
               message: 'The account could not be loaded.');
         }
         await user.getIdToken(true);
-        DocumentSnapshot<Map<String, dynamic>>? securityProfile;
-        try {
-          securityProfile = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-        } on FirebaseException {
-          // Ownership recovery must remain reachable during a profile outage.
-        }
-        final securityAccountType =
-            '${securityProfile?.data()?['accountType'] ?? 'personal'}';
-        final phoneVerified =
-            normalizePhoneNumber(user.phoneNumber ?? '').isNotEmpty;
-        if (!user.emailVerified && !phoneVerified) {
-          if (!mounted) return;
-          await Navigator.of(context).pushReplacement(MaterialPageRoute(
-              builder: (_) => MarketplaceAccountSecurityPage(
-                    onboarding: true,
-                    initialPhone:
-                        '${securityProfile?.data()?['pendingPhoneE164'] ?? ''}',
-                    initialAccountType: securityAccountType,
-                  )));
-          return;
-        }
         await _syncVerificationBestEffort();
         final profileRef =
             FirebaseFirestore.instance.collection('users').doc(user.uid);
@@ -911,7 +881,10 @@ class _MarketplaceAuthPageState extends State<MarketplaceAuthPage> {
     if (!confirmed || !mounted) return;
     setState(() => _busy = true);
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: email,
+        actionCodeSettings: marketplaceEmailActionCodeSettings(returnPath: '/'),
+      );
       _notice(
           'If that email belongs to a Pipe Buyer account, recovery instructions have been sent. Check your inbox and spam folder.',
           error: false,

@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rxdart/rxdart.dart';
 
+import '../../marketplace/marketplace_auth_action_page.dart';
 import '../base_auth_user_provider.dart';
 
 export '../base_auth_user_provider.dart';
@@ -34,7 +35,8 @@ class PipeAppFirebaseUser extends BaseAuthUser {
   }
 
   @override
-  Future? sendEmailVerification() => user?.sendEmailVerification();
+  Future? sendEmailVerification() =>
+      user?.sendEmailVerification(marketplaceEmailActionCodeSettings());
 
   @override
   bool get emailVerified {

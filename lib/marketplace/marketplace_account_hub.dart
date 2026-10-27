@@ -10,6 +10,7 @@ import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
 
 import 'marketplace_messages_page.dart';
+import 'marketplace_auth_action_page.dart';
 import 'marketplace_auth_page.dart';
 import 'marketplace_policy_center.dart';
 import 'marketplace_admin_access.dart';
@@ -44,6 +45,15 @@ class MarketplaceAccountHub extends StatefulWidget {
       required this.auctionsEnabled,
       required this.paidFeaturesEnabled});
 
+  static const int overviewTabIndex = 0;
+  static const int profileTabIndex = 1;
+  static const int verificationTabIndex = 2;
+  static const int listingsTabIndex = 3;
+  static const int messagesTabIndex = 4;
+  static const int notificationsTabIndex = 5;
+  static const int settingsTabIndex = 6;
+  static const int adminPortalTabIndex = 7;
+
   final VoidCallback onAddListing;
   final VoidCallback onBrowse;
   final bool auctionsEnabled;
@@ -67,10 +77,25 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 6, vsync: this);
+    final requestedTab = MarketplaceNavigation.accountSubTabRequests.value;
+    final initialIndex = requestedTab != null ? requestedTab.clamp(0, 6) : 0;
+    if (requestedTab != null) {
+      MarketplaceNavigation.accountSubTabRequests.value = null;
+    }
+    _tabs = TabController(length: 7, initialIndex: initialIndex, vsync: this);
+    MarketplaceNavigation.accountSubTabRequests
+        .addListener(_handleAccountSubTabRequest);
     _adminTokenSubscription =
         FirebaseAuth.instance.idTokenChanges().listen((_) => _checkAdmin());
     _checkAdmin(forceRefresh: true);
+  }
+
+  void _handleAccountSubTabRequest() {
+    final requested = MarketplaceNavigation.accountSubTabRequests.value;
+    if (requested == null || !mounted) return;
+    MarketplaceNavigation.accountSubTabRequests.value = null;
+    final target = requested.clamp(0, _tabs.length - 1);
+    _tabs.animateTo(target);
   }
 
   Future<void> _checkAdmin({bool forceRefresh = false}) async {
@@ -91,7 +116,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
       return;
     }
 
-    final nextLength = isAuthorized ? 7 : 6;
+    final nextLength = isAuthorized ? 8 : 7;
     final nextIndex = _tabs.index.clamp(0, nextLength - 1);
     final oldTabs = _tabs;
     setState(() {
@@ -107,6 +132,8 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
 
   @override
   void dispose() {
+    MarketplaceNavigation.accountSubTabRequests
+        .removeListener(_handleAccountSubTabRequest);
     _adminTokenSubscription?.cancel();
     _tabs.dispose();
     super.dispose();
@@ -128,6 +155,9 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
                 text: 'Overview'),
             const Tab(
                 icon: Icon(Icons.badge_outlined, size: 20), text: 'Profile'),
+            const Tab(
+                icon: Icon(Icons.verified_user_outlined, size: 20),
+                text: 'Verification & Security'),
             const Tab(
                 icon: _AccountTabBadge(
                     types: {'offer'}, icon: Icons.inventory_2_outlined),
@@ -155,6 +185,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
           child: TabBarView(controller: _tabs, children: [
         _Overview(onOpen: _tabs.animateTo, showAdminPortal: _isAdminUser),
         const MarketplaceProfilePage(),
+        const MarketplaceAccountSecurityPage(embedded: true),
         _MyListings(
             onAddListing: widget.onAddListing,
             auctionsEnabled: widget.auctionsEnabled,
@@ -165,6 +196,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
         _AccountSettings(
           adminState: _adminState,
           onRefreshAdmin: () => _checkAdmin(forceRefresh: true),
+          onOpenTab: _tabs.animateTo,
         ),
         if (_isAdminUser) const MarketplaceAdminDashboard(),
       ]))
@@ -233,8 +265,8 @@ class _Overview extends StatelessWidget {
                       FilledButton.icon(
                         style: FilledButton.styleFrom(
                             backgroundColor: Colors.amber.shade700),
-                        onPressed: () =>
-                            onOpen(6), // Switch to 7th Admin Portal Tab
+                        onPressed: () => onOpen(
+                            MarketplaceAccountHub.adminPortalTabIndex),
                         icon: const Icon(Icons.launch,
                             color: Colors.black, size: 16),
                         label: const Text(
@@ -288,23 +320,29 @@ class _Overview extends StatelessWidget {
             _AccountShortcut(
                 icon: Icons.badge_outlined,
                 title: 'Edit profile, tags and service areas',
-                onTap: () => onOpen(1)),
+                onTap: () => onOpen(MarketplaceAccountHub.profileTabIndex)),
+            _AccountShortcut(
+                icon: Icons.verified_user_outlined,
+                title: 'Verification & account security',
+                onTap: () =>
+                    onOpen(MarketplaceAccountHub.verificationTabIndex)),
             _AccountShortcut(
                 icon: Icons.inventory_2_outlined,
                 title: 'Manage my listings',
-                onTap: () => onOpen(2)),
+                onTap: () => onOpen(MarketplaceAccountHub.listingsTabIndex)),
             _AccountShortcut(
                 icon: Icons.forum_outlined,
                 title: 'Marketplace messages',
-                onTap: () => onOpen(3)),
+                onTap: () => onOpen(MarketplaceAccountHub.messagesTabIndex)),
             _AccountShortcut(
                 icon: Icons.notifications_outlined,
                 title: 'Notifications and activity',
-                onTap: () => onOpen(4)),
+                onTap: () =>
+                    onOpen(MarketplaceAccountHub.notificationsTabIndex)),
             _AccountShortcut(
                 icon: Icons.settings_outlined,
                 title: 'Account settings',
-                onTap: () => onOpen(5)),
+                onTap: () => onOpen(MarketplaceAccountHub.settingsTabIndex)),
             _AccountShortcut(
                 icon: Icons.privacy_tip_outlined,
                 title: 'Privacy Policy',
@@ -555,14 +593,13 @@ Future<void> _showUserScore(
                                                           Navigator.pop(
                                                               dialogContext);
                                                           if (!ownershipReady) {
-                                                            Navigator.of(
-                                                                    context)
-                                                                .push(MaterialPageRoute<
-                                                                        void>(
-                                                                    builder: (_) =>
-                                                                        const MarketplaceAccountSecurityPage()));
+                                                            onOpenTab(
+                                                                MarketplaceAccountHub
+                                                                    .verificationTabIndex);
                                                           } else {
-                                                            onOpenTab(1);
+                                                            onOpenTab(
+                                                                MarketplaceAccountHub
+                                                                    .profileTabIndex);
                                                           }
                                                         },
                                                   icon: Icon(readyForReview
@@ -2907,9 +2944,15 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
                               });
                               final type = '${data['type'] ?? ''}';
                               if (type == 'message') {
-                                widget.onOpenTab(3);
+                                widget.onOpenTab(
+                                    MarketplaceAccountHub.messagesTabIndex);
                               } else if (type == 'offer') {
-                                widget.onOpenTab(2);
+                                widget.onOpenTab(
+                                    MarketplaceAccountHub.listingsTabIndex);
+                              } else if (type ==
+                                  'account_verification_submitted') {
+                                widget.onOpenTab(
+                                    MarketplaceAccountHub.verificationTabIndex);
                               } else if (type == 'new_listing_match' ||
                                   type == 'seller_new_listing') {
                                 widget.onBrowse();
@@ -2918,7 +2961,8 @@ class _AccountNotificationsState extends State<_AccountNotifications> {
                                   _showUserScore(context, widget.onOpenTab);
                                 }
                               } else {
-                                widget.onOpenTab(1);
+                                widget.onOpenTab(
+                                    MarketplaceAccountHub.profileTabIndex);
                               }
                             },
                           ));
@@ -2963,10 +3007,12 @@ class _AccountSettings extends StatefulWidget {
   const _AccountSettings({
     required this.adminState,
     required this.onRefreshAdmin,
+    required this.onOpenTab,
   });
 
   final MarketplaceAdministratorState adminState;
   final Future<void> Function() onRefreshAdmin;
+  final ValueChanged<int> onOpenTab;
 
   @override
   State<_AccountSettings> createState() => _AccountSettingsState();
@@ -3130,13 +3176,13 @@ class _AccountSettingsState extends State<_AccountSettings> {
               color: user.emailVerified && user.phoneNumber != null
                   ? Colors.green
                   : null),
-          title: const Text('Account security and ownership'),
+          title: const Text('Verification & Security'),
           subtitle: Text(user.emailVerified && user.phoneNumber != null
               ? 'Email and mobile phone verified'
-              : 'Verification required for protected marketplace actions'),
+              : 'Manage email verification, optional SMS, and two-step sign-in'),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => const MarketplaceAccountSecurityPage()))),
+          onTap: () =>
+              widget.onOpenTab(MarketplaceAccountHub.verificationTabIndex)),
       ListTile(
           leading: const Icon(Icons.account_balance_outlined,
               color: Color(0xFF0878E8)),
@@ -3155,8 +3201,15 @@ class _AccountSettingsState extends State<_AccountSettings> {
           title: const Text('Send password reset email'),
           onTap: user.email == null
               ? null
-              : () => FirebaseAuth.instance
-                  .sendPasswordResetEmail(email: user.email!)),
+              : () async {
+                  await FirebaseAuth.instance.sendPasswordResetEmail(
+                    email: user.email!,
+                    actionCodeSettings:
+                        marketplaceEmailActionCodeSettings(returnPath: '/'),
+                  );
+                  _notice(
+                      'Password reset instructions sent to ${user.email!}.');
+                }),
       ListTile(
           leading: const Icon(Icons.support_agent_outlined),
           title: const Text('Help & Support'),
