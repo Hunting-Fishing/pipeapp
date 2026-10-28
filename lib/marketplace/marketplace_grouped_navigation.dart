@@ -82,8 +82,7 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
           ],
           if (onSearchServices != null ||
               onListServices != null ||
-              onInsuranceHub != null ||
-              onInsuranceProviderApply != null) ...[
+              onInsuranceHub != null) ...[
             const _SectionLabel('SERVICES & DIRECTORY'),
             if (onSearchServices != null)
               _NavItem(
@@ -108,14 +107,6 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
                 label: 'Commercial Insurance',
                 selected: false,
                 onTap: onInsuranceHub!,
-              ),
-            if (onInsuranceProviderApply != null)
-              _NavItem(
-                icon: Icons.domain_add_outlined,
-                selectedIcon: Icons.domain_add_rounded,
-                label: 'List Insurance Company',
-                selected: false,
-                onTap: onInsuranceProviderApply!,
               ),
             if (isAdmin && onYellowPagesAdmin != null)
               _NavItem(

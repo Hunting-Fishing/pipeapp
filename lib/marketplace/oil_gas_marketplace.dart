@@ -1466,18 +1466,13 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
           onWanted: () => _openCreate(wanted: true),
           onSearchServices: () =>
               MarketplaceNavigation.openSearchServices(context),
-          onListServices: () =>
-              MarketplaceNavigation.openListServices(context),
+          onListServices: () => MarketplaceNavigation.openListServices(context),
           onYellowPagesAdmin: () =>
               MarketplaceNavigation.openYellowPagesAdmin(context),
           onPartnerWithUs: () =>
               MarketplaceNavigation.openPartnerWithUs(context),
-          onPartnerAdmin: () =>
-              MarketplaceNavigation.openPartnerAdmin(context),
-          onInsuranceHub: () =>
-              MarketplaceNavigation.openInsuranceHub(context),
-          onInsuranceProviderApply: () =>
-              MarketplaceNavigation.openInsuranceProviderApply(context),
+          onPartnerAdmin: () => MarketplaceNavigation.openPartnerAdmin(context),
+          onInsuranceHub: () => MarketplaceNavigation.openInsuranceHub(context),
           onInsuranceAdmin: () =>
               MarketplaceNavigation.openInsuranceAdmin(context),
         ),
@@ -1662,17 +1657,6 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       onTap: () {
                         Navigator.of(context).pop();
                         MarketplaceNavigation.openInsuranceHub(context);
-                      },
-                    ),
-                    _DrawerDestination(
-                      icon: Icons.domain_add_outlined,
-                      label: 'List Insurance Company',
-                      selected: false,
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        MarketplaceNavigation.openInsuranceProviderApply(
-                          context,
-                        );
                       },
                     ),
                     _DrawerDestination(

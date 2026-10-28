@@ -733,3 +733,831 @@ class _PipeBuyerBusinessLogoFieldState
     );
   }
 }
+
+/// Wide landscape promotional banner image frame (`16:9` / custom height)
+/// that renders an uploaded `bannerUrl` or falls back edge-to-edge to
+/// [PipeBuyerImagePlaceholder] whenever no banner image has been provided.
+class PipeBuyerPromoBannerImage extends StatelessWidget {
+  const PipeBuyerPromoBannerImage({
+    super.key,
+    required this.bannerUrl,
+    this.logoUrl = '',
+    this.companyName = '',
+    this.height = 176,
+    this.borderRadius = 14,
+    this.slotLabel,
+  });
+
+  final String bannerUrl;
+  final String logoUrl;
+  final String companyName;
+  final double height;
+  final double borderRadius;
+  final String? slotLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmedBanner = bannerUrl.trim();
+    final hasValidBanner = trimmedBanner.isNotEmpty &&
+        (trimmedBanner.startsWith('https://') ||
+            trimmedBanner.startsWith('http://127.0.0.1') ||
+            trimmedBanner.startsWith('http://localhost'));
+    final trimmedLogo = logoUrl.trim();
+    final hasValidLogo = trimmedLogo.isNotEmpty &&
+        (trimmedLogo.startsWith('https://') ||
+            trimmedLogo.startsWith('http://127.0.0.1') ||
+            trimmedLogo.startsWith('http://localhost'));
+
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(math.max(0, borderRadius - 1)),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (hasValidBanner)
+              Image.network(
+                trimmedBanner,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => PipeBuyerImagePlaceholder(
+                  semanticsLabel: companyName.trim().isEmpty
+                      ? 'Featured promo banner placeholder'
+                      : '${companyName.trim()} promo banner placeholder',
+                ),
+              )
+            else
+              PipeBuyerImagePlaceholder(
+                semanticsLabel: companyName.trim().isEmpty
+                    ? 'Featured promo banner placeholder'
+                    : '${companyName.trim()} promo banner placeholder',
+              ),
+            if (hasValidLogo)
+              Positioned(
+                left: 10,
+                bottom: 10,
+                child: PipeBuyerCompanyLogoBadge(
+                  logoUrl: trimmedLogo,
+                  companyName: companyName,
+                  width: 58,
+                  height: 44,
+                ),
+              ),
+            if (!hasValidBanner &&
+                slotLabel != null &&
+                slotLabel!.trim().isNotEmpty)
+              Positioned(
+                right: 10,
+                bottom: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.90),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: Text(
+                    slotLabel!.trim(),
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: PipeBuyerColors.slate,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Optional wide promotional banner uploader + URL field for Featured
+/// Insurance Providers and Partner Showcase campaigns.
+class PipeBuyerPromoBannerField extends StatefulWidget {
+  const PipeBuyerPromoBannerField({
+    super.key,
+    required this.bannerUrl,
+    required this.companyName,
+    required this.purpose,
+    required this.onChanged,
+    this.uploader,
+    this.title = 'Featured Promo Banner Image (Optional — 16:9 Wide)',
+    this.subtitle =
+        'Displayed in the Featured Promo Carousel & showcase header • PNG, JPG, or WebP (max 2 MB)',
+    this.fieldKeyPrefix = 'promo_banner',
+  });
+
+  final String bannerUrl;
+  final String companyName;
+  final String purpose;
+  final ValueChanged<String> onChanged;
+  final PipeBuyerBusinessLogoUploader? uploader;
+  final String title;
+  final String subtitle;
+  final String fieldKeyPrefix;
+
+  @override
+  State<PipeBuyerPromoBannerField> createState() =>
+      _PipeBuyerPromoBannerFieldState();
+}
+
+class _PipeBuyerPromoBannerFieldState extends State<PipeBuyerPromoBannerField> {
+  late PipeBuyerBusinessLogoUploader _uploader;
+  late final TextEditingController _urlController;
+  bool _uploading = false;
+  bool _showUrlInput = false;
+  String? _urlError;
+
+  @override
+  void initState() {
+    super.initState();
+    _uploader = widget.uploader ?? PipeBuyerBusinessLogoUploader();
+    _urlController = TextEditingController(text: widget.bannerUrl);
+  }
+
+  @override
+  void didUpdateWidget(covariant PipeBuyerPromoBannerField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.uploader != oldWidget.uploader) {
+      _uploader = widget.uploader ?? PipeBuyerBusinessLogoUploader();
+    }
+    if (widget.bannerUrl != oldWidget.bannerUrl &&
+        widget.bannerUrl != _urlController.text.trim()) {
+      _urlController.text = widget.bannerUrl;
+    }
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickAndUpload() async {
+    setState(() {
+      _uploading = true;
+      _urlError = null;
+    });
+    try {
+      final uploadedUrl = await _uploader.pickAndUploadLogo(
+        purpose: widget.purpose,
+      );
+      if (!mounted) return;
+      setState(() => _uploading = false);
+      if (uploadedUrl == null) return;
+      _urlController.text = uploadedUrl;
+      widget.onChanged(uploadedUrl);
+      PipeFeedback.show(
+        context,
+        message: 'Featured promo banner uploaded.',
+        tone: PipeStatusTone.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _uploading = false);
+      PipeFeedback.show(
+        context,
+        message: '$error'.replaceFirst('Bad state: ', ''),
+        tone: PipeStatusTone.error,
+      );
+    }
+  }
+
+  void _applyTypedUrl(String raw) {
+    final trimmed = raw.trim();
+    final err = PipeBuyerBusinessLogoUploader.validateLogoUrl(trimmed);
+    setState(() => _urlError = err);
+    if (err == null) {
+      widget.onChanged(trimmed);
+    }
+  }
+
+  void _clearBanner() {
+    _urlController.clear();
+    setState(() => _urlError = null);
+    widget.onChanged('');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasBanner = widget.bannerUrl.trim().isNotEmpty;
+    final prefix = widget.fieldKeyPrefix;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: PipeBuyerColors.field,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasBanner
+              ? PipeBuyerColors.industrialBlue.withValues(alpha: 0.35)
+              : PipeBuyerColors.line,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 520;
+              final preview = SizedBox(
+                width: wide ? 172 : double.infinity,
+                child: PipeBuyerPromoBannerImage(
+                  key: Key('${prefix}_preview'),
+                  bannerUrl: widget.bannerUrl,
+                  companyName: widget.companyName,
+                  height: wide ? 96 : 124,
+                  borderRadius: 11,
+                  slotLabel: '16:9 BANNER',
+                ),
+              );
+              final controls = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.title,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w900,
+                      color: PipeBuyerColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.subtitle,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: PipeBuyerColors.muted,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      FilledButton.tonalIcon(
+                        key: Key('${prefix}_upload_button'),
+                        onPressed: _uploading ? null : _pickAndUpload,
+                        icon: _uploading
+                            ? const SizedBox(
+                                width: 15,
+                                height: 15,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(
+                                hasBanner
+                                    ? Icons.sync_rounded
+                                    : Icons.panorama_outlined,
+                                size: 17,
+                              ),
+                        label: Text(
+                          _uploading
+                              ? 'Uploading...'
+                              : (hasBanner
+                                  ? 'Replace Banner'
+                                  : 'Upload Promo Banner'),
+                        ),
+                      ),
+                      TextButton.icon(
+                        key: Key('${prefix}_url_toggle'),
+                        onPressed: () {
+                          setState(() => _showUrlInput = !_showUrlInput);
+                        },
+                        icon: const Icon(Icons.link_rounded, size: 17),
+                        label: Text(
+                          _showUrlInput ? 'Hide URL Field' : 'Paste Banner URL',
+                        ),
+                      ),
+                      if (hasBanner)
+                        TextButton.icon(
+                          key: Key('${prefix}_remove_button'),
+                          onPressed: _uploading ? null : _clearBanner,
+                          style: TextButton.styleFrom(
+                            foregroundColor: PipeBuyerColors.danger,
+                          ),
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 17,
+                          ),
+                          label: const Text('Remove'),
+                        ),
+                    ],
+                  ),
+                ],
+              );
+
+              if (!wide) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    preview,
+                    const SizedBox(height: 12),
+                    controls,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  preview,
+                  const SizedBox(width: 14),
+                  Expanded(child: controls),
+                ],
+              );
+            },
+          ),
+          if (_showUrlInput) ...[
+            const SizedBox(height: 12),
+            TextField(
+              key: Key('${prefix}_url_input'),
+              controller: _urlController,
+              keyboardType: TextInputType.url,
+              onChanged: _applyTypedUrl,
+              decoration: InputDecoration(
+                isDense: true,
+                labelText: 'Direct https:// Promo Banner Image URL',
+                hintText: 'https://yourcompany.com/assets/promo-banner.jpg',
+                errorText: _urlError,
+                prefixIcon: const Icon(Icons.panorama_outlined, size: 18),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Data model for a single slide in [PipeBuyerFeaturedPromoCarousel].
+class PipeBuyerFeaturedPromoSlide {
+  const PipeBuyerFeaturedPromoSlide({
+    required this.id,
+    required this.eyebrow,
+    required this.title,
+    required this.summary,
+    required this.primaryCtaLabel,
+    required this.onPrimaryCta,
+    this.secondaryCtaLabel,
+    this.onSecondaryCta,
+    this.bannerUrl = '',
+    this.logoUrl = '',
+    this.slotLabel = '16:9 PROMO BANNER SLOT',
+    this.badges = const <Widget>[],
+    this.highlights = const <String>[],
+    this.offerCallout = '',
+  });
+
+  final String id;
+  final String eyebrow;
+  final String title;
+  final String summary;
+  final String primaryCtaLabel;
+  final VoidCallback onPrimaryCta;
+  final String? secondaryCtaLabel;
+  final VoidCallback? onSecondaryCta;
+  final String bannerUrl;
+  final String logoUrl;
+  final String? slotLabel;
+  final List<Widget> badges;
+  final List<String> highlights;
+  final String offerCallout;
+}
+
+/// Interactive Featured Promo Banner Carousel supporting wide `16:9` promo
+/// banner images (with automatic [PipeBuyerImagePlaceholder] fallback when no
+/// image has been provided), horizontal swipe gestures, Prev/Next arrow
+/// controls, and clickable slide indicators without fixed-height overflow.
+class PipeBuyerFeaturedPromoCarousel extends StatefulWidget {
+  const PipeBuyerFeaturedPromoCarousel({
+    super.key,
+    required this.slides,
+    this.sectionTitle = 'FEATURED PROMOTIONS & SPONSOR SPOTLIGHTS',
+    this.keyPrefix = 'featured_promo_carousel',
+  });
+
+  final List<PipeBuyerFeaturedPromoSlide> slides;
+  final String sectionTitle;
+  final String keyPrefix;
+
+  @override
+  State<PipeBuyerFeaturedPromoCarousel> createState() =>
+      _PipeBuyerFeaturedPromoCarouselState();
+}
+
+class _PipeBuyerFeaturedPromoCarouselState
+    extends State<PipeBuyerFeaturedPromoCarousel> {
+  int _currentIndex = 0;
+
+  @override
+  void didUpdateWidget(covariant PipeBuyerFeaturedPromoCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_currentIndex >= widget.slides.length && widget.slides.isNotEmpty) {
+      _currentIndex = 0;
+    }
+  }
+
+  void _goTo(int index) {
+    if (widget.slides.isEmpty) return;
+    final count = widget.slides.length;
+    final wrapped = ((index % count) + count) % count;
+    if (wrapped == _currentIndex) return;
+    setState(() => _currentIndex = wrapped);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.slides.isEmpty) return const SizedBox.shrink();
+    final slides = widget.slides;
+    final safeIndex = _currentIndex.clamp(0, slides.length - 1);
+    final slide = slides[safeIndex];
+    final prefix = widget.keyPrefix;
+
+    return Container(
+      key: Key(prefix),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x0E0F172A),
+            blurRadius: 20,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            height: 3,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: <Color>[
+                  PipeBuyerColors.orange,
+                  Color(0xFFFF9A3D),
+                  PipeBuyerColors.industrialBlue,
+                ],
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              border: Border(
+                bottom: BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.view_carousel_outlined,
+                  size: 16,
+                  color: PipeBuyerColors.industrialBlue,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    widget.sectionTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.85,
+                      color: PipeBuyerColors.industrialBlue,
+                    ),
+                  ),
+                ),
+                if (slides.length > 1) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    key: Key('${prefix}_counter'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
+                    child: Text(
+                      '${safeIndex + 1} / ${slides.length}',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        color: PipeBuyerColors.slate,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  _CarouselArrowButton(
+                    buttonKey: Key('${prefix}_prev'),
+                    tooltip: 'Previous featured slide',
+                    icon: Icons.chevron_left_rounded,
+                    onPressed: () => _goTo(safeIndex - 1),
+                  ),
+                  const SizedBox(width: 4),
+                  _CarouselArrowButton(
+                    buttonKey: Key('${prefix}_next'),
+                    tooltip: 'Next featured slide',
+                    icon: Icons.chevron_right_rounded,
+                    onPressed: () => _goTo(safeIndex + 1),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragEnd: slides.length > 1
+                ? (details) {
+                    final vx = details.primaryVelocity ?? 0;
+                    if (vx < -180) {
+                      _goTo(safeIndex + 1);
+                    } else if (vx > 180) {
+                      _goTo(safeIndex - 1);
+                    }
+                  }
+                : null,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: Padding(
+                key: ValueKey<String>('${prefix}_slide_${slide.id}'),
+                padding: const EdgeInsets.all(18),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final wide = constraints.maxWidth >= 760;
+                    final bannerSlot = PipeBuyerPromoBannerImage(
+                      key: Key('${prefix}_banner_${slide.id}'),
+                      bannerUrl: slide.bannerUrl,
+                      logoUrl: slide.logoUrl,
+                      companyName: slide.eyebrow,
+                      height: wide ? 196 : 168,
+                      borderRadius: 14,
+                      slotLabel: slide.slotLabel,
+                    );
+                    final detailsColumn = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (slide.badges.isNotEmpty) ...[
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: slide.badges,
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        Text(
+                          slide.eyebrow,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: PipeBuyerColors.industrialBlue,
+                            letterSpacing: 0.25,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          slide.title,
+                          style: TextStyle(
+                            fontSize: wide ? 20 : 17.5,
+                            fontWeight: FontWeight.w900,
+                            color: PipeBuyerColors.ink,
+                            height: 1.2,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          slide.summary,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            height: 1.45,
+                            color: PipeBuyerColors.slate,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (slide.offerCallout.trim().isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 11,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(
+                                color: const Color(0xFF86EFAC),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.local_offer_outlined,
+                                  size: 14,
+                                  color: Color(0xFF15803D),
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    slide.offerCallout.trim(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 11.8,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF166534),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        if (slide.highlights.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: slide.highlights
+                                .take(4)
+                                .map(
+                                  (item) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 9,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(7),
+                                      border: Border.all(
+                                        color: const Color(0xFFE2E8F0),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      item,
+                                      style: const TextStyle(
+                                        fontSize: 11.2,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF334155),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(growable: false),
+                          ),
+                        ],
+                        const SizedBox(height: 14),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            FilledButton.icon(
+                              key: Key('${prefix}_primary_cta_${slide.id}'),
+                              onPressed: slide.onPrimaryCta,
+                              icon: const Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 17,
+                              ),
+                              label: Text(slide.primaryCtaLabel),
+                            ),
+                            if (slide.secondaryCtaLabel != null &&
+                                slide.onSecondaryCta != null)
+                              OutlinedButton(
+                                key: Key(
+                                  '${prefix}_secondary_cta_${slide.id}',
+                                ),
+                                onPressed: slide.onSecondaryCta,
+                                child: Text(slide.secondaryCtaLabel!),
+                              ),
+                          ],
+                        ),
+                      ],
+                    );
+
+                    if (!wide) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          bannerSlot,
+                          const SizedBox(height: 14),
+                          detailsColumn,
+                        ],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: math.min(390, constraints.maxWidth * 0.42),
+                          child: bannerSlot,
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(child: detailsColumn),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          if (slides.length > 1)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List<Widget>.generate(slides.length, (i) {
+                  final active = i == safeIndex;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: InkWell(
+                      key: Key('${prefix}_dot_$i'),
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: () => _goTo(i),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: active ? 24 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? PipeBuyerColors.orange
+                              : const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CarouselArrowButton extends StatelessWidget {
+  const _CarouselArrowButton({
+    required this.buttonKey,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final Key buttonKey;
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        key: buttonKey,
+        borderRadius: BorderRadius.circular(8),
+        onTap: onPressed,
+        child: Tooltip(
+          message: tooltip,
+          child: Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFCBD5E1)),
+            ),
+            child: Icon(icon, size: 18, color: PipeBuyerColors.ink),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -273,6 +273,7 @@ class _FakeInsuranceClient extends PipeBuyerInsuranceClient {
     required String phone,
     String website = '',
     String logoUrl = '',
+    String bannerUrl = '',
     required String licenseSummary,
     String countryCode = 'US',
     String regionCode = '',
@@ -295,6 +296,7 @@ class _FakeInsuranceClient extends PipeBuyerInsuranceClient {
       'email': email,
       'phone': phone,
       'logoUrl': logoUrl,
+      'bannerUrl': bannerUrl,
       'licenseSummary': licenseSummary,
       'licensedCountries': licensedCountries,
       'coverageLines': coverageLines,
@@ -549,17 +551,18 @@ void main() {
       );
 
       expect(find.text('Commercial Insurance'), findsOneWidget);
-      expect(find.text('List Insurance Company'), findsOneWidget);
+      // List Insurance Company is intentionally omitted from the nav menu bar
+      // because it lives directly inside Commercial Insurance under a tab.
+      expect(find.text('List Insurance Company'), findsNothing);
       expect(find.text('Insurance Admin'), findsNothing);
       expect(find.text('Commercial insurance'), findsOneWidget);
 
       await tester.tap(find.text('Commercial Insurance'));
-      await tester.tap(find.text('List Insurance Company'));
       await tester.tap(find.text('Commercial insurance'));
       await tester.pump();
 
       expect(insuranceTapped, 2);
-      expect(listProviderTapped, 1);
+      expect(listProviderTapped, 0);
       expect(adminTapped, 0);
       expect(tester.takeException(), isNull);
     },
@@ -583,11 +586,27 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Lone Star Basin Risk MGA'), findsOneWidget);
       expect(find.text('Prairie Foothills Energy Insurance'), findsOneWidget);
+      expect(
+        find.byKey(const Key('insurance_featured_promo_carousel')),
+        findsOneWidget,
+      );
 
-      // Switch to desktop 1280x900 and test filtering + targeted rate application
+      // Switch to desktop 1280x900 and test collapsible coverage filter + targeted rate application
       await tester.binding.setSurfaceSize(const Size(1280, 900));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+
+      // Coverage filter drawer starts collapsed by default
+      expect(
+        find.byKey(const Key('coverage_filter_rig_equipment_inland_marine')),
+        findsNothing,
+      );
+      final toggleFiltersBtn = find.byKey(
+        const Key('insurance_toggle_filters_button'),
+      );
+      await tester.ensureVisible(toggleFiltersBtn);
+      await tester.tap(toggleFiltersBtn);
+      await tester.pumpAndSettle();
 
       // Filter by Rig & Heavy Equipment coverage ChoiceChip
       final rigFilter = find.byKey(
@@ -596,6 +615,7 @@ void main() {
       await tester.ensureVisible(rigFilter);
       await tester.tap(rigFilter);
       await tester.pumpAndSettle();
+      expect(find.text('Coverage & Filters (1)'), findsOneWidget);
 
       expect(find.text('Prairie Foothills Energy Insurance'), findsOneWidget);
       expect(find.text('Lone Star Basin Risk MGA'), findsNothing);
@@ -671,6 +691,9 @@ void main() {
           List<int>.filled(64, 0x89),
         ),
         uploadBytesOverride: ({required bytes, required purpose}) async {
+          if (purpose == 'insurance_banner') {
+            return 'https://cdn.pipebuyer.example.com/banners/brazos-banner.jpg';
+          }
           expect(purpose, 'insurance_provider');
           return 'https://cdn.pipebuyer.example.com/logos/brazos-logo.png';
         },
@@ -703,7 +726,7 @@ void main() {
       expect(client.submittedProviderPayloads, isEmpty);
       expect(find.text('Enter your company name.'), findsOneWidget);
 
-      // Upload Business Logo
+      // Upload Business Logo & Featured Promo Banner
       final uploadLogoBtn = find.byKey(
         const Key('insurance_provider_logo_upload_button'),
       );
@@ -711,6 +734,14 @@ void main() {
       await tester.tap(uploadLogoBtn);
       await tester.pumpAndSettle();
       expect(find.text('Replace Logo'), findsOneWidget);
+
+      final uploadBannerBtn = find.byKey(
+        const Key('insurance_provider_banner_upload_button'),
+      );
+      await tester.ensureVisible(uploadBannerBtn);
+      await tester.tap(uploadBannerBtn);
+      await tester.pumpAndSettle();
+      expect(find.text('Replace Banner'), findsOneWidget);
 
       // Fill required carrier credentials
       await tester.enterText(
@@ -746,6 +777,10 @@ void main() {
       expect(
         client.submittedProviderPayloads.single['logoUrl'],
         'https://cdn.pipebuyer.example.com/logos/brazos-logo.png',
+      );
+      expect(
+        client.submittedProviderPayloads.single['bannerUrl'],
+        'https://cdn.pipebuyer.example.com/banners/brazos-banner.jpg',
       );
       expect(
         find.text('Provider Onboarding Application Received'),
@@ -815,11 +850,24 @@ void main() {
           ),
           findsNothing,
         );
-        expect(find.text('PROGRAM PREVIEW'), findsOneWidget);
+        expect(find.text('PROGRAM PREVIEW'), findsWidgets);
         expect(find.text('OILFIELD BROKER'), findsWidgets);
         expect(find.text('24/7 COI'), findsWidgets);
         expect(find.text('MSA-READY'), findsWidgets);
+        expect(
+          find.byKey(const Key('insurance_featured_promo_carousel')),
+          findsOneWidget,
+        );
       }
+
+      // Advance Featured Promo Carousel slide on desktop
+      final nextSlideBtn = find.byKey(
+        const Key('insurance_featured_promo_carousel_next'),
+      );
+      await tester.ensureVisible(nextSlideBtn);
+      await tester.tap(nextSlideBtn);
+      await tester.pumpAndSettle();
+      expect(find.text('2 / 3'), findsOneWidget);
 
       // Clicking "Apply for Rates" on a coverage lane opens the rate form pre-selected
       final autoLaneBtn = find.byKey(

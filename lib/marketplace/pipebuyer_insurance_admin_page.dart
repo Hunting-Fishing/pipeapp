@@ -949,6 +949,7 @@ class _UpsertProviderDialogState extends State<_UpsertProviderDialog> {
   late String _providerType;
   late String _countryCode;
   late String _logoUrl;
+  late String _bannerUrl;
   late final Set<String> _selectedLines;
   late bool _active;
   late bool _featured;
@@ -973,6 +974,7 @@ class _UpsertProviderDialogState extends State<_UpsertProviderDialog> {
       text: '${existing?['website'] ?? ''}'.trim(),
     );
     _logoUrl = '${existing?['logoUrl'] ?? ''}'.trim();
+    _bannerUrl = '${existing?['bannerUrl'] ?? ''}'.trim();
     _cityController = TextEditingController(
       text: '${existing?['headquartersCity'] ?? ''}'.trim(),
     );
@@ -1106,6 +1108,15 @@ class _UpsertProviderDialogState extends State<_UpsertProviderDialog> {
                 purpose: 'insurance_provider',
                 title: 'Provider Business Logo',
                 onChanged: (url) => setState(() => _logoUrl = url),
+              ),
+              const SizedBox(height: 10),
+              PipeBuyerPromoBannerField(
+                fieldKeyPrefix: 'admin_insurance_provider_banner',
+                bannerUrl: _bannerUrl,
+                companyName: _companyController.text,
+                purpose: 'insurance_banner',
+                title: 'Featured Promo Banner Image (16:9)',
+                onChanged: (url) => setState(() => _bannerUrl = url),
               ),
               const SizedBox(height: 10),
               Row(
@@ -1249,6 +1260,7 @@ class _UpsertProviderDialogState extends State<_UpsertProviderDialog> {
               'publicPhone': _phoneController.text.trim(),
               'website': _websiteController.text.trim(),
               'logoUrl': _logoUrl.trim(),
+              'bannerUrl': _bannerUrl.trim(),
               'countryCode': _countryCode,
               'regionCode': _regionController.text.trim().toUpperCase(),
               'headquartersCity': _cityController.text.trim(),

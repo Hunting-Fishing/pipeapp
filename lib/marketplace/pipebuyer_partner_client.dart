@@ -117,6 +117,7 @@ class PipeBuyerPartnerClient {
     required String phone,
     String website = '',
     String logoUrl = '',
+    String bannerUrl = '',
     String notes = '',
   }) {
     return _call(
@@ -138,6 +139,7 @@ class PipeBuyerPartnerClient {
         'phone': phone,
         'website': website,
         'logoUrl': logoUrl,
+        'bannerUrl': bannerUrl,
         'notes': notes,
       },
     );

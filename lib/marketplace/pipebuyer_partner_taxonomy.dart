@@ -65,6 +65,7 @@ class PartnerShowcaseDeal {
     this.ctaLabel = 'Request Fleet / Deal Info',
     this.ctaUrl = '',
     this.logoUrl = '',
+    this.bannerUrl = '',
     this.featured = false,
     this.active = true,
     this.priorityRank = 100,
@@ -84,6 +85,7 @@ class PartnerShowcaseDeal {
   final String ctaLabel;
   final String ctaUrl;
   final String logoUrl;
+  final String bannerUrl;
   final bool featured;
   final bool active;
   final int priorityRank;
@@ -115,6 +117,7 @@ class PartnerShowcaseDeal {
       ctaLabel: '${json['ctaLabel'] ?? 'Request Fleet / Deal Info'}'.trim(),
       ctaUrl: '${json['ctaUrl'] ?? ''}'.trim(),
       logoUrl: '${json['logoUrl'] ?? ''}'.trim(),
+      bannerUrl: '${json['bannerUrl'] ?? ''}'.trim(),
       featured: json['featured'] == true,
       active: json['active'] != false,
       priorityRank: int.tryParse('${json['priorityRank'] ?? 100}') ?? 100,
@@ -136,6 +139,7 @@ class PartnerShowcaseDeal {
         'ctaLabel': ctaLabel,
         'ctaUrl': ctaUrl,
         'logoUrl': logoUrl,
+        'bannerUrl': bannerUrl,
         'featured': featured,
         'active': active,
         'priorityRank': priorityRank,
