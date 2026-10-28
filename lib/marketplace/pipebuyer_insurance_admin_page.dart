@@ -491,8 +491,8 @@ class _PipeBuyerInsuranceAdminPageState
                             logoUrl: '${app['logoUrl'] ?? ''}'.trim(),
                             companyName:
                                 '${app['companyName'] ?? 'Unnamed Provider'}',
-                            size: 40,
-                            fallbackIcon: Icons.shield_outlined,
+                            width: 48,
+                            height: 38,
                           ),
                           const SizedBox(width: 10),
                           Flexible(
@@ -745,9 +745,9 @@ class _PipeBuyerInsuranceAdminPageState
                             logoUrl: '${provider['logoUrl'] ?? ''}'.trim(),
                             companyName:
                                 '${provider['companyName'] ?? 'Provider'}',
-                            size: 40,
+                            width: 48,
+                            height: 38,
                             featured: featured,
-                            fallbackIcon: Icons.shield_outlined,
                           ),
                           const SizedBox(width: 10),
                           Flexible(

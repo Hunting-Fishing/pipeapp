@@ -8,6 +8,7 @@ import 'package:pipe_app/marketplace/marketplace_deep_links.dart';
 import 'package:pipe_app/marketplace/marketplace_grouped_navigation.dart';
 import 'package:pipe_app/marketplace/marketplace_home_welcome.dart';
 import 'package:pipe_app/marketplace/pipebuyer_business_logo_uploader.dart';
+import 'package:pipe_app/marketplace/pipebuyer_business_logo_widgets.dart';
 import 'package:pipe_app/marketplace/pipebuyer_insurance_admin_page.dart';
 import 'package:pipe_app/marketplace/pipebuyer_insurance_client.dart';
 import 'package:pipe_app/marketplace/pipebuyer_insurance_hub_page.dart';
@@ -776,12 +777,45 @@ void main() {
           expect(find.text(sample.companyName), findsNothing);
         }
 
-        // Renders honest Coverage Lanes & upgraded visual badges
+        // Renders honest Coverage Lanes, placeholder images, and zero truck/shield icons
         expect(
           find.byKey(const Key('insurance_onboarding_program_banner')),
           findsOneWidget,
         );
-        expect(find.text('PROGRAM PREVIEW'), findsWidgets);
+        expect(find.byType(PipeBuyerImagePlaceholder), findsWidgets);
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('coverage_lane_commercial_auto_fleet')),
+            matching: find.byType(PipeBuyerImagePlaceholder),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('coverage_lane_commercial_auto_fleet')),
+            matching: find.byIcon(Icons.local_shipping_outlined),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(
+              const Key('coverage_lane_oilfield_general_liability'),
+            ),
+            matching: find.byType(PipeBuyerImagePlaceholder),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(
+              const Key('coverage_lane_oilfield_general_liability'),
+            ),
+            matching: find.byIcon(Icons.shield_outlined),
+          ),
+          findsNothing,
+        );
+        expect(find.text('PROGRAM PREVIEW'), findsOneWidget);
         expect(find.text('OILFIELD BROKER'), findsWidgets);
         expect(find.text('24/7 COI'), findsWidgets);
         expect(find.text('MSA-READY'), findsWidgets);

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
@@ -229,14 +231,172 @@ class _BadgeVisualSpec {
   final Color? glowColor;
 }
 
+/// Vector stacked-photo landscape thumbnail graphic rendered whenever a
+/// business, insurance company, or partner brand has not provided an image.
+class PipeBuyerImagePlaceholder extends StatelessWidget {
+  const PipeBuyerImagePlaceholder({
+    super.key,
+    this.semanticsLabel = 'Business image placeholder',
+  });
+
+  final String semanticsLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: semanticsLabel,
+      image: true,
+      child: const SizedBox.expand(
+        child: CustomPaint(
+          painter: _StackedPhotoPlaceholderPainter(),
+        ),
+      ),
+    );
+  }
+}
+
+class _StackedPhotoPlaceholderPainter extends CustomPainter {
+  const _StackedPhotoPlaceholderPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    if (w <= 0 || h <= 0) return;
+
+    final fullRect = Offset.zero & size;
+    final backdropPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: <Color>[Color(0xFFD5D8DD), Color(0xFFC9CDD3)],
+      ).createShader(fullRect);
+    canvas.drawRect(fullRect, backdropPaint);
+
+    final s = math.min(w, h);
+    final cx = w / 2;
+    final cy = h / 2;
+
+    final whitePaint = Paint()
+      ..color = const Color(0xFFF9FAFB)
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    final innerSlatePaint = Paint()
+      ..color = const Color(0xFFC7CBD1)
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    final shadowPaint = Paint()
+      ..color = const Color(0x180F172A)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8);
+
+    // 1. Tilted back photo frame peeking behind the front frame
+    canvas.save();
+    canvas.translate(cx - s * 0.045, cy - s * 0.055);
+    canvas.rotate(-0.225);
+    final backW = s * 0.50;
+    final backH = s * 0.36;
+    final backOuter = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset.zero, width: backW, height: backH),
+      Radius.circular(s * 0.036),
+    );
+    canvas.drawRRect(backOuter, whitePaint);
+
+    final backInset = s * 0.048;
+    final backInnerRect = Rect.fromCenter(
+      center: Offset.zero,
+      width: backW - backInset * 2,
+      height: backH - backInset * 2,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(backInnerRect, Radius.circular(s * 0.014)),
+      innerSlatePaint,
+    );
+    canvas.drawCircle(
+      Offset(
+        backInnerRect.right - backInnerRect.width * 0.25,
+        backInnerRect.top + backInnerRect.height * 0.30,
+      ),
+      s * 0.040,
+      whitePaint,
+    );
+    canvas.restore();
+
+    // 2. Front horizontal photo frame with mountain & sun graphic
+    final frontCenter = Offset(cx + s * 0.032, cy + s * 0.048);
+    final frontW = s * 0.55;
+    final frontH = s * 0.40;
+    final frontRect = Rect.fromCenter(
+      center: frontCenter,
+      width: frontW,
+      height: frontH,
+    );
+    final frontOuter = RRect.fromRectAndRadius(
+      frontRect,
+      Radius.circular(s * 0.038),
+    );
+    canvas.drawRRect(frontOuter.shift(Offset(0, s * 0.012)), shadowPaint);
+    canvas.drawRRect(frontOuter, whitePaint);
+
+    // Subtle crisp separator around front frame so stacked frames pop cleanly
+    final separatorPaint = Paint()
+      ..color = const Color(0xFFC5C9D0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (s * 0.012).clamp(0.6, 1.4);
+    canvas.drawRRect(frontOuter, separatorPaint);
+
+    final frontInset = s * 0.050;
+    final inner = frontRect.deflate(frontInset);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(inner, Radius.circular(s * 0.014)),
+      innerSlatePaint,
+    );
+
+    // Sun circle in upper-right of inner canvas
+    canvas.drawCircle(
+      Offset(
+        inner.right - inner.width * 0.21,
+        inner.top + inner.height * 0.28,
+      ),
+      s * 0.044,
+      whitePaint,
+    );
+
+    // Twin geometric mountain peaks with clean flat base margin
+    final baseY = inner.bottom - inner.height * 0.11;
+    final mountainPath = Path()
+      ..moveTo(inner.left + inner.width * 0.06, baseY)
+      ..lineTo(
+        inner.left + inner.width * 0.26,
+        inner.top + inner.height * 0.33,
+      )
+      ..lineTo(
+        inner.left + inner.width * 0.45,
+        inner.top + inner.height * 0.56,
+      )
+      ..lineTo(
+        inner.left + inner.width * 0.54,
+        inner.top + inner.height * 0.45,
+      )
+      ..lineTo(inner.right - inner.width * 0.07, baseY)
+      ..close();
+    canvas.drawPath(mountainPath, whitePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _StackedPhotoPlaceholderPainter oldDelegate) =>
+      false;
+}
+
 /// Framed corporate Business Logo container with clean aspect-preserving
-/// rendering and monogram/icon fallback.
+/// rendering and neutral thumbnail placeholder image when no logo is provided.
 class PipeBuyerCompanyLogoBadge extends StatelessWidget {
   const PipeBuyerCompanyLogoBadge({
     super.key,
     required this.logoUrl,
     required this.companyName,
     this.size = 48,
+    this.width,
+    this.height,
     this.featured = false,
     this.fallbackIcon,
   });
@@ -244,6 +404,8 @@ class PipeBuyerCompanyLogoBadge extends StatelessWidget {
   final String logoUrl;
   final String companyName;
   final double size;
+  final double? width;
+  final double? height;
   final bool featured;
   final IconData? fallbackIcon;
 
@@ -271,39 +433,47 @@ class PipeBuyerCompanyLogoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = (size * 0.24).clamp(6.0, 14.0);
-    final pad = size >= 44 ? 5.0 : 3.0;
+    final resolvedW = width ?? size;
+    final resolvedH = height ?? size;
+    final minDim = math.min(resolvedW, resolvedH);
+    final radius = (minDim * 0.20).clamp(6.0, 13.0);
+    final pad = minDim >= 44 ? 5.0 : 3.0;
 
     return Container(
-      width: size,
-      height: size,
-      padding: EdgeInsets.all(pad),
+      width: resolvedW,
+      height: resolvedH,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _hasValidUrl ? Colors.white : const Color(0xFFD1D5DB),
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(
-          color: featured
-              ? PipeBuyerColors.orange.withValues(alpha: 0.5)
-              : PipeBuyerColors.line,
-          width: featured ? 1.4 : 1.0,
+          color: _hasValidUrl && featured
+              ? PipeBuyerColors.orange.withValues(alpha: 0.45)
+              : const Color(0xFFCBD5E1),
+          width: 1.0,
         ),
-        boxShadow: size >= 40
+        boxShadow: minDim >= 40
             ? const <BoxShadow>[
                 BoxShadow(
-                  color: Color(0x0F0F172A),
-                  blurRadius: 6,
+                  color: Color(0x0D0F172A),
+                  blurRadius: 8,
                   offset: Offset(0, 2),
                 ),
               ]
             : null,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular((radius - pad).clamp(3.0, 10.0)),
+        borderRadius: BorderRadius.circular((radius - 1.0).clamp(4.0, 12.0)),
         child: _hasValidUrl
-            ? Image.network(
-                logoUrl.trim(),
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => _buildFallback(),
+            ? ColoredBox(
+                color: Colors.white,
+                child: Padding(
+                  padding: EdgeInsets.all(pad),
+                  child: Image.network(
+                    logoUrl.trim(),
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => _buildFallback(),
+                  ),
+                ),
               )
             : _buildFallback(),
       ),
@@ -311,37 +481,11 @@ class PipeBuyerCompanyLogoBadge extends StatelessWidget {
   }
 
   Widget _buildFallback() {
-    if (fallbackIcon != null && companyName.trim().isEmpty) {
-      return Container(
-        color: PipeBuyerColors.surfaceMuted,
-        alignment: Alignment.center,
-        child: Icon(
-          fallbackIcon,
-          size: size * 0.46,
-          color: PipeBuyerColors.slate,
-        ),
-      );
-    }
-    final initials = initialsFor(companyName);
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFFF1F5F9), Color(0xFFE2E8F0)],
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        initials,
-        maxLines: 1,
-        style: TextStyle(
-          fontSize: (size * 0.32).clamp(9.5, 17.0),
-          fontWeight: FontWeight.w900,
-          color: PipeBuyerColors.graphite,
-          letterSpacing: -0.3,
-        ),
-      ),
+    final trimmedName = companyName.trim();
+    return PipeBuyerImagePlaceholder(
+      semanticsLabel: trimmedName.isEmpty
+          ? 'No business logo uploaded yet'
+          : '$trimmedName placeholder image',
     );
   }
 }
@@ -481,8 +625,8 @@ class _PipeBuyerBusinessLogoFieldState
                 key: Key('${prefix}_preview'),
                 logoUrl: widget.logoUrl,
                 companyName: widget.companyName,
-                size: 56,
-                fallbackIcon: Icons.business_rounded,
+                width: 72,
+                height: 60,
               ),
               const SizedBox(width: 14),
               Expanded(
