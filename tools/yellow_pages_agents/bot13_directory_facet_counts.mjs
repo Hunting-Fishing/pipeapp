@@ -20,6 +20,7 @@ const {
   COUNTRY_BY_CODE,
   canonicalizeCityName,
   canonicalizeRegionCode,
+  inferRegionFromCountryAndCity,
   normalizeCityKey,
 } = require("../../firebase/functions/yellow_pages_taxonomy.js");
 
@@ -233,8 +234,13 @@ async function main() {
     }
     const cc = strVal(f, "countryCode").trim().toUpperCase();
     const rawRc = strVal(f, "regionCode");
-    const rc = canonicalizeRegionCode(rawRc, cc);
     const rawCity = strVal(f, "city");
+    let rc = canonicalizeRegionCode(rawRc, cc);
+    const cleanCity = canonicalizeCityName(rawCity, rc, cc);
+    if (!rc && cc && cleanCity) {
+      const inferredRc = inferRegionFromCountryAndCity(cc, cleanCity);
+      if (inferredRc) rc = inferredRc;
+    }
     const countryMeta = COUNTRY_BY_CODE.get(cc);
 
     if (cc) byCountry[cc] = (byCountry[cc] || 0) + 1;
@@ -261,9 +267,8 @@ async function main() {
       byCategory[cat] = (byCategory[cat] || 0) + 1;
     }
 
-    const cleanCity = canonicalizeCityName(rawCity, rc, cc);
     const cityChanged = Boolean(rawCity.trim() && rawCity !== cleanCity);
-    const rcChanged = Boolean(rawRc.trim() && rawRc.trim() !== rc && rawRc.trim().toUpperCase() !== cc);
+    const rcChanged = Boolean(rc && rawRc.trim() !== rc && rawRc.trim().toUpperCase() !== cc);
     if (cityChanged || rcChanged) {
       const docId = decodeURIComponent(doc.name.split("/").pop());
       cityFixes.push({

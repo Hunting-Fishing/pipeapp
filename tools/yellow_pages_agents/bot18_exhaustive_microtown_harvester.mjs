@@ -478,10 +478,13 @@ function validateAndResolveMicrotownCard(card, task, indexState, regionTownMatch
   let isLocalToTaskTown = explicitlyMentionsTaskCity;
 
   if (!explicitlyMentionsTaskCity) {
-    const addressText = card.lines.join(" · ");
+    const addressText = card.lines
+      .join(" · ")
+      .replace(/\b(?:Business|Industrial|Office|Corporate|Commerce)\s+Park\b/giu, "")
+      .replace(/\bPark\s+(?:Dr|Drive|Rd|Road|St|Street|Ave|Blvd|Ln|Way|Pkwy)\b/giu, "");
     const matcher = regionTownMatchers.get(`${targetCc}:${finalRc}`);
     const otherMatch = matcher ? addressText.match(matcher.rx) : null;
-    if (otherMatch) {
+    if (otherMatch && !/^(?:Park|Oklahoma|Texas|Kansas|Alberta)$/iu.test(otherMatch[1].trim())) {
       const matchedCanon =
         matcher.canonicalLookup.get(otherMatch[1].toLowerCase()) ||
         canonicalizeCityName(otherMatch[1], finalRc, targetCc);

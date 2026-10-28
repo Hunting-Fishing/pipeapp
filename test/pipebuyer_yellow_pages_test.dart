@@ -104,12 +104,21 @@ void main() {
   test(
       'Oilfield Directory taxonomy covers Global Continents, 197 Countries, Popular Quick-Search + A-Z, Town Index, Towing, and clean Pipe & OCTG icon',
       () {
-    expect(PipeBuyerYellowPagesTaxonomy.categories.length, 25);
+    expect(PipeBuyerYellowPagesTaxonomy.categories.length, 30);
     final trainingCat =
         PipeBuyerYellowPagesTaxonomy.byCode('oil_gas_training_courses')!;
     expect(trainingCat.label, 'Oil & Gas Training Facilities & Courses');
     expect(trainingCat.shortLabel, 'Oil & Gas Training & Courses');
     expect(trainingCat.icon, Icons.school_outlined);
+    final hotelCat =
+        PipeBuyerYellowPagesTaxonomy.byCode('crew_hotels_workforce_lodging')!;
+    expect(
+      hotelCat.label,
+      'Crew Hotels, Extended-Stay & Oilfield Worker Rates',
+    );
+    expect(hotelCat.shortLabel, 'Crew Hotels & Worker Rates');
+    expect(hotelCat.icon, Icons.hotel_outlined);
+    expect(PipeBuyerYellowPagesTaxonomy.regionsForCountry('US').length, 51);
     expect(PipeBuyerYellowPagesTaxonomy.continents.length, 7);
     expect(PipeBuyerYellowPagesTaxonomy.countries.length, 197);
 

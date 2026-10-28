@@ -926,7 +926,9 @@ class _UnifiedDirectoryFilterPanel extends StatelessWidget {
   final VoidCallback onListServices;
 
   String _serviceValueLabel() {
-    if (categoryCode.isEmpty) return 'All Services (25 Sectors)';
+    if (categoryCode.isEmpty) {
+      return 'All Services (${PipeBuyerYellowPagesTaxonomy.categories.length} Sectors)';
+    }
     final cat = PipeBuyerYellowPagesTaxonomy.byCode(categoryCode);
     return cat?.label ?? categoryCode;
   }

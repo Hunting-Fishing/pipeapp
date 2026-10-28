@@ -453,14 +453,25 @@ test("keeps crawled unverified companies published as free_basic (verified=false
   assert.equal(verOnlyRes.entries[0].verified, true);
 });
 
-test("consolidates county/USDOT/FMCSA town variants, infers NANPA geo, and classifies Oil & Gas Training courses", () => {
-  assert.equal(YELLOW_PAGES_CATEGORIES.length, 25);
+test("consolidates county/USDOT/FMCSA town variants, infers NANPA & intl geo, and classifies 30 sectors including Crew Hotels", () => {
+  const {inferRegionFromCountryAndCity} = require("../yellow_pages_taxonomy");
+  assert.equal(YELLOW_PAGES_CATEGORIES.length, 30);
   assert.equal(canonicalizeCityName("Co of GrandPr", "AB", "CA"), "Grande Prairie");
   assert.equal(canonicalizeCityName("Co of GrndPr #1", "AB", "CA"), "Grande Prairie");
   assert.equal(canonicalizeCityName("County of Grande Prairie", "AB", "CA"), "Grande Prairie");
   assert.equal(canonicalizeCityName("Grande Prairie County No. 1", "AB", "CA"), "Grande Prairie");
   assert.equal(canonicalizeCityName("Grand Prairie", "AB", "CA"), "Grande Prairie");
   assert.equal(canonicalizeCityName("Grand Prairie", "TX", "US"), "Grand Prairie");
+  assert.equal(canonicalizeCityName("Fort Saint John", "BC", "CA"), "Fort St. John");
+  assert.equal(canonicalizeCityName("Watford", "ND", "US"), "Watford City");
+  assert.equal(canonicalizeCityName("Dubois", "PA", "US"), "DuBois");
+  assert.equal(canonicalizeCityName("Macaé", "RJ", "BR"), "Macae");
+  assert.equal(canonicalizeCityName("Neuquén", "NQ", "AR"), "Neuquen");
+  assert.equal(canonicalizeCityName("Bogotá", "DC", "CO"), "Bogota");
+  assert.equal(canonicalizeCityName("None", "AB", "CA"), "");
+  assert.equal(inferRegionFromCountryAndCity("GB", "Aberdeen"), "SCT");
+  assert.equal(inferRegionFromCountryAndCity("AU", "Perth"), "WA");
+  assert.equal(inferRegionFromCountryAndCity("NG", "Port Harcourt"), "RI");
   assert.equal(canonicalizeCityName("Rocky Mtn Hse", "AB", "CA"), "Rocky Mountain House");
   assert.equal(canonicalizeCityName("EL Paso", "TX", "US"), "El Paso");
   assert.equal(canonicalizeCityName("LA Porte", "TX", "US"), "La Porte");
@@ -479,6 +490,12 @@ test("consolidates county/USDOT/FMCSA town variants, infers NANPA geo, and class
 
   const trainCats = classifyCategoriesFromText(["H2S Alive", "IWCF Well Control", "Safety Training Center"]);
   assert.ok(trainCats.includes("oil_gas_training_courses"));
+
+  const hotelCats = classifyCategoriesFromText(["Pomeroy Inn & Suites", "CLC Lodging", "Oil and Gas Rate"]);
+  assert.ok(hotelCats.includes("crew_hotels_workforce_lodging"));
+
+  const scaffCats = classifyCategoriesFromText(["Industrial Scaffolding", "Pipe Insulation", "IRATA Rope Access"]);
+  assert.ok(scaffCats.includes("scaffolding_insulation_coatings"));
 
   const pumpCats = classifyCategoriesFromText(["Pump Supplier"]);
   assert.ok(pumpCats.includes("pumps_artificial_lift"));
