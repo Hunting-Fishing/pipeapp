@@ -1453,7 +1453,7 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
         countryCode: 'IT', regionCode: 'LOM', name: 'Lombardy (Milan)'),
     YellowPagesRegionOption(
         countryCode: 'IT', regionCode: 'EMR', name: 'Emilia-Romagna (Ravenna)'),
-    // Middle East (UAE & Saudi Arabia)
+    // Middle East (UAE, Saudi Arabia, Qatar, Oman, Kuwait, Bahrain)
     YellowPagesRegionOption(
         countryCode: 'AE',
         regionCode: 'AZ',
@@ -1471,7 +1471,26 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
         countryCode: 'SA', regionCode: 'RI', name: 'Riyadh'),
     YellowPagesRegionOption(
         countryCode: 'SA', regionCode: 'MK', name: 'Makkah / Yanbu / Jeddah'),
-    // South America (Brazil, Argentina, Colombia)
+    YellowPagesRegionOption(countryCode: 'QA', regionCode: 'DA', name: 'Doha'),
+    YellowPagesRegionOption(
+        countryCode: 'QA', regionCode: 'RL', name: 'Al Khor / Ras Laffan'),
+    YellowPagesRegionOption(
+        countryCode: 'QA', regionCode: 'MS', name: 'Mesaieed'),
+    YellowPagesRegionOption(
+        countryCode: 'OM', regionCode: 'MA', name: 'Muscat'),
+    YellowPagesRegionOption(
+        countryCode: 'OM', regionCode: 'BN', name: 'Al Batinah (Sohar)'),
+    YellowPagesRegionOption(
+        countryCode: 'OM', regionCode: 'WU', name: 'Al Wusta (Duqm)'),
+    YellowPagesRegionOption(
+        countryCode: 'OM', regionCode: 'DA', name: 'Ad Dakhiliyah (Nizwa)'),
+    YellowPagesRegionOption(
+        countryCode: 'KW', regionCode: 'AH', name: 'Al Ahmadi / Shuaiba'),
+    YellowPagesRegionOption(
+        countryCode: 'KW', regionCode: 'KU', name: 'Kuwait City'),
+    YellowPagesRegionOption(
+        countryCode: 'BH', regionCode: 'CA', name: 'Manama / Sitra / Awali'),
+    // South America (Brazil, Argentina, Colombia, Guyana)
     YellowPagesRegionOption(
         countryCode: 'BR',
         regionCode: 'RJ',
@@ -1497,7 +1516,11 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
         countryCode: 'CO',
         regionCode: 'SAN',
         name: 'Santander (Barrancabermeja)'),
-    // Australia & Asia-Pacific
+    YellowPagesRegionOption(
+        countryCode: 'GY',
+        regionCode: 'DE',
+        name: 'Demerara-Mahaica (Georgetown)'),
+    // Australia & Asia-Pacific + Caspian
     YellowPagesRegionOption(
         countryCode: 'AU',
         regionCode: 'WA',
@@ -1517,6 +1540,14 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
     YellowPagesRegionOption(
         countryCode: 'AU', regionCode: 'VIC', name: 'Victoria (Gippsland)'),
     YellowPagesRegionOption(
+        countryCode: 'SG', regionCode: 'SGP', name: 'Central Singapore'),
+    YellowPagesRegionOption(
+        countryCode: 'SG', regionCode: 'JRG', name: 'Jurong & Tuas Marine'),
+    YellowPagesRegionOption(
+        countryCode: 'SG',
+        regionCode: 'LYG',
+        name: 'Loyang Offshore Supply Base'),
+    YellowPagesRegionOption(
         countryCode: 'IN', regionCode: 'MH', name: 'Maharashtra (Mumbai)'),
     YellowPagesRegionOption(
         countryCode: 'IN',
@@ -1531,11 +1562,19 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
     YellowPagesRegionOption(
         countryCode: 'MY', regionCode: 'KUL', name: 'Kuala Lumpur'),
     YellowPagesRegionOption(
+        countryCode: 'MY',
+        regionCode: 'SLG',
+        name: 'Selangor (Shah Alam / Klang)'),
+    YellowPagesRegionOption(
         countryCode: 'MY', regionCode: 'SWK', name: 'Sarawak (Miri / Bintulu)'),
     YellowPagesRegionOption(
         countryCode: 'MY', regionCode: 'SBH', name: 'Sabah (Labuan / KK)'),
     YellowPagesRegionOption(
         countryCode: 'MY', regionCode: 'TRG', name: 'Terengganu (Kemaman)'),
+    YellowPagesRegionOption(
+        countryCode: 'MY',
+        regionCode: 'JHR',
+        name: 'Johor (Pasir Gudang / Pengerang)'),
     YellowPagesRegionOption(
         countryCode: 'ID', regionCode: 'JK', name: 'Jakarta'),
     YellowPagesRegionOption(
@@ -1544,7 +1583,53 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
         name: 'East Kalimantan (Balikpapan)'),
     YellowPagesRegionOption(
         countryCode: 'ID', regionCode: 'KR', name: 'Riau Islands (Batam)'),
-    // Africa (Nigeria & South Africa)
+    YellowPagesRegionOption(
+        countryCode: 'ID', regionCode: 'RIU', name: 'Riau (Duri / Pekanbaru)'),
+    YellowPagesRegionOption(
+        countryCode: 'ID',
+        regionCode: 'JI',
+        name: 'East Java (Surabaya / Cepu)'),
+    YellowPagesRegionOption(
+        countryCode: 'BN',
+        regionCode: 'BEL',
+        name: 'Belait (Kuala Belait / Seria)'),
+    YellowPagesRegionOption(
+        countryCode: 'BN',
+        regionCode: 'BM',
+        name: 'Brunei-Muara (Bandar Seri Begawan)'),
+    YellowPagesRegionOption(
+        countryCode: 'TH', regionCode: 'RYG', name: 'Rayong / Map Ta Phut'),
+    YellowPagesRegionOption(
+        countryCode: 'TH', regionCode: 'SKA', name: 'Songkhla Offshore Base'),
+    YellowPagesRegionOption(
+        countryCode: 'TH', regionCode: 'BKK', name: 'Bangkok'),
+    YellowPagesRegionOption(
+        countryCode: 'VN',
+        regionCode: 'BRV',
+        name: 'Ba Ria-Vung Tau (Offshore)'),
+    YellowPagesRegionOption(
+        countryCode: 'VN', regionCode: 'SGN', name: 'Ho Chi Minh City'),
+    YellowPagesRegionOption(
+        countryCode: 'KZ',
+        regionCode: 'ATY',
+        name: 'Atyrau (Tengiz / Kashagan)'),
+    YellowPagesRegionOption(
+        countryCode: 'KZ',
+        regionCode: 'MAN',
+        name: 'Mangystau (Aktau / Caspian)'),
+    YellowPagesRegionOption(
+        countryCode: 'KZ',
+        regionCode: 'ZAP',
+        name: 'West Kazakhstan (Uralsk / Aksai)'),
+    YellowPagesRegionOption(
+        countryCode: 'KZ', regionCode: 'ALA', name: 'Almaty'),
+    YellowPagesRegionOption(
+        countryCode: 'AZ',
+        regionCode: 'BAK',
+        name: 'Baku / Absheron (Sangachal)'),
+    YellowPagesRegionOption(
+        countryCode: 'AZ', regionCode: 'SMQ', name: 'Sumqayit'),
+    // Africa (West, North, East & Southern Energy Basins)
     YellowPagesRegionOption(
         countryCode: 'NG',
         regionCode: 'RI',
@@ -1553,11 +1638,89 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
     YellowPagesRegionOption(
         countryCode: 'NG', regionCode: 'DE', name: 'Delta (Warri)'),
     YellowPagesRegionOption(
+        countryCode: 'NG', regionCode: 'AK', name: 'Akwa Ibom (Eket)'),
+    YellowPagesRegionOption(
+        countryCode: 'NG', regionCode: 'FC', name: 'Abuja FCT'),
+    YellowPagesRegionOption(
+        countryCode: 'AO',
+        regionCode: 'LUA',
+        name: 'Luanda (Sonils / Offshore)'),
+    YellowPagesRegionOption(
+        countryCode: 'AO', regionCode: 'CAB', name: 'Cabinda (Malongo)'),
+    YellowPagesRegionOption(
+        countryCode: 'AO', regionCode: 'ZAI', name: 'Zaire (Soyo / LNG)'),
+    YellowPagesRegionOption(
+        countryCode: 'AO', regionCode: 'BGU', name: 'Benguela (Lobito)'),
+    YellowPagesRegionOption(
+        countryCode: 'EG',
+        regionCode: 'CAI',
+        name: 'Cairo (Maadi / New Cairo)'),
+    YellowPagesRegionOption(
+        countryCode: 'EG',
+        regionCode: 'ALX',
+        name: 'Alexandria (Mediterranean)'),
+    YellowPagesRegionOption(
+        countryCode: 'EG', regionCode: 'SUZ', name: 'Suez / Ain Sokhna'),
+    YellowPagesRegionOption(
+        countryCode: 'EG', regionCode: 'PTS', name: 'Port Said (East Med)'),
+    YellowPagesRegionOption(
+        countryCode: 'EG', regionCode: 'BA', name: 'Red Sea (Ras Gharib)'),
+    YellowPagesRegionOption(
+        countryCode: 'GH', regionCode: 'WP', name: 'Western Region (Takoradi)'),
+    YellowPagesRegionOption(
+        countryCode: 'GH',
+        regionCode: 'AA',
+        name: 'Greater Accra (Accra / Tema)'),
+    YellowPagesRegionOption(
+        countryCode: 'DZ',
+        regionCode: 'OUA',
+        name: 'Ouargla (Hassi Messaoud)'),
+    YellowPagesRegionOption(
+        countryCode: 'DZ', regionCode: 'ALG', name: 'Algiers'),
+    YellowPagesRegionOption(
+        countryCode: 'DZ', regionCode: 'ORA', name: 'Oran / Arzew'),
+    YellowPagesRegionOption(
         countryCode: 'ZA',
         regionCode: 'WC',
         name: 'Western Cape (Cape Town / Saldanha)'),
     YellowPagesRegionOption(
         countryCode: 'ZA', regionCode: 'KZN', name: 'KwaZulu-Natal (Durban)'),
+    YellowPagesRegionOption(
+        countryCode: 'ZA',
+        regionCode: 'GP',
+        name: 'Gauteng (Johannesburg / Secunda)'),
+    YellowPagesRegionOption(
+        countryCode: 'NA', regionCode: 'ER', name: 'Erongo (Walvis Bay)'),
+    YellowPagesRegionOption(
+        countryCode: 'NA',
+        regionCode: 'KA',
+        name: 'Karas (Luderitz / Orange Basin)'),
+    YellowPagesRegionOption(
+        countryCode: 'NA', regionCode: 'KH', name: 'Khomas (Windhoek)'),
+    YellowPagesRegionOption(
+        countryCode: 'MZ', regionCode: 'MPM', name: 'Maputo'),
+    YellowPagesRegionOption(
+        countryCode: 'MZ',
+        regionCode: 'CD',
+        name: 'Cabo Delgado (Pemba / Rovuma)'),
+    YellowPagesRegionOption(
+        countryCode: 'GA',
+        regionCode: 'OG',
+        name: 'Ogooue-Maritime (Port-Gentil)'),
+    YellowPagesRegionOption(
+        countryCode: 'GA', regionCode: 'ES', name: 'Estuaire (Libreville)'),
+    YellowPagesRegionOption(
+        countryCode: 'CG', regionCode: 'PNR', name: 'Pointe-Noire'),
+    YellowPagesRegionOption(
+        countryCode: 'CI', regionCode: 'AB', name: 'Abidjan'),
+    YellowPagesRegionOption(
+        countryCode: 'SN', regionCode: 'DK', name: 'Dakar (Sangomar / GTA)'),
+    YellowPagesRegionOption(
+        countryCode: 'UG', regionCode: 'CMP', name: 'Kampala / Albertine'),
+    YellowPagesRegionOption(
+        countryCode: 'TZ', regionCode: 'DAR', name: 'Dar es Salaam'),
+    YellowPagesRegionOption(
+        countryCode: 'LY', regionCode: 'TB', name: 'Tripoli (Sirte Basin)'),
   ];
 
   static const basins = <String>[
@@ -1618,6 +1781,9 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
     'OPITO / IWCF',
     'Achilles / FPAL',
     'Aramco IKTVA / ADNOC ICV',
+    'PETRONAS / NIOSH',
+    'NCDMB / NIPEX',
+    'MIGAS / BNSP',
     'CSA / CWB',
   ];
 
@@ -1784,28 +1950,28 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
     (city: 'Woodward', regionCode: 'OK', countryCode: 'US'),
     // International Oil & Gas Hub Cities across all 7 World Regions
     (city: 'Aberdeen', regionCode: 'SCT', countryCode: 'GB'),
-    (city: 'Abidjan', regionCode: '', countryCode: 'CI'),
+    (city: 'Abidjan', regionCode: 'AB', countryCode: 'CI'),
     (city: 'Abu Dhabi', regionCode: 'AZ', countryCode: 'AE'),
-    (city: 'Accra', regionCode: '', countryCode: 'GH'),
+    (city: 'Accra', regionCode: 'AA', countryCode: 'GH'),
     (city: 'Adelaide', regionCode: 'SA', countryCode: 'AU'),
-    (city: 'Ahmadi', regionCode: '', countryCode: 'KW'),
-    (city: 'Aktau', regionCode: '', countryCode: 'KZ'),
+    (city: 'Ahmadi', regionCode: 'AH', countryCode: 'KW'),
+    (city: 'Aktau', regionCode: 'MAN', countryCode: 'KZ'),
     (city: 'Al Khobar', regionCode: 'EP', countryCode: 'SA'),
-    (city: 'Alexandria', regionCode: '', countryCode: 'EG'),
-    (city: 'Algiers', regionCode: '', countryCode: 'DZ'),
-    (city: 'Almaty', regionCode: '', countryCode: 'KZ'),
+    (city: 'Alexandria', regionCode: 'ALX', countryCode: 'EG'),
+    (city: 'Algiers', regionCode: 'ALG', countryCode: 'DZ'),
+    (city: 'Almaty', regionCode: 'ALA', countryCode: 'KZ'),
     (city: 'Amman', regionCode: '', countryCode: 'JO'),
     (city: 'Amsterdam', regionCode: 'NH', countryCode: 'NL'),
     (city: 'Ankara', regionCode: '', countryCode: 'TR'),
     (city: 'Antwerp', regionCode: '', countryCode: 'BE'),
     (city: 'Athens', regionCode: '', countryCode: 'GR'),
-    (city: 'Atyrau', regionCode: '', countryCode: 'KZ'),
+    (city: 'Atyrau', regionCode: 'ATY', countryCode: 'KZ'),
     (city: 'Auckland', regionCode: '', countryCode: 'NZ'),
     (city: 'Baghdad', regionCode: '', countryCode: 'IQ'),
-    (city: 'Baku', regionCode: '', countryCode: 'AZ'),
+    (city: 'Baku', regionCode: 'BAK', countryCode: 'AZ'),
     (city: 'Balikpapan', regionCode: 'KI', countryCode: 'ID'),
-    (city: 'Bandar Seri Begawan', regionCode: '', countryCode: 'BN'),
-    (city: 'Bangkok', regionCode: '', countryCode: 'TH'),
+    (city: 'Bandar Seri Begawan', regionCode: 'BM', countryCode: 'BN'),
+    (city: 'Bangkok', regionCode: 'BKK', countryCode: 'TH'),
     (city: 'Barrancabermeja', regionCode: 'SAN', countryCode: 'CO'),
     (city: 'Basra', regionCode: '', countryCode: 'IQ'),
     (city: 'Batam', regionCode: 'KR', countryCode: 'ID'),
@@ -1818,8 +1984,8 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
     (city: 'Brisbane', regionCode: 'QLD', countryCode: 'AU'),
     (city: 'Bucharest', regionCode: '', countryCode: 'RO'),
     (city: 'Buenos Aires', regionCode: 'BA', countryCode: 'AR'),
-    (city: 'Cabinda', regionCode: '', countryCode: 'AO'),
-    (city: 'Cairo', regionCode: '', countryCode: 'EG'),
+    (city: 'Cabinda', regionCode: 'CAB', countryCode: 'AO'),
+    (city: 'Cairo', regionCode: 'CAI', countryCode: 'EG'),
     (city: 'Cape Town', regionCode: 'WC', countryCode: 'ZA'),
     (city: 'Cartagena', regionCode: '', countryCode: 'CO'),
     (city: 'Casablanca', regionCode: '', countryCode: 'MA'),
@@ -1829,61 +1995,66 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
     (city: 'Comodoro Rivadavia', regionCode: 'CH', countryCode: 'AR'),
     (city: 'Constanta', regionCode: '', countryCode: 'RO'),
     (city: 'Copenhagen', regionCode: '', countryCode: 'DK'),
-    (city: 'Dakar', regionCode: '', countryCode: 'SN'),
+    (city: 'Dakar', regionCode: 'DK', countryCode: 'SN'),
     (city: 'Dammam', regionCode: 'EP', countryCode: 'SA'),
     (city: 'Dampier', regionCode: 'WA', countryCode: 'AU'),
-    (city: 'Dar es Salaam', regionCode: '', countryCode: 'TZ'),
+    (city: 'Dar es Salaam', regionCode: 'DAR', countryCode: 'TZ'),
     (city: 'Darwin', regionCode: 'NT', countryCode: 'AU'),
     (city: 'Den Helder', regionCode: 'NH', countryCode: 'NL'),
     (city: 'Dhahran', regionCode: 'EP', countryCode: 'SA'),
-    (city: 'Doha', regionCode: '', countryCode: 'QA'),
+    (city: 'Doha', regionCode: 'DA', countryCode: 'QA'),
     (city: 'Dubai', regionCode: 'DU', countryCode: 'AE'),
-    (city: 'Duqm', regionCode: '', countryCode: 'OM'),
+    (city: 'Duqm', regionCode: 'WU', countryCode: 'OM'),
     (city: 'Durban', regionCode: 'KZN', countryCode: 'ZA'),
+    (city: 'Duri', regionCode: 'RIU', countryCode: 'ID'),
     (city: 'Dusseldorf', regionCode: 'NW', countryCode: 'DE'),
     (city: 'Erbil', regionCode: '', countryCode: 'IQ'),
     (city: 'Esbjerg', regionCode: '', countryCode: 'DK'),
     (city: 'Fujairah', regionCode: 'FU', countryCode: 'AE'),
     (city: 'Gdansk', regionCode: '', countryCode: 'PL'),
     (city: 'Geneva', regionCode: '', countryCode: 'CH'),
-    (city: 'Georgetown', regionCode: '', countryCode: 'GY'),
+    (city: 'Georgetown', regionCode: 'DE', countryCode: 'GY'),
     (city: 'Gladstone', regionCode: 'QLD', countryCode: 'AU'),
     (city: 'Great Yarmouth', regionCode: 'ENG', countryCode: 'GB'),
     (city: 'Haifa', regionCode: '', countryCode: 'IL'),
     (city: 'Hamburg', regionCode: 'HH', countryCode: 'DE'),
     (city: 'Hammerfest', regionCode: 'TR', countryCode: 'NO'),
-    (city: 'Hassi Messaoud', regionCode: '', countryCode: 'DZ'),
+    (city: 'Hassi Messaoud', regionCode: 'OUA', countryCode: 'DZ'),
     (city: 'Haugesund', regionCode: 'RO', countryCode: 'NO'),
-    (city: 'Ho Chi Minh City', regionCode: '', countryCode: 'VN'),
+    (city: 'Ho Chi Minh City', regionCode: 'SGN', countryCode: 'VN'),
     (city: 'Istanbul', regionCode: '', countryCode: 'TR'),
     (city: 'Jakarta', regionCode: 'JK', countryCode: 'ID'),
-    (city: 'Johannesburg', regionCode: '', countryCode: 'ZA'),
+    (city: 'Johannesburg', regionCode: 'GP', countryCode: 'ZA'),
+    (city: 'Johor Bahru', regionCode: 'JHR', countryCode: 'MY'),
     (city: 'Jubail', regionCode: 'EP', countryCode: 'SA'),
+    (city: 'Jurong', regionCode: 'JRG', countryCode: 'SG'),
     (city: 'Kakinada', regionCode: 'AP', countryCode: 'IN'),
-    (city: 'Kampala', regionCode: '', countryCode: 'UG'),
+    (city: 'Kampala', regionCode: 'CMP', countryCode: 'UG'),
     (city: 'Karachi', regionCode: '', countryCode: 'PK'),
     (city: 'Karratha', regionCode: 'WA', countryCode: 'AU'),
     (city: 'Kemaman', regionCode: 'TRG', countryCode: 'MY'),
     (city: 'Kingston', regionCode: '', countryCode: 'JM'),
-    (city: 'Kuala Belait', regionCode: '', countryCode: 'BN'),
+    (city: 'Kota Kinabalu', regionCode: 'SBH', countryCode: 'MY'),
+    (city: 'Kuala Belait', regionCode: 'BEL', countryCode: 'BN'),
     (city: 'Kuala Lumpur', regionCode: 'KUL', countryCode: 'MY'),
-    (city: 'Kuwait City', regionCode: '', countryCode: 'KW'),
+    (city: 'Kuwait City', regionCode: 'KU', countryCode: 'KW'),
     (city: 'Labuan', regionCode: 'SBH', countryCode: 'MY'),
     (city: 'Lagos', regionCode: 'LA', countryCode: 'NG'),
-    (city: 'Libreville', regionCode: '', countryCode: 'GA'),
+    (city: 'Libreville', regionCode: 'ES', countryCode: 'GA'),
     (city: 'Lima', regionCode: '', countryCode: 'PE'),
     (city: 'Lingen', regionCode: 'NI', countryCode: 'DE'),
     (city: 'London', regionCode: 'ENG', countryCode: 'GB'),
-    (city: 'Luanda', regionCode: '', countryCode: 'AO'),
+    (city: 'Loyang', regionCode: 'LYG', countryCode: 'SG'),
+    (city: 'Luanda', regionCode: 'LUA', countryCode: 'AO'),
     (city: 'Macae', regionCode: 'RJ', countryCode: 'BR'),
     (city: 'Madrid', regionCode: '', countryCode: 'ES'),
     (city: 'Malabo', regionCode: '', countryCode: 'GQ'),
-    (city: 'Manama', regionCode: '', countryCode: 'BH'),
+    (city: 'Manama', regionCode: 'CA', countryCode: 'BH'),
     (city: 'Manila', regionCode: '', countryCode: 'PH'),
-    (city: 'Maputo', regionCode: '', countryCode: 'MZ'),
+    (city: 'Maputo', regionCode: 'MPM', countryCode: 'MZ'),
     (city: 'Marseille', regionCode: '', countryCode: 'FR'),
     (city: 'Melbourne', regionCode: 'VIC', countryCode: 'AU'),
-    (city: 'Mesaieed', regionCode: '', countryCode: 'QA'),
+    (city: 'Mesaieed', regionCode: 'MS', countryCode: 'QA'),
     (city: 'Mexico City', regionCode: 'CDMX', countryCode: 'MX'),
     (city: 'Milan', regionCode: 'LOM', countryCode: 'IT'),
     (city: 'Miri', regionCode: 'SWK', countryCode: 'MY'),
@@ -1891,34 +2062,37 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
     (city: 'Montevideo', regionCode: '', countryCode: 'UY'),
     (city: 'Mumbai', regionCode: 'MH', countryCode: 'IN'),
     (city: 'Munich', regionCode: 'BY', countryCode: 'DE'),
-    (city: 'Muscat', regionCode: '', countryCode: 'OM'),
+    (city: 'Muscat', regionCode: 'MA', countryCode: 'OM'),
     (city: 'Mussafah', regionCode: 'AZ', countryCode: 'AE'),
     (city: 'Nairobi', regionCode: '', countryCode: 'KE'),
     (city: 'Nassau', regionCode: '', countryCode: 'BS'),
     (city: 'Neuquen', regionCode: 'NQ', countryCode: 'AR'),
     (city: 'New Delhi', regionCode: '', countryCode: 'IN'),
     (city: 'New Plymouth', regionCode: '', countryCode: 'NZ'),
+    (city: 'Onne', regionCode: 'RI', countryCode: 'NG'),
+    (city: 'Oran', regionCode: 'ORA', countryCode: 'DZ'),
     (city: 'Oslo', regionCode: 'OS', countryCode: 'NO'),
     (city: 'Panama City', regionCode: '', countryCode: 'PA'),
     (city: 'Paramaribo', regionCode: '', countryCode: 'SR'),
     (city: 'Paris', regionCode: '', countryCode: 'FR'),
     (city: 'Pau', regionCode: '', countryCode: 'FR'),
-    (city: 'Pemba', regionCode: '', countryCode: 'MZ'),
+    (city: 'Pemba', regionCode: 'CD', countryCode: 'MZ'),
     (city: 'Perth', regionCode: 'WA', countryCode: 'AU'),
     (city: 'Peterhead', regionCode: 'SCT', countryCode: 'GB'),
     (city: 'Piraeus', regionCode: '', countryCode: 'GR'),
     (city: 'Ploiesti', regionCode: '', countryCode: 'RO'),
     (city: 'Point Lisas', regionCode: 'SFO', countryCode: 'TT'),
-    (city: 'Pointe-Noire', regionCode: '', countryCode: 'CG'),
+    (city: 'Pointe-Noire', regionCode: 'PNR', countryCode: 'CG'),
     (city: 'Port Harcourt', regionCode: 'RI', countryCode: 'NG'),
     (city: 'Port Moresby', regionCode: '', countryCode: 'PG'),
+    (city: 'Port Said', regionCode: 'PTS', countryCode: 'EG'),
     (city: 'Port of Spain', regionCode: 'POS', countryCode: 'TT'),
-    (city: 'Port-Gentil', regionCode: '', countryCode: 'GA'),
+    (city: 'Port-Gentil', regionCode: 'OG', countryCode: 'GA'),
     (city: 'Poza Rica', regionCode: 'VER', countryCode: 'MX'),
     (city: 'Quito', regionCode: '', countryCode: 'EC'),
-    (city: 'Ras Laffan', regionCode: '', countryCode: 'QA'),
+    (city: 'Ras Laffan', regionCode: 'RL', countryCode: 'QA'),
     (city: 'Ravenna', regionCode: 'EMR', countryCode: 'IT'),
-    (city: 'Rayong', regionCode: '', countryCode: 'TH'),
+    (city: 'Rayong', regionCode: 'RYG', countryCode: 'TH'),
     (city: 'Reynosa', regionCode: 'TAM', countryCode: 'MX'),
     (city: 'Rio de Janeiro', regionCode: 'RJ', countryCode: 'BR'),
     (city: 'Riyadh', regionCode: 'RI', countryCode: 'SA'),
@@ -1931,30 +2105,39 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
     (city: 'Santiago', regionCode: '', countryCode: 'CL'),
     (city: 'Sao Paulo', regionCode: 'SP', countryCode: 'BR'),
     (city: 'Seoul', regionCode: '', countryCode: 'KR'),
+    (city: 'Shah Alam', regionCode: 'SLG', countryCode: 'MY'),
     (city: 'Shanghai', regionCode: '', countryCode: 'CN'),
     (city: 'Sharjah', regionCode: 'SH', countryCode: 'AE'),
     (city: 'Shenzhen', regionCode: '', countryCode: 'CN'),
-    (city: 'Singapore', regionCode: '', countryCode: 'SG'),
-    (city: 'Sohar', regionCode: '', countryCode: 'OM'),
+    (city: 'Singapore', regionCode: 'SGP', countryCode: 'SG'),
+    (city: 'Sohar', regionCode: 'BN', countryCode: 'OM'),
+    (city: 'Songkhla', regionCode: 'SKA', countryCode: 'TH'),
+    (city: 'Soyo', regionCode: 'ZAI', countryCode: 'AO'),
     (city: 'Stavanger', regionCode: 'RO', countryCode: 'NO'),
-    (city: 'Takoradi', regionCode: '', countryCode: 'GH'),
+    (city: 'Suez', regionCode: 'SUZ', countryCode: 'EG'),
+    (city: 'Surabaya', regionCode: 'JI', countryCode: 'ID'),
+    (city: 'Takoradi', regionCode: 'WP', countryCode: 'GH'),
     (city: 'Talara', regionCode: '', countryCode: 'PE'),
     (city: 'Tampico', regionCode: 'TAM', countryCode: 'MX'),
     (city: 'Tel Aviv', regionCode: '', countryCode: 'IL'),
+    (city: 'Tema', regionCode: 'AA', countryCode: 'GH'),
     (city: 'Tianjin', regionCode: '', countryCode: 'CN'),
     (city: 'Tokyo', regionCode: '', countryCode: 'JP'),
+    (city: 'Tripoli', regionCode: 'TB', countryCode: 'LY'),
+    (city: 'Tuas', regionCode: 'JRG', countryCode: 'SG'),
     (city: 'Tunis', regionCode: '', countryCode: 'TN'),
     (city: 'Ulsan', regionCode: '', countryCode: 'KR'),
+    (city: 'Uralsk', regionCode: 'ZAP', countryCode: 'KZ'),
     (city: 'Vadodara', regionCode: 'GJ', countryCode: 'IN'),
     (city: 'Veracruz', regionCode: 'VER', countryCode: 'MX'),
     (city: 'Vienna', regionCode: '', countryCode: 'AT'),
     (city: 'Villahermosa', regionCode: 'TAB', countryCode: 'MX'),
     (city: 'Vitoria', regionCode: 'ES', countryCode: 'BR'),
-    (city: 'Vung Tau', regionCode: '', countryCode: 'VN'),
-    (city: 'Walvis Bay', regionCode: '', countryCode: 'NA'),
+    (city: 'Vung Tau', regionCode: 'BRV', countryCode: 'VN'),
+    (city: 'Walvis Bay', regionCode: 'ER', countryCode: 'NA'),
     (city: 'Warri', regionCode: 'DE', countryCode: 'NG'),
     (city: 'Warsaw', regionCode: '', countryCode: 'PL'),
-    (city: 'Windhoek', regionCode: '', countryCode: 'NA'),
+    (city: 'Windhoek', regionCode: 'KH', countryCode: 'NA'),
     (city: 'Yanbu', regionCode: 'MK', countryCode: 'SA'),
     (city: 'Yopal', regionCode: 'CAS', countryCode: 'CO'),
     (city: 'Zurich', regionCode: '', countryCode: 'CH'),

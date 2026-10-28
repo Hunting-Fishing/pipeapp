@@ -28,7 +28,7 @@ const args = process.argv.slice(2);
 const projIdx = args.indexOf("--project");
 const PROJECT_ID = projIdx !== -1 && args[projIdx + 1] ? args[projIdx + 1] : "flutter-flow-pipe";
 const NA_AGENTS = 20;
-const INTL_AGENTS = 18;
+const INTL_AGENTS = 20;
 const INTL_WAVE_SIZE = 700;
 
 function runNodeScript(scriptRelPath, scriptArgs, timeoutMs = 90 * 60 * 1000) {
@@ -86,13 +86,15 @@ async function writePipelineReport(status, naSummary, intlCp, liveTotal = 0) {
     `- **Queries Audited**: **${(naSummary?.visitedQueries || 0).toLocaleString()}** | **Pending Queue**: **${(naSummary?.pendingQueriesInFrontier || 0).toLocaleString()}**`,
     `- **Cumulative New Micro-Town Businesses Published**: **+${(naSummary?.totalNewBusinessesFromMicroTowns || 0).toLocaleString()}**`,
     "",
-    "## Phase 2 — International Oil & Gas + Training Hubs (`Bot 16 --scope international`)",
+    "## Phase 2 & 3 — International Oil & Gas + Training Hubs (`Bot 16 --scope international`)",
     `- **International Queries Audited**: **${(intlCp?.visitedCount || 0).toLocaleString()} / ${(intlCp?.totalUniverseQueries || 0).toLocaleString()}**`,
     `- **New International Businesses Published**: **+${(intlStats.newBusinessesDiscovered || 0).toLocaleString()}**`,
     `  - **UK / Norway & North Sea**: **+${(intlStats.newUkNorway || 0).toLocaleString()}**`,
     `  - **Middle East**: **+${(intlStats.newMiddleEast || 0).toLocaleString()}**`,
-    `  - **Latin America**: **+${(intlStats.newLatinAmerica || 0).toLocaleString()}**`,
+    `  - **Latin America & Caribbean**: **+${(intlStats.newLatinAmerica || 0).toLocaleString()}**`,
     `  - **Australia**: **+${(intlStats.newAustralia || 0).toLocaleString()}**`,
+    `  - **Africa**: **+${(intlStats.newAfrica || 0).toLocaleString()}**`,
+    `  - **Southeast, South & Central Asia**: **+${(intlStats.newAsiaCaspian || 0).toLocaleString()}**`,
     `  - **International Oil & Gas Training Facilities**: **+${(intlStats.newTrainingFacilities || 0).toLocaleString()}**`,
     "",
   ].filter((x) => x !== null);
@@ -140,7 +142,7 @@ async function main() {
 
   // ==================== PHASE 2: INTERNATIONAL OIL & GAS + TRAINING HUBS ====================
   console.log(
-    "\n[bot20] PHASE 2 STARTING: Bot 16 International Oil & Gas + Training Sweep (UK/Norway -> Middle East -> Latin America -> Australia)...",
+    "\n[bot20] PHASE 2 STARTING: Bot 16 International Oil & Gas + Training Sweep (UK/Norway -> Middle East -> Latin America -> Australia -> Africa -> Asia-Caspian)...",
   );
 
   for (let intlWave = 1; intlWave <= 25; intlWave++) {

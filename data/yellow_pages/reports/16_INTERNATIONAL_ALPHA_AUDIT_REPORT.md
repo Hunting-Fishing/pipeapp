@@ -1,18 +1,20 @@
 # Bot 16 — International Oil & Gas + Training Alphabetical (A–Z) Audit Dashboard
 
-- **Updated At**: `2026-10-27T13:52:49.192Z`
-- **Active Parallel Agents**: **16** Chromium Google Maps Agents
-- **International Queries Audited**: **2,587 / 2,587**
-- **Google Business Cards Inspected**: **19,277**
-- **Brand-New International Businesses Discovered**: **4,398**
+- **Updated At**: `2026-10-28T00:59:49.654Z`
+- **Active Parallel Agents**: **20** Chromium Google Maps Agents
+- **International Queries Audited**: **4,548 / 4,548**
+- **Google Business Cards Inspected**: **32,555**
+- **Brand-New International Businesses Discovered**: **7,418**
   - **UK / Norway & North Sea (`GB`, `NO`, `NL`, `DE`)**: **1,422**
   - **Middle East (`AE`, `SA`, `QA`, `OM`, `KW`, `BH`)**: **1,494**
   - **Latin America (`BR`, `MX`, `AR`, `CO`, `GY`, `TT`)**: **805**
   - **Australia (`AU`)**: **677**
-  - **International Oil & Gas Training Facilities & Courses**: **1,406**
-- **Already in PipeBuyer Directory (Verified Active)**: **7,718**
+  - **Africa (`NG`, `AO`, `EG`, `GH`, `DZ`, `ZA`, `NA`, `MZ`, `GA`, `CG`, `CI`, `SN`, `UG`, `TZ`, `LY`)**: **1,483**
+  - **Southeast, South & Central Asia (`SG`, `MY`, `ID`, `BN`, `TH`, `VN`, `KZ`, `AZ`, `IN`)**: **1,537**
+  - **International Oil & Gas Training Facilities & Courses**: **2,307**
+- **Already in PipeBuyer Directory (Verified Active)**: **12,540**
 - **Permanently Closed Businesses Caught on Google**: **1**
-- **Consumer / Noise / Foreign Zoom-Out Cards Blocked**: **7,160**
+- **Consumer / Noise / Foreign Zoom-Out Cards Blocked**: **12,596**
 
 ## New Businesses by Country
 
@@ -20,19 +22,43 @@
 - **`AU`**: 677 new businesses
 - **`AE`**: 620 new businesses
 - **`NO`**: 467 new businesses
+- **`MY`**: 463 new businesses
+- **`SG`**: 324 new businesses
+- **`NG`**: 321 new businesses
 - **`SA`**: 281 new businesses
 - **`BR`**: 218 new businesses
 - **`OM`**: 206 new businesses
 - **`QA`**: 184 new businesses
+- **`GH`**: 183 new businesses
+- **`ZA`**: 183 new businesses
 - **`MX`**: 180 new businesses
+- **`IN`**: 172 new businesses
 - **`TT`**: 169 new businesses
+- **`ID`**: 151 new businesses
+- **`KZ`**: 147 new businesses
+- **`EG`**: 136 new businesses
+- **`TH`**: 117 new businesses
 - **`BH`**: 113 new businesses
+- **`NA`**: 102 new businesses
 - **`NL`**: 98 new businesses
+- **`UG`**: 94 new businesses
 - **`KW`**: 90 new businesses
 - **`CO`**: 85 new businesses
 - **`AR`**: 83 new businesses
+- **`AO`**: 82 new businesses
+- **`DZ`**: 78 new businesses
+- **`BN`**: 74 new businesses
 - **`GY`**: 70 new businesses
+- **`CI`**: 58 new businesses
+- **`MZ`**: 54 new businesses
+- **`TZ`**: 54 new businesses
+- **`AZ`**: 51 new businesses
+- **`GA`**: 41 new businesses
+- **`VN`**: 38 new businesses
+- **`SN`**: 34 new businesses
 - **`DE`**: 33 new businesses
+- **`CG`**: 33 new businesses
+- **`LY`**: 30 new businesses
 
 ## New Businesses by Sub-Region
 
@@ -44,44 +70,109 @@
 - **`AE-DU`**: 230 new businesses
 - **`AU-QLD`**: 229 new businesses
 - **`NO-RO`**: 208 new businesses
+- **`SG-SGP`**: 185 new businesses
 - **`BR-RJ`**: 183 new businesses
+- **`NG-RI`**: 160 new businesses
 - **`QA-DA`**: 155 new businesses
 - **`OM-MA`**: 145 new businesses
+- **`MY-KUL`**: 144 new businesses
+- **`GH-AA`**: 139 new businesses
+- **`SG-JRG`**: 126 new businesses
+- **`NG-LA`**: 122 new businesses
 - **`NO-VL`**: 118 new businesses
 - **`TT-SFO`**: 116 new businesses
 - **`BH-CA`**: 113 new businesses
+- **`MY-SWK`**: 105 new businesses
+- **`ZA-WC`**: 104 new businesses
 - **`NO-OS`**: 103 new businesses
+- **`IN-MH`**: 98 new businesses
+- **`UG-CMP`**: 94 new businesses
 - **`AU-SA`**: 88 new businesses
+- **`MY-SBH`**: 81 new businesses
 - **`GY-DE`**: 70 new businesses
+- **`EG-ALX`**: 70 new businesses
 - **`KW-AH`**: 69 new businesses
 - **`AU-NT`**: 69 new businesses
 - **`CO-DC`**: 68 new businesses
 - **`AE-SH`**: 66 new businesses
+- **`AO-LUA`**: 65 new businesses
+- **`ID-JK`**: 62 new businesses
+- **`IN-GJ`**: 60 new businesses
 - **`NL-ZH`**: 58 new businesses
+- **`CI-AB`**: 58 new businesses
+- **`NA-ER`**: 54 new businesses
+- **`TZ-DAR`**: 54 new businesses
+- **`ID-KR`**: 54 new businesses
 - **`TT-POS`**: 53 new businesses
+- **`TH-RYG`**: 53 new businesses
+- **`EG-CAI`**: 52 new businesses
 - **`MX-TAB`**: 51 new businesses
+- **`BN-BEL`**: 51 new businesses
+- **`KZ-ALA`**: 51 new businesses
 - **`AE-FU`**: 50 new businesses
+- **`AZ-BAK`**: 50 new businesses
+- **`MY-JHR`**: 49 new businesses
 - **`AR-NQ`**: 48 new businesses
+- **`KZ-ATY`**: 47 new businesses
 - **`MX-TAM`**: 46 new businesses
+- **`MY-SLG`**: 45 new businesses
+- **`GH-WP`**: 44 new businesses
+- **`TH-BKK`**: 43 new businesses
+- **`NA-KH`**: 42 new businesses
 - **`MX-VER`**: 41 new businesses
+- **`ZA-KZN`**: 41 new businesses
 - **`MX-CAM`**: 40 new businesses
+- **`MY-TRG`**: 39 new businesses
 - **`NO-TR`**: 38 new businesses
+- **`DZ-ALG`**: 38 new businesses
+- **`ZA-GP`**: 38 new businesses
+- **`KZ-MAN`**: 36 new businesses
 - **`OM-BN`**: 35 new businesses
+- **`SN-DK`**: 34 new businesses
 - **`NL-NH`**: 33 new businesses
 - **`DE-NI`**: 33 new businesses
+- **`DZ-OUA`**: 33 new businesses
+- **`MZ-MPM`**: 33 new businesses
+- **`CG-PNR`**: 33 new businesses
 - **`AU-VIC`**: 32 new businesses
+- **`GA-OG`**: 31 new businesses
 - **`AR-CH`**: 30 new businesses
+- **`LY-TB`**: 30 new businesses
+- **`NG-DE`**: 29 new businesses
 - **`BR-SP`**: 28 new businesses
+- **`VN-SGN`**: 28 new businesses
 - **`QA-RL`**: 23 new businesses
+- **`BN-BM`**: 23 new businesses
+- **`ID-KI`**: 22 new businesses
 - **`KW-KU`**: 21 new businesses
+- **`MZ-CD`**: 21 new businesses
+- **`TH-SKA`**: 21 new businesses
 - **`SA-RI`**: 19 new businesses
 - **`SA-MK`**: 18 new businesses
 - **`OM-WU`**: 15 new businesses
+- **`SG-LYG`**: 13 new businesses
+- **`KZ-ZAP`**: 13 new businesses
+- **`EG-SUZ`**: 12 new businesses
+- **`ID-JI`**: 12 new businesses
+- **`IN-AP`**: 12 new businesses
 - **`OM-DA`**: 11 new businesses
 - **`CO-CAS`**: 10 new businesses
+- **`GA-ES`**: 10 new businesses
+- **`VN-BRV`**: 10 new businesses
+- **`AO-CAB`**: 9 new businesses
+- **`NG-FC`**: 8 new businesses
 - **`NL-GR`**: 7 new businesses
 - **`CO-SAN`**: 7 new businesses
 - **`BR-ES`**: 7 new businesses
+- **`AO-BGU`**: 7 new businesses
+- **`DZ-ORA`**: 7 new businesses
 - **`QA-MS`**: 6 new businesses
+- **`NA-KA`**: 6 new businesses
 - **`AR-BA`**: 5 new businesses
 - **`MX-NL`**: 2 new businesses
+- **`EG-PTS`**: 2 new businesses
+- **`NG-AK`**: 2 new businesses
+- **`IN-AS`**: 2 new businesses
+- **`AO-ZAI`**: 1 new businesses
+- **`ID-RIU`**: 1 new businesses
+- **`AZ-SMQ`**: 1 new businesses
