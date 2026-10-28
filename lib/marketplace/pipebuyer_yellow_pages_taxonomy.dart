@@ -334,6 +334,66 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
       ],
     ),
     YellowPagesCategoryItem(
+      code: 'crew_hotels_workforce_lodging',
+      label: 'Crew Hotels, Extended-Stay & Oilfield Worker Rates',
+      shortLabel: 'Crew Hotels & Worker Rates',
+      icon: Icons.hotel_outlined,
+      sampleServices: [
+        'Oil & Gas Crew & Corporate Rates (CLC Lodging)',
+        'Extended-Stay Kitchenette Suites & Weekly Rates',
+        'Rig / Semi-Truck Parking & Cold-Weather Plug-Ins',
+        'Turnaround Workforce Hotels, Motels & Lodges',
+      ],
+    ),
+    YellowPagesCategoryItem(
+      code: 'scaffolding_insulation_coatings',
+      label: 'Scaffolding, Insulation, Coatings & Rope Access',
+      shortLabel: 'Scaffolding, Insulation & Coatings',
+      icon: Icons.layers_outlined,
+      sampleServices: [
+        'Industrial Scaffolding & Plant Access',
+        'Pipe, Tank & Utilidor Insulation / Heat Tracing',
+        'Sandblasting, Protective Coatings & Tank Linings',
+        'IRATA Rope Access & Turnaround Maintenance',
+      ],
+    ),
+    YellowPagesCategoryItem(
+      code: 'marine_offshore_aviation',
+      label: 'Offshore Marine Vessels, Diving, ROV & Aviation',
+      shortLabel: 'Offshore Marine, Diving & Aviation',
+      icon: Icons.directions_boat_outlined,
+      sampleServices: [
+        'Offshore Supply Vessels (PSV / AHTS / Crew Boats)',
+        'Subsea ROV, Commercial Diving & Mooring',
+        'Offshore Helicopters & Remote Crew Charter Flights',
+        'Barge, Tug & Marine Supply Base Operations',
+      ],
+    ),
+    YellowPagesCategoryItem(
+      code: 'industrial_supply_ppe_workwear',
+      label: 'Oilfield Supply Stores, Hose, Fasteners & FR Workwear',
+      shortLabel: 'Oilfield Supply & FR Workwear',
+      icon: Icons.storefront_outlined,
+      sampleServices: [
+        'General Oilfield Supply Houses & MRO Hardware',
+        'Flame-Resistant (FR) Workwear, Coveralls & Safety Boots',
+        'Hydraulic Hose, Fittings, Bearings & Rigging Hardware',
+        'Welding Gases, Consumables & Shop Supplies',
+      ],
+    ),
+    YellowPagesCategoryItem(
+      code: 'lease_security_communications_it',
+      label: 'Lease Security, Gate Guards & Remote Wellsite Comms',
+      shortLabel: 'Gate Guards & Wellsite Comms',
+      icon: Icons.cell_tower_outlined,
+      sampleServices: [
+        '24/7 Oilfield Gate Guards & Lease Access Control',
+        'Mobile Wellsite CCTV, Thermal & Intrusion Towers',
+        'Satellite / Starlink Rig Internet & Cell Boosters',
+        'Two-Way Radios & Lone-Worker Monitoring',
+      ],
+    ),
+    YellowPagesCategoryItem(
       code: 'staffing_training_compliance',
       label: 'Staffing, Crew Logistics & Compliance',
       shortLabel: 'Staffing & Compliance',
@@ -1385,6 +1445,61 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
         countryCode: 'US', regionCode: 'MI', name: 'Michigan'),
     YellowPagesRegionOption(
         countryCode: 'US', regionCode: 'AL', name: 'Alabama'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'AZ', name: 'Arizona'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'CT', name: 'Connecticut'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'DC', name: 'District of Columbia'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'DE', name: 'Delaware'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'FL', name: 'Florida'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'GA', name: 'Georgia'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'HI', name: 'Hawaii'),
+    YellowPagesRegionOption(countryCode: 'US', regionCode: 'IA', name: 'Iowa'),
+    YellowPagesRegionOption(countryCode: 'US', regionCode: 'ID', name: 'Idaho'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'MA', name: 'Massachusetts'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'MD', name: 'Maryland'),
+    YellowPagesRegionOption(countryCode: 'US', regionCode: 'ME', name: 'Maine'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'MN', name: 'Minnesota'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'MO', name: 'Missouri'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'NC', name: 'North Carolina'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'NE', name: 'Nebraska'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'NH', name: 'New Hampshire'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'NJ', name: 'New Jersey'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'NV', name: 'Nevada'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'NY', name: 'New York'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'OR', name: 'Oregon'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'RI', name: 'Rhode Island'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'SC', name: 'South Carolina'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'SD', name: 'South Dakota'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'TN', name: 'Tennessee'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'VA', name: 'Virginia'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'VT', name: 'Vermont'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'WA', name: 'Washington'),
+    YellowPagesRegionOption(
+        countryCode: 'US', regionCode: 'WI', name: 'Wisconsin'),
     // Mexico & Trinidad
     YellowPagesRegionOption(
         countryCode: 'MX', regionCode: 'TAB', name: 'Tabasco (Villahermosa)'),
@@ -2350,6 +2465,16 @@ abstract final class PipeBuyerYellowPagesTaxonomy {
         return Icons.explore_outlined;
       case 'oil_gas_training_courses':
         return Icons.school_outlined;
+      case 'crew_hotels_workforce_lodging':
+        return Icons.hotel_outlined;
+      case 'scaffolding_insulation_coatings':
+        return Icons.layers_outlined;
+      case 'marine_offshore_aviation':
+        return Icons.directions_boat_outlined;
+      case 'industrial_supply_ppe_workwear':
+        return Icons.storefront_outlined;
+      case 'lease_security_communications_it':
+        return Icons.cell_tower_outlined;
       case 'staffing_training_compliance':
         return Icons.groups_outlined;
       case 'explorers_producers_midstream':

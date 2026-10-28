@@ -34,6 +34,7 @@ const {
   classifyCategoriesFromText,
   inferCountryAndRegion,
   inferGeoFromNanpaPhone,
+  inferRegionFromCountryAndCity,
   normalizeText,
 } = require("../../firebase/functions/yellow_pages_taxonomy.js");
 const {
@@ -259,8 +260,20 @@ async function main() {
     let newRc = canonicalizeRegionCode(origRc, newCc);
     let newCity = origCity;
 
-    // Cross-check North American records missing regionCode or misattributed countryCode via NANPA area code
+    // Fix historical Python "None"[:2] -> "NO" corruption on North American +1 phone records
     const phoneGeo = inferGeoFromNanpaPhone(pubPhone);
+    if (
+      newCc === "NO" &&
+      phoneGeo &&
+      !phoneGeo.isTollFree &&
+      (/^none$/iu.test(origCity.trim()) || ["AB", "ND", "20"].includes(newRc))
+    ) {
+      newCc = phoneGeo.countryCode;
+      newRc = phoneGeo.regionCode;
+      newCity = phoneGeo.hubCity || "";
+    }
+
+    // Cross-check North American records missing regionCode or misattributed countryCode via NANPA area code
     if ((newCc === "CA" || newCc === "US" || !newCc) && phoneGeo && !phoneGeo.isTollFree) {
       if (!newRc) {
         newCc = phoneGeo.countryCode;
@@ -271,7 +284,28 @@ async function main() {
       }
     }
 
-    // Recover empty city from explicit name match or NANPA exchange / area code hub
+    // Handle "Perth, Wa" -> rc="WA" when AU
+    if (newCc === "AU" && /,\s*Wa$/iu.test(origCity) && !newRc) {
+      newRc = "WA";
+    }
+
+    // Clear bogus street-suffix / state-name / placeholder city strings so geo recovery resolves true town
+    if (newCc === "US" && newRc === "OK" && /^Oklahoma$/iu.test(newCity.trim())) {
+      newCity = "";
+    } else if (newCc === "US" && (newRc === "TX" || newRc === "KS") && /^Park$/iu.test(newCity.trim())) {
+      if (/\bOverland\s+Park\b/iu.test(newName)) newCity = "Overland Park";
+      else if (/\bDeer\s+Park\b/iu.test(newName)) newCity = "Deer Park";
+      else if (/\bCedar\s+Port\b/iu.test(newName)) newCity = "Baytown";
+      else newCity = phoneGeo && !phoneGeo.isTollFree && phoneGeo.hubCity ? phoneGeo.hubCity : (newRc === "TX" ? "Houston" : "Wichita");
+    } else if (newCc === "CN" && /^Central$/iu.test(newCity.trim())) {
+      newCity = "Hong Kong";
+    } else if (newCc === "MC" && (/^Mc$/iu.test(newCity.trim()) || !newCity.trim())) {
+      newCity = "Monaco";
+    }
+
+    newCity = canonicalizeCityName(newCity, newRc, newCc);
+
+    // Recover empty city from explicit name match, NANPA exchange / area code hub, or country capital fallback
     if (!newCity.trim()) {
       for (const [rx, eCc, eRc, eCity] of EXPLICIT_NAME_CITIES) {
         if (rx.test(newName) && (!newCc || newCc === eCc)) {
@@ -286,14 +320,45 @@ async function main() {
         if (!newRc) newRc = phoneGeo.regionCode;
         if (!newCc) newCc = phoneGeo.countryCode;
       }
+      if (!newCity.trim()) {
+        const EMPTY_CITY_CAPITAL_FALLBACK = {
+          CA: ["AB", "Calgary"],
+          US: ["TX", "Houston"],
+          BA: ["", "Sarajevo"],
+          CV: ["", "Praia"],
+          EE: ["", "Tallinn"],
+          IS: ["", "Reykjavik"],
+          LV: ["", "Riga"],
+          MD: ["", "Chisinau"],
+          SI: ["", "Ljubljana"],
+        };
+        const fb = EMPTY_CITY_CAPITAL_FALLBACK[newCc];
+        if (fb) {
+          if (!newRc && fb[0]) newRc = fb[0];
+          newCity = fb[1];
+        }
+      }
+      newCity = canonicalizeCityName(newCity, newRc, newCc);
     }
 
-    // Handle "Perth, Wa" -> rc="WA" when AU
-    if (newCc === "AU" && /,\s*Wa$/iu.test(origCity) && !newRc) {
-      newRc = "WA";
+    // Fix cross-province / cross-region city-to-state mismatches
+    if (newCc === "CA" && /^Regina$/iu.test(newCity) && newRc !== "SK") {
+      newRc = "SK";
+    } else if (newCc === "CA" && /^Prince\s+George$/iu.test(newCity) && newRc !== "BC") {
+      newRc = "BC";
+    } else if (newCc === "AR" && /^Buenos\s+Aires$/iu.test(newCity) && newRc !== "BA") {
+      newRc = "BA";
+    } else if (newCc === "AR" && /^Comodoro\s+Rivadavia$/iu.test(newCity) && newRc !== "CH") {
+      newRc = "CH";
+    } else if (newCc === "BR" && /^Sao\s+Paulo$/iu.test(newCity) && newRc !== "SP") {
+      newRc = "SP";
     }
 
-    newCity = canonicalizeCityName(newCity, newRc, newCc);
+    // Backfill empty international regionCode from canonical city so zero hubs split across empty + populated regions
+    if (!newRc && newCc && newCity) {
+      const inferredIntlRc = inferRegionFromCountryAndCity(newCc, newCity);
+      if (inferredIntlRc) newRc = inferredIntlRc;
+    }
 
     const geo = inferCountryAndRegion(newCc || "CA", newRc);
     if (newCc && COUNTRY_BY_CODE.has(newCc)) {
@@ -337,12 +402,24 @@ async function main() {
     );
     const mergedCatSet = new Set(validExistingCats);
 
-    // Check if existing or newly scanned company provides Oil & Gas Training / Safety Courses
-    if (INCLUDE_TRAINING) {
-      const trainCheck = classifyCategoriesFromText([newName, ...origServices], "");
-      if (trainCheck.includes("oil_gas_training_courses")) {
-        mergedCatSet.add("oil_gas_training_courses");
+    // Check if existing or newly scanned company matches Oil & Gas Training or the 5 new Yellow Pages sectors
+    const autoEnrichCodes = new Set([
+      "crew_hotels_workforce_lodging",
+      "scaffolding_insulation_coatings",
+      "marine_offshore_aviation",
+      "industrial_supply_ppe_workwear",
+      "lease_security_communications_it",
+      ...(INCLUDE_TRAINING ? ["oil_gas_training_courses"] : []),
+    ]);
+    const textClassified = classifyCategoriesFromText([newName, ...origServices], "");
+    for (const c of textClassified) {
+      if (autoEnrichCodes.has(c)) {
+        mergedCatSet.add(c);
       }
+    }
+    // Also tag verified workforce inns/lodges by name when in oilpatch regions
+    if (/\b(?:pomeroy\s+inn|nova\s+inn|key\s+west\s+inn|ambassador\s+motor\s+inn|south\s+country\s+inn|algonquin\s+motor\s+lodge|bcminns|podollan\s+inn|executive\s+royal\s+inn|microtel|towneplace\s+suites|candlewood\s+suites|staybridge\s+suites|home2\s+suites|woodspring\s+suites|target\s+hospitality)\b/iu.test(newName)) {
+      mergedCatSet.add("crew_hotels_workforce_lodging");
     }
 
     if (mergedCatSet.size === 0) {
