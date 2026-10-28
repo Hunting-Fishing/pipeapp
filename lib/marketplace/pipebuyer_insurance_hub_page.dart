@@ -539,7 +539,7 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
             runSpacing: 8,
             children: [
               _HeroBadge(
-                icon: Icons.shield_outlined,
+                icon: Icons.verified_user_rounded,
                 label: 'MSA-READY COMMERCIAL COVERAGE',
                 backgroundColor: PipeBuyerColors.orange.withValues(alpha: .20),
                 foregroundColor: PipeBuyerColors.orange,
@@ -677,33 +677,32 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final compact = constraints.maxWidth < 680;
-                    if (compact) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildSearchField(),
-                          const SizedBox(height: 10),
-                          FilledButton.icon(
-                            onPressed: _loadProviders,
-                            icon: const Icon(Icons.search_rounded, size: 18),
-                            label: const Text('Filter Providers'),
-                          ),
-                        ],
-                      );
-                    }
-                    return Row(
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const <BoxShadow>[
+              BoxShadow(
+                color: Color(0x0A0F172A),
+                blurRadius: 14,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 680;
+                  if (compact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(child: _buildSearchField()),
-                        const SizedBox(width: 10),
+                        _buildSearchField(),
+                        const SizedBox(height: 10),
                         FilledButton.icon(
                           onPressed: _loadProviders,
                           icon: const Icon(Icons.search_rounded, size: 18),
@@ -711,176 +710,184 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
                         ),
                       ],
                     );
-                  },
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 195,
-                      child: DropdownButtonFormField<String>(
-                        key: const Key('insurance_country_dropdown'),
-                        initialValue: _selectedCountryFilter,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Country',
-                          isDense: true,
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: '',
-                            child: Text('All Countries'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'US',
-                            child: Text('United States (US)'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'CA',
-                            child: Text('Canada (CA)'),
-                          ),
-                        ],
-                        onChanged: (val) {
-                          setState(() => _selectedCountryFilter = val ?? '');
-                          _loadProviders();
-                        },
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: _buildSearchField()),
+                      const SizedBox(width: 10),
+                      FilledButton.icon(
+                        onPressed: _loadProviders,
+                        icon: const Icon(Icons.search_rounded, size: 18),
+                        label: const Text('Filter Providers'),
                       ),
-                    ),
-                    SizedBox(
-                      width: 175,
-                      child: DropdownButtonFormField<String>(
-                        key: const Key('insurance_region_dropdown'),
-                        initialValue: _selectedRegionFilter,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'State / Province',
-                          isDense: true,
-                        ),
-                        items: [
-                          const DropdownMenuItem(
-                            value: '',
-                            child: Text('All Regions'),
-                          ),
-                          ...PipeBuyerInsuranceTaxonomy.popularRegions.map(
-                            (code) => DropdownMenuItem(
-                              value: code,
-                              child: Text(code),
-                            ),
-                          ),
-                        ],
-                        onChanged: (val) {
-                          setState(() => _selectedRegionFilter = val ?? '');
-                          _loadProviders();
-                        },
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 195,
+                    child: DropdownButtonFormField<String>(
+                      key: const Key('insurance_country_dropdown'),
+                      initialValue: _selectedCountryFilter,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Country',
+                        isDense: true,
                       ),
-                    ),
-                    SizedBox(
-                      width: 225,
-                      child: DropdownButtonFormField<String>(
-                        key: const Key('insurance_provider_type_dropdown'),
-                        initialValue: _selectedProviderTypeFilter,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Provider Type',
-                          isDense: true,
+                      items: const [
+                        DropdownMenuItem(
+                          value: '',
+                          child: Text('All Countries'),
                         ),
-                        items: [
-                          const DropdownMenuItem(
-                            value: '',
-                            child: Text('All Provider Types'),
-                          ),
-                          ...PipeBuyerInsuranceTaxonomy.providerTypes.map(
-                            (t) => DropdownMenuItem(
-                              value: t.code,
-                              child: Text(
-                                t.label,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                        ],
-                        onChanged: (val) {
-                          setState(
-                            () => _selectedProviderTypeFilter = val ?? '',
-                          );
-                          _loadProviders();
-                        },
-                      ),
-                    ),
-                    FilterChip(
-                      key: const Key('insurance_filter_msa_only'),
-                      avatar: const Icon(Icons.verified_outlined, size: 16),
-                      label: const Text('MSA-Ready Only'),
-                      selected: _msaOnlyFilter,
-                      onSelected: (val) {
-                        setState(() => _msaOnlyFilter = val);
+                        DropdownMenuItem(
+                          value: 'US',
+                          child: Text('United States (US)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'CA',
+                          child: Text('Canada (CA)'),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        setState(() => _selectedCountryFilter = val ?? '');
                         _loadProviders();
                       },
                     ),
-                    FilterChip(
-                      key: const Key('insurance_filter_fast_coi'),
-                      avatar: const Icon(Icons.bolt_rounded, size: 16),
-                      label: const Text('24/7 Fast COI'),
-                      selected: _fastCoiOnlyFilter,
-                      onSelected: (val) {
-                        setState(() => _fastCoiOnlyFilter = val);
-                        _loadProviders();
-                      },
-                    ),
-                    if (_hasActiveBrowseFilters)
-                      TextButton.icon(
-                        onPressed: _resetFilters,
-                        icon: const Icon(Icons.restart_alt_rounded, size: 18),
-                        label: const Text('Reset Filters'),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'FILTER BY COVERAGE LINE',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w900,
-                    color: PipeBuyerColors.muted,
-                    letterSpacing: 0.9,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ChoiceChip(
-                      key: const Key('coverage_filter_all'),
-                      label: const Text('All Coverage Lines'),
-                      selected: _selectedCoverageLineFilter.isEmpty,
-                      onSelected: (_) {
-                        setState(() => _selectedCoverageLineFilter = '');
+                  SizedBox(
+                    width: 175,
+                    child: DropdownButtonFormField<String>(
+                      key: const Key('insurance_region_dropdown'),
+                      initialValue: _selectedRegionFilter,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'State / Province',
+                        isDense: true,
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: '',
+                          child: Text('All Regions'),
+                        ),
+                        ...PipeBuyerInsuranceTaxonomy.popularRegions.map(
+                          (code) => DropdownMenuItem(
+                            value: code,
+                            child: Text(code),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        setState(() => _selectedRegionFilter = val ?? '');
                         _loadProviders();
                       },
                     ),
-                    ...PipeBuyerInsuranceTaxonomy.coverageLines.map(
-                      (line) => ChoiceChip(
-                        key: Key('coverage_filter_${line.code}'),
-                        avatar: Icon(line.icon, size: 16),
-                        label: Text(line.shortLabel),
-                        selected: _selectedCoverageLineFilter == line.code,
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedCoverageLineFilter =
-                                selected ? line.code : '';
-                          });
-                          _loadProviders();
-                        },
+                  ),
+                  SizedBox(
+                    width: 225,
+                    child: DropdownButtonFormField<String>(
+                      key: const Key('insurance_provider_type_dropdown'),
+                      initialValue: _selectedProviderTypeFilter,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Provider Type',
+                        isDense: true,
                       ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: '',
+                          child: Text('All Provider Types'),
+                        ),
+                        ...PipeBuyerInsuranceTaxonomy.providerTypes.map(
+                          (t) => DropdownMenuItem(
+                            value: t.code,
+                            child: Text(
+                              t.label,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        setState(
+                          () => _selectedProviderTypeFilter = val ?? '',
+                        );
+                        _loadProviders();
+                      },
                     ),
-                  ],
+                  ),
+                  FilterChip(
+                    key: const Key('insurance_filter_msa_only'),
+                    label: const Text('MSA-Ready Only'),
+                    selected: _msaOnlyFilter,
+                    onSelected: (val) {
+                      setState(() => _msaOnlyFilter = val);
+                      _loadProviders();
+                    },
+                  ),
+                  FilterChip(
+                    key: const Key('insurance_filter_fast_coi'),
+                    label: const Text('24/7 Fast COI'),
+                    selected: _fastCoiOnlyFilter,
+                    onSelected: (val) {
+                      setState(() => _fastCoiOnlyFilter = val);
+                      _loadProviders();
+                    },
+                  ),
+                  if (_hasActiveBrowseFilters)
+                    TextButton.icon(
+                      onPressed: _resetFilters,
+                      icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                      label: const Text('Reset Filters'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'FILTER BY COVERAGE LINE',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w900,
+                  color: PipeBuyerColors.muted,
+                  letterSpacing: 0.9,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    key: const Key('coverage_filter_all'),
+                    label: const Text('All Coverage Lines'),
+                    selected: _selectedCoverageLineFilter.isEmpty,
+                    onSelected: (_) {
+                      setState(() => _selectedCoverageLineFilter = '');
+                      _loadProviders();
+                    },
+                  ),
+                  ...PipeBuyerInsuranceTaxonomy.coverageLines.map(
+                    (line) => ChoiceChip(
+                      key: Key('coverage_filter_${line.code}'),
+                      label: Text(line.shortLabel),
+                      selected: _selectedCoverageLineFilter == line.code,
+                      onSelected: (selected) {
+                        setState(() {
+                          _selectedCoverageLineFilter =
+                              selected ? line.code : '';
+                        });
+                        _loadProviders();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         if (_usingShowcaseFallback) ...[
@@ -956,12 +963,13 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
               padding: const EdgeInsets.all(28),
               child: Column(
                 children: [
-                  const Icon(
-                    Icons.shield_outlined,
-                    size: 42,
-                    color: PipeBuyerColors.muted,
+                  const PipeBuyerCompanyLogoBadge(
+                    logoUrl: '',
+                    companyName: '',
+                    width: 68,
+                    height: 54,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   const Text(
                     'No insurance providers match your current filters',
                     textAlign: TextAlign.center,
@@ -1003,11 +1011,11 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
             builder: (context, constraints) {
               final twoColumn = constraints.maxWidth >= 900;
               final cardWidth = twoColumn
-                  ? (constraints.maxWidth - 14) / 2
+                  ? (constraints.maxWidth - 16) / 2
                   : constraints.maxWidth;
               return Wrap(
-                spacing: 14,
-                runSpacing: 14,
+                spacing: 16,
+                runSpacing: 16,
                 children: _providers
                     .map(
                       (provider) => SizedBox(
@@ -1071,91 +1079,129 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
       children: [
         Container(
           key: const Key('insurance_onboarding_program_banner'),
-          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF4F8FD)],
+              colors: <Color>[Color(0xFFF8FAFC), Color(0xFFF1F5F9)],
             ),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: PipeBuyerColors.industrialBlue.withValues(alpha: 0.28),
-            ),
+            border: Border.all(color: const Color(0xFFCBD5E1)),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
             children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  const PipeBuyerVisualBadge(
-                    variant: PipeBuyerBadgeVariant.programPreview,
-                  ),
-                  const PipeBuyerVisualBadge(
-                    variant: PipeBuyerBadgeVariant.featured,
-                    label: 'FEATURED SLOTS OPEN',
-                  ),
-                  PipeBuyerVisualBadge.forInsuranceProviderType(
-                    _selectedProviderTypeFilter.isEmpty
-                        ? 'specialty_broker'
-                        : _selectedProviderTypeFilter,
-                  ),
-                  const PipeBuyerVisualBadge(
-                    variant: PipeBuyerBadgeVariant.fastCoi24x7,
-                  ),
-                  const PipeBuyerVisualBadge(
-                    variant: PipeBuyerBadgeVariant.msaReady,
-                  ),
-                ],
+              const Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 5,
+                child: ColoredBox(color: PipeBuyerColors.industrialBlue),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Commercial & Oilfield Coverage Lanes — Verified Carrier & Broker Onboarding',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  color: PipeBuyerColors.ink,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(23, 18, 18, 18),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final wide = constraints.maxWidth >= 780;
+                    final copyBlock = const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            PipeBuyerVisualBadge(
+                              variant: PipeBuyerBadgeVariant.programPreview,
+                            ),
+                            PipeBuyerVisualBadge(
+                              variant: PipeBuyerBadgeVariant.verifiedPro,
+                              label: 'VERIFIED CARRIER ONBOARDING',
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          'Commercial & Oilfield Coverage Lanes — Verified Carrier & Broker Onboarding',
+                          style: TextStyle(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w900,
+                            color: PipeBuyerColors.ink,
+                          ),
+                        ),
+                        SizedBox(height: 5),
+                        Text(
+                          'Only NAIC and provincially licensed insurance companies appear once verified. Select a coverage lane below to request quotes, or list your agency and upload your Business Logo.',
+                          style: TextStyle(
+                            fontSize: 12.6,
+                            height: 1.45,
+                            color: PipeBuyerColors.slate,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    );
+                    final actionsBlock = Wrap(
+                      spacing: 10,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: _startMultiCarrierQuote,
+                          icon: const Icon(
+                            Icons.request_quote_outlined,
+                            size: 18,
+                          ),
+                          label: const Text('Apply for Commercial Rates'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _openProviderOnboarding,
+                          icon: const Icon(
+                            Icons.add_business_outlined,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            'List Insurance Company & Upload Logo',
+                          ),
+                        ),
+                        if (_hasActiveBrowseFilters)
+                          TextButton.icon(
+                            onPressed: _resetFilters,
+                            icon: const Icon(
+                              Icons.restart_alt_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('Reset Filters'),
+                          ),
+                      ],
+                    );
+
+                    if (!wide) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          copyBlock,
+                          const SizedBox(height: 14),
+                          actionsBlock,
+                        ],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(child: copyBlock),
+                        const SizedBox(width: 20),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 320),
+                          child: actionsBlock,
+                        ),
+                      ],
+                    );
+                  },
                 ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Pipe Buyer only displays verified insurance companies after NAIC / provincial producer licensing review. Select any commercial coverage lane below to submit a rate application to our commercial risk desk, or apply to list your insurance company and upload your Business Logo.',
-                style: TextStyle(
-                  fontSize: 12.8,
-                  height: 1.45,
-                  color: PipeBuyerColors.slate,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                children: [
-                  FilledButton.icon(
-                    onPressed: _startMultiCarrierQuote,
-                    icon: const Icon(Icons.request_quote_outlined, size: 18),
-                    label: const Text('Apply for Commercial Rates'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _openProviderOnboarding,
-                    icon: const Icon(Icons.add_business_outlined, size: 18),
-                    label: const Text('List Insurance Company & Upload Logo'),
-                  ),
-                  if (_hasActiveBrowseFilters)
-                    TextButton.icon(
-                      onPressed: _resetFilters,
-                      icon: const Icon(Icons.restart_alt_rounded, size: 18),
-                      label: const Text('Reset Filters'),
-                    ),
-                ],
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         if (filteredLanes.isEmpty)
           Card(
             child: Padding(
@@ -1196,11 +1242,11 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
             builder: (context, constraints) {
               final twoColumn = constraints.maxWidth >= 900;
               final cardWidth = twoColumn
-                  ? (constraints.maxWidth - 14) / 2
+                  ? (constraints.maxWidth - 16) / 2
                   : constraints.maxWidth;
               return Wrap(
-                spacing: 14,
-                runSpacing: 14,
+                spacing: 16,
+                runSpacing: 16,
                 children: List<Widget>.generate(filteredLanes.length, (index) {
                   final line = filteredLanes[index];
                   final providerRole = switch (index % 3) {
@@ -1473,7 +1519,6 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
                             .map(
                               (line) => FilterChip(
                                 key: Key('rate_line_${line.code}'),
-                                avatar: Icon(line.icon, size: 16),
                                 label: Text(line.shortLabel),
                                 selected:
                                     _rateCoverageLines.contains(line.code),
@@ -1691,9 +1736,9 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
                 PipeBuyerCompanyLogoBadge(
                   logoUrl: target.logoUrl,
                   companyName: target.companyName,
-                  size: 42,
+                  width: 54,
+                  height: 44,
                   featured: target.featured,
-                  fallbackIcon: Icons.shield_outlined,
                 ),
                 const SizedBox(width: 10),
                 Flexible(
@@ -2269,23 +2314,30 @@ class _InsuranceProviderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
+      key: Key('provider_card_${provider.providerId}'),
       clipBehavior: Clip.antiAlias,
-      color: provider.featured ? const Color(0xFFFFFCF9) : Colors.white,
-      shape: RoundedRectangleBorder(
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
+        border: Border.all(
           color: provider.featured
-              ? PipeBuyerColors.orange.withValues(alpha: .5)
-              : PipeBuyerColors.line,
-          width: provider.featured ? 1.6 : 1,
+              ? const Color(0xFFCBD5E1)
+              : const Color(0xFFE2E8F0),
         ),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            height: 4,
+            height: 3,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: provider.featured
@@ -2301,48 +2353,67 @@ class _InsuranceProviderCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    if (provider.isSampleShowcase)
-                      const PipeBuyerVisualBadge(
-                        variant: PipeBuyerBadgeVariant.programPreview,
-                      ),
-                    if (provider.featured)
-                      const PipeBuyerVisualBadge(
-                        variant: PipeBuyerBadgeVariant.featured,
-                      ),
-                    PipeBuyerVisualBadge.forInsuranceProviderType(
-                      provider.providerType,
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (provider.isSampleShowcase)
+                          const PipeBuyerVisualBadge(
+                            variant: PipeBuyerBadgeVariant.programPreview,
+                            compact: true,
+                          ),
+                        PipeBuyerVisualBadge.forInsuranceProviderType(
+                          provider.providerType,
+                          compact: true,
+                        ),
+                        if (provider.featured)
+                          const PipeBuyerVisualBadge(
+                            variant: PipeBuyerBadgeVariant.featured,
+                            compact: true,
+                          ),
+                      ],
                     ),
-                    if (provider.msaCompliant)
-                      const PipeBuyerVisualBadge(
-                        variant: PipeBuyerBadgeVariant.msaReady,
-                      ),
-                    if (provider.fastCoi24x7)
-                      const PipeBuyerVisualBadge(
-                        variant: PipeBuyerBadgeVariant.fastCoi24x7,
-                      ),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (provider.fastCoi24x7)
+                          const PipeBuyerVisualBadge(
+                            variant: PipeBuyerBadgeVariant.fastCoi24x7,
+                            compact: true,
+                          ),
+                        if (provider.msaCompliant)
+                          const PipeBuyerVisualBadge(
+                            variant: PipeBuyerBadgeVariant.msaReady,
+                            compact: true,
+                          ),
+                      ],
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     PipeBuyerCompanyLogoBadge(
                       key: Key('provider_logo_${provider.providerId}'),
                       logoUrl: provider.logoUrl,
                       companyName: provider.companyName,
-                      size: 52,
+                      width: 84,
+                      height: 66,
                       featured: provider.featured,
-                      fallbackIcon: Icons.shield_outlined,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2352,6 +2423,7 @@ class _InsuranceProviderCard extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w900,
+                              color: PipeBuyerColors.ink,
                               height: 1.2,
                             ),
                           ),
@@ -2364,25 +2436,25 @@ class _InsuranceProviderCard extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
+                          if (provider.summary.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              provider.summary,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                height: 1.4,
+                                color: PipeBuyerColors.slate,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
                   ],
                 ),
-                if (provider.summary.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    provider.summary,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      height: 1.4,
-                      color: PipeBuyerColors.slate,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -2405,7 +2477,7 @@ class _InsuranceProviderCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
@@ -2414,25 +2486,29 @@ class _InsuranceProviderCard extends StatelessWidget {
                       .map(
                         (code) => Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
+                            horizontal: 8.5,
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: PipeBuyerColors.surfaceMuted,
-                            borderRadius: BorderRadius.circular(8),
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(7),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
                           child: Text(
                             PipeBuyerInsuranceTaxonomy.coverageShortLabel(code),
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
+                              color: Color(0xFF334155),
                             ),
                           ),
                         ),
                       )
                       .toList(growable: false),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
@@ -2466,25 +2542,78 @@ class _CoverageProgramLaneCard extends StatelessWidget {
   final VoidCallback onApplyForLane;
   final VoidCallback onListAgency;
 
+  static List<String> _highlightsForLane(String code) {
+    return switch (code) {
+      'commercial_auto_fleet' => const <String>[
+          'MCS-90 & DOT/NSC Filings',
+          'Crew Pickups & Hotshots',
+          'Vac & Heavy Haul Physical Damage',
+        ],
+      'oilfield_general_liability' => const <String>[
+          'Occurrence Lease-Site CGL',
+          'Blanket Additional Insured',
+          'Waiver of Subrogation',
+        ],
+      'rig_equipment_inland_marine' => const <String>[
+          'Drilling & Workover Rigs',
+          'Blanket Contractors Iron',
+          'OCTG & Yard Pipe Stock',
+        ],
+      'motor_truck_cargo_hazmat' => const <String>[
+          'Broad-Form OCTG Cargo',
+          'Rig Move & Loading Transit',
+          'Spill & Hazmat Cleanup',
+        ],
+      'pollution_environmental' => const <String>[
+          'Contractors Pollution (CPL)',
+          'Sudden & Accidental Time-Element',
+          'Site Remediation',
+        ],
+      'umbrella_excess_liability' => const <String>[
+          '\$1M–\$25M+ Excess Towers',
+          'Follow-Form MSA Schedules',
+          'Auto, CGL & Employers Excess',
+        ],
+      'workers_comp_crew' => const <String>[
+          'Statutory WC & Stop-Gap',
+          'WCB & Multi-State Crew',
+          'USL&H Extensions',
+        ],
+      _ => const <String>[
+          'Fabrication Shops & Pipe Yards',
+          'Modular Skids & Crew Camps',
+          'Business Interruption',
+        ],
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final highlights = _highlightsForLane(line.code);
+
+    return Container(
+      key: Key('coverage_lane_${line.code}'),
       clipBehavior: Clip.antiAlias,
-      color: featuredLane ? const Color(0xFFFFFCF9) : Colors.white,
-      shape: RoundedRectangleBorder(
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: featuredLane
-              ? PipeBuyerColors.orange.withValues(alpha: 0.42)
-              : PipeBuyerColors.line,
-          width: featuredLane ? 1.4 : 1.0,
+        border: Border.all(
+          color:
+              featuredLane ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0),
         ),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 18,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            height: 3.5,
+            height: 3,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: featuredLane
@@ -2497,67 +2626,63 @@ class _CoverageProgramLaneCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    const PipeBuyerVisualBadge(
-                      variant: PipeBuyerBadgeVariant.programPreview,
-                    ),
-                    if (featuredLane)
-                      const PipeBuyerVisualBadge(
-                        variant: PipeBuyerBadgeVariant.featured,
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          PipeBuyerVisualBadge.forInsuranceProviderType(
+                            providerType,
+                            compact: true,
+                          ),
+                          if (featuredLane)
+                            const PipeBuyerVisualBadge(
+                              variant: PipeBuyerBadgeVariant.featured,
+                              compact: true,
+                            ),
+                        ],
                       ),
-                    PipeBuyerVisualBadge.forInsuranceProviderType(providerType),
-                    const PipeBuyerVisualBadge(
-                      variant: PipeBuyerBadgeVariant.fastCoi24x7,
-                    ),
-                    const PipeBuyerVisualBadge(
-                      variant: PipeBuyerBadgeVariant.msaReady,
-                    ),
-                  ],
+                      const Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          PipeBuyerVisualBadge(
+                            variant: PipeBuyerBadgeVariant.fastCoi24x7,
+                            compact: true,
+                          ),
+                          PipeBuyerVisualBadge(
+                            variant: PipeBuyerBadgeVariant.msaReady,
+                            compact: true,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: featuredLane
-                              ? const <Color>[
-                                  Color(0xFFFFF4EB),
-                                  Color(0xFFFFE4CC),
-                                ]
-                              : const <Color>[
-                                  Color(0xFFEEF4FF),
-                                  Color(0xFFDBEAFE),
-                                ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: featuredLane
-                              ? PipeBuyerColors.orange.withValues(alpha: 0.35)
-                              : const Color(0xFFBFDBFE),
-                        ),
-                      ),
-                      child: Icon(
-                        line.icon,
-                        color: featuredLane
-                            ? PipeBuyerColors.orangePressed
-                            : PipeBuyerColors.industrialBlue,
-                        size: 22,
-                      ),
+                    PipeBuyerCompanyLogoBadge(
+                      key: Key('lane_placeholder_${line.code}'),
+                      logoUrl: '',
+                      companyName: line.label,
+                      width: 84,
+                      height: 66,
+                      featured: featuredLane,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2565,19 +2690,30 @@ class _CoverageProgramLaneCard extends StatelessWidget {
                           Text(
                             line.label,
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 16.5,
                               fontWeight: FontWeight.w900,
                               color: PipeBuyerColors.ink,
                               height: 1.2,
                             ),
                           ),
-                          const SizedBox(height: 3),
+                          const SizedBox(height: 4),
                           const Text(
-                            'US & Canada Energy Markets • Carrier & Broker Slots Open',
+                            'US & Canada Energy Markets  •  Carrier & Broker Slot Open',
                             style: TextStyle(
                               fontSize: 11.5,
                               color: PipeBuyerColors.muted,
                               fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            line.description,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              height: 1.42,
+                              color: PipeBuyerColors.slate,
                             ),
                           ),
                         ],
@@ -2585,63 +2721,61 @@ class _CoverageProgramLaneCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  line.description,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    height: 1.42,
-                    color: PipeBuyerColors.slate,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: PipeBuyerColors.surfaceMuted,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.verified_outlined,
-                        size: 15,
-                        color: PipeBuyerColors.industrialBlue,
-                      ),
-                      SizedBox(width: 7),
-                      Expanded(
-                        child: Text(
-                          'Onboarding licensed carriers, MGAs & brokers — upload your Business Logo to list here.',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: PipeBuyerColors.ink,
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: highlights
+                      .map(
+                        (spec) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8.5,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(7),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Text(
+                            spec,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF334155),
+                            ),
                           ),
                         ),
+                      )
+                      .toList(growable: false),
+                ),
+                const SizedBox(height: 14),
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      FilledButton.icon(
+                        key: Key('apply_lane_${line.code}'),
+                        onPressed: onApplyForLane,
+                        icon: const Icon(
+                          Icons.request_quote_outlined,
+                          size: 17,
+                        ),
+                        label: const Text('Apply for Rates'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: onListAgency,
+                        icon: const Icon(Icons.upload_file_rounded, size: 17),
+                        label: const Text('List Your Company'),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton.icon(
-                      key: Key('apply_lane_${line.code}'),
-                      onPressed: onApplyForLane,
-                      icon: const Icon(Icons.request_quote_outlined, size: 17),
-                      label: const Text('Apply for Rates'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: onListAgency,
-                      icon: const Icon(Icons.domain_add_outlined, size: 17),
-                      label: const Text('List Your Company'),
-                    ),
-                  ],
                 ),
               ],
             ),

@@ -640,7 +640,6 @@ class _PipeBuyerInsuranceProviderApplyPageState
                     children: PipeBuyerInsuranceTaxonomy.coverageLines
                         .map(
                           (line) => FilterChip(
-                            avatar: Icon(line.icon, size: 16),
                             label: Text(line.shortLabel),
                             selected:
                                 _selectedCoverageLines.contains(line.code),
@@ -839,8 +838,8 @@ class _PipeBuyerInsuranceProviderApplyPageState
               PipeBuyerCompanyLogoBadge(
                 logoUrl: _logoUrl,
                 companyName: previewName,
-                size: 46,
-                fallbackIcon: Icons.shield_outlined,
+                width: 76,
+                height: 60,
               ),
               const SizedBox(width: 12),
               Expanded(

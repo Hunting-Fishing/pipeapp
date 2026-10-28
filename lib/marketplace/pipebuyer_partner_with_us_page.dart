@@ -1289,12 +1289,13 @@ class _PartnerShowcaseSection extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  const Icon(
-                    Icons.storefront_outlined,
-                    size: 40,
-                    color: PipeBuyerColors.muted,
+                  const PipeBuyerCompanyLogoBadge(
+                    logoUrl: '',
+                    companyName: 'Partner Showcase',
+                    width: 64,
+                    height: 52,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   const Text(
                     'No partner showcases matched your filter.',
                     style: TextStyle(fontWeight: FontWeight.w800),
@@ -1355,236 +1356,257 @@ class _PartnerShowcaseCard extends StatelessWidget {
     final category =
         PipeBuyerPartnerTaxonomy.categoryByCode(deal.brandCategory);
     return Container(
-      padding: const EdgeInsets.all(18),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: deal.featured ? const Color(0xFFFFFBF7) : PipeBuyerColors.field,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: deal.featured
-              ? PipeBuyerColors.orange.withValues(alpha: 0.48)
-              : PipeBuyerColors.line,
-          width: deal.featured ? 1.5 : 1,
+          color:
+              deal.featured ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0),
         ),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x0C0F172A),
+            blurRadius: 16,
+            offset: Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (deal.isProgramPreview)
-                const PipeBuyerVisualBadge(
-                  variant: PipeBuyerBadgeVariant.programPreview,
-                ),
-              if (deal.featured)
-                const PipeBuyerVisualBadge(
-                  variant: PipeBuyerBadgeVariant.featured,
-                ),
-              PipeBuyerVisualBadge(
-                variant: PipeBuyerBadgeVariant.verifiedPro,
-                label: deal.offerBadge.toUpperCase(),
-                customIcon: category?.icon ?? Icons.storefront_outlined,
+          Container(
+            height: 3,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: deal.featured
+                    ? const <Color>[PipeBuyerColors.orange, Color(0xFFFF9A3D)]
+                    : const <Color>[
+                        PipeBuyerColors.industrialBlue,
+                        Color(0xFF3B82F6),
+                      ],
               ),
-              if (category != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: PipeBuyerColors.line),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        category.icon,
-                        size: 13,
-                        color: PipeBuyerColors.slate,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (deal.isProgramPreview)
+                      const PipeBuyerVisualBadge(
+                        variant: PipeBuyerBadgeVariant.programPreview,
+                        compact: true,
                       ),
-                      const SizedBox(width: 5),
-                      Text(
-                        category.shortLabel,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: PipeBuyerColors.slate,
+                    if (deal.featured)
+                      const PipeBuyerVisualBadge(
+                        variant: PipeBuyerBadgeVariant.featured,
+                        compact: true,
+                      ),
+                    PipeBuyerVisualBadge(
+                      variant: PipeBuyerBadgeVariant.verifiedPro,
+                      label: deal.offerBadge.toUpperCase(),
+                      compact: true,
+                    ),
+                    if (category != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Text(
+                          category.shortLabel,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: PipeBuyerColors.slate,
+                          ),
                         ),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              PipeBuyerCompanyLogoBadge(
-                logoUrl: deal.logoUrl,
-                companyName: deal.partnerName,
-                size: 46,
-                featured: deal.featured,
-                fallbackIcon: category?.icon ?? Icons.storefront_outlined,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
+                const SizedBox(height: 12),
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      deal.partnerName,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: PipeBuyerColors.muted,
-                      ),
+                    PipeBuyerCompanyLogoBadge(
+                      logoUrl: deal.logoUrl,
+                      companyName: deal.partnerName,
+                      width: 80,
+                      height: 64,
+                      featured: deal.featured,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      deal.headline,
-                      style: const TextStyle(
-                        fontSize: 16.5,
-                        height: 1.25,
-                        fontWeight: FontWeight.w900,
-                        color: PipeBuyerColors.ink,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            deal.partnerName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: PipeBuyerColors.muted,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            deal.headline,
+                            style: const TextStyle(
+                              fontSize: 16.5,
+                              height: 1.25,
+                              fontWeight: FontWeight.w900,
+                              color: PipeBuyerColors.ink,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          if (deal.discountDetails.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-              decoration: BoxDecoration(
-                color: PipeBuyerColors.success.withValues(alpha: 0.09),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: PipeBuyerColors.success.withValues(alpha: 0.30),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.local_offer_rounded,
-                    size: 16,
-                    color: PipeBuyerColors.success,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      deal.discountDetails,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: PipeBuyerColors.success,
+                if (deal.discountDetails.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: PipeBuyerColors.success.withValues(alpha: 0.09),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: PipeBuyerColors.success.withValues(alpha: 0.30),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 10),
-          Text(
-            deal.summary,
-            style: const TextStyle(
-              fontSize: 12.5,
-              height: 1.42,
-              color: PipeBuyerColors.slate,
-            ),
-          ),
-          if (deal.productHighlights.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: deal.productHighlights
-                  .map(
-                    (item) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: PipeBuyerColors.line),
-                      ),
-                      child: Text(
-                        item,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: PipeBuyerColors.ink,
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.local_offer_rounded,
+                          size: 16,
+                          color: PipeBuyerColors.success,
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            deal.discountDetails,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: PipeBuyerColors.success,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  )
-                  .toList(growable: false),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Text(
+                  deal.summary,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    height: 1.42,
+                    color: PipeBuyerColors.slate,
+                  ),
+                ),
+                if (deal.productHighlights.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: deal.productHighlights
+                        .map(
+                          (item) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: PipeBuyerColors.line),
+                            ),
+                            child: Text(
+                              item,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: PipeBuyerColors.ink,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.public_rounded,
+                          size: 14,
+                          color: PipeBuyerColors.muted,
+                        ),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            deal.targetRegions.take(3).join(' • '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: PipeBuyerColors.muted,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        if (deal.ctaUrl.isNotEmpty)
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              final uri = Uri.tryParse(deal.ctaUrl);
+                              if (uri != null) {
+                                launchUrl(uri,
+                                    mode: LaunchMode.externalApplication);
+                              }
+                            },
+                            icon:
+                                const Icon(Icons.open_in_new_rounded, size: 15),
+                            label: const Text('Partner Site'),
+                          ),
+                        FilledButton.tonalIcon(
+                          onPressed: onInquire,
+                          icon: const Icon(Icons.request_quote_outlined,
+                              size: 16),
+                          label: Text(deal.ctaLabel),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.public_rounded,
-                    size: 14,
-                    color: PipeBuyerColors.muted,
-                  ),
-                  const SizedBox(width: 5),
-                  Flexible(
-                    child: Text(
-                      deal.targetRegions.take(3).join(' • '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: PipeBuyerColors.muted,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  if (deal.ctaUrl.isNotEmpty)
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        final uri = Uri.tryParse(deal.ctaUrl);
-                        if (uri != null) {
-                          launchUrl(uri, mode: LaunchMode.externalApplication);
-                        }
-                      },
-                      icon: const Icon(Icons.open_in_new_rounded, size: 15),
-                      label: const Text('Partner Site'),
-                    ),
-                  FilledButton.tonalIcon(
-                    onPressed: onInquire,
-                    icon: const Icon(Icons.request_quote_outlined, size: 16),
-                    label: Text(deal.ctaLabel),
-                  ),
-                ],
-              ),
-            ],
           ),
         ],
       ),

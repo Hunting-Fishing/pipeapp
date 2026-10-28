@@ -294,7 +294,8 @@ class _PipeBuyerPartnerAdminPageState extends State<PipeBuyerPartnerAdminPage>
                             PipeBuyerCompanyLogoBadge(
                               logoUrl: '${item['logoUrl'] ?? ''}'.trim(),
                               companyName: '${item['companyName'] ?? 'Brand'}',
-                              size: 40,
+                              width: 48,
+                              height: 38,
                             ),
                             const SizedBox(width: 10),
                             Flexible(
@@ -427,7 +428,8 @@ class _PipeBuyerPartnerAdminPageState extends State<PipeBuyerPartnerAdminPage>
             leading: PipeBuyerCompanyLogoBadge(
               logoUrl: '${item['logoUrl'] ?? ''}'.trim(),
               companyName: '${item['partnerName'] ?? 'Partner'}',
-              size: 40,
+              width: 48,
+              height: 38,
               featured: featured,
             ),
             title: Text(

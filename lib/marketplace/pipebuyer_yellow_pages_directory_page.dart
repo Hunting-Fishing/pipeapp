@@ -1820,19 +1820,18 @@ class _GridCompanyCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      // Row 2: Company Name (+ Inline Business Logo if present)
+                      // Row 2: Company Name + Business Logo / Placeholder Image
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          if (logoUrl.isNotEmpty) ...[
-                            PipeBuyerCompanyLogoBadge(
-                              logoUrl: logoUrl,
-                              companyName: companyName,
-                              size: 28,
-                              featured: isFeatured,
-                            ),
-                            const SizedBox(width: 7),
-                          ],
+                          PipeBuyerCompanyLogoBadge(
+                            logoUrl: logoUrl,
+                            companyName: companyName,
+                            width: compact ? 34 : 38,
+                            height: compact ? 28 : 30,
+                            featured: isFeatured,
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               companyName,
@@ -4977,7 +4976,8 @@ class _CompanyDetailSheet extends StatelessWidget {
                 PipeBuyerCompanyLogoBadge(
                   logoUrl: logoUrl,
                   companyName: companyName,
-                  size: 54,
+                  width: 72,
+                  height: 58,
                   featured: isFeatured,
                 ),
                 const SizedBox(width: 14),

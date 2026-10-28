@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pipe_app/marketplace/marketplace_deep_links.dart';
 import 'package:pipe_app/marketplace/pipebuyer_business_logo_uploader.dart';
+import 'package:pipe_app/marketplace/pipebuyer_business_logo_widgets.dart';
 import 'package:pipe_app/marketplace/pipebuyer_partner_admin_page.dart';
 import 'package:pipe_app/marketplace/pipebuyer_partner_client.dart';
 import 'package:pipe_app/marketplace/pipebuyer_partner_taxonomy.dart';
@@ -269,6 +270,7 @@ void main() {
     );
     expect(find.text('PROGRAM PREVIEW'), findsWidgets);
     expect(find.text('FEATURED'), findsWidgets);
+    expect(find.byType(PipeBuyerImagePlaceholder), findsWidgets);
     expect(
       find.textContaining('Up to \$3,500 Commercial Upfit Allowance'),
       findsOneWidget,
