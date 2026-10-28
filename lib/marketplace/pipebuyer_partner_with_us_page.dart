@@ -63,6 +63,7 @@ class _PipeBuyerPartnerWithUsPageState
   String _selectedBrandCategory = 'oem_fleet_crew_trucks';
   String _selectedCommercialModel = 'sponsored_showcase';
   String _logoUrl = '';
+  String _bannerUrl = '';
   final Set<String> _selectedProgramTypes = <String>{
     'promote_brand',
     'showcase_sell_products',
@@ -250,6 +251,7 @@ class _PipeBuyerPartnerWithUsPageState
         phone: _phoneController.text.trim(),
         website: _websiteController.text.trim(),
         logoUrl: _logoUrl.trim(),
+        bannerUrl: _bannerUrl.trim(),
         notes: _notesController.text.trim(),
       );
 
@@ -531,6 +533,18 @@ class _PipeBuyerPartnerWithUsPageState
               subtitle:
                   'Displayed on your Partner Showcase & Oilfield Deal card • PNG, JPG, or WebP (max 2 MB)',
               onChanged: (url) => setState(() => _logoUrl = url),
+            ),
+            const SizedBox(height: 12),
+            PipeBuyerPromoBannerField(
+              fieldKeyPrefix: 'partner_brand_banner',
+              bannerUrl: _bannerUrl,
+              companyName: _companyNameController.text,
+              purpose: 'partner_banner',
+              uploader: widget.logoUploader,
+              title: 'Featured Promo Banner Image (Optional — 16:9 Wide)',
+              subtitle:
+                  'Displayed in the Featured Partner Carousel & showcase header • PNG, JPG, or WebP (max 2 MB)',
+              onChanged: (url) => setState(() => _bannerUrl = url),
             ),
             const SizedBox(height: 14),
             const Text(
@@ -1234,6 +1248,10 @@ class _PartnerShowcaseSection extends StatelessWidget {
               ),
             ],
           ),
+          if (deals.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _buildFeaturedPartnerCarousel(),
+          ],
           const SizedBox(height: 14),
           TextField(
             controller: searchController,
@@ -1340,6 +1358,72 @@ class _PartnerShowcaseSection extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildFeaturedPartnerCarousel() {
+    final featuredDeals =
+        deals.where((d) => d.featured).take(4).toList(growable: false);
+    final sourceDeals =
+        featuredDeals.isNotEmpty ? featuredDeals : deals.take(3).toList();
+
+    final slides = <PipeBuyerFeaturedPromoSlide>[
+      for (final deal in sourceDeals)
+        PipeBuyerFeaturedPromoSlide(
+          id: deal.showcaseId,
+          eyebrow: deal.partnerName,
+          title: 'Featured Spotlight — ${deal.headline}',
+          summary: deal.summary,
+          bannerUrl: deal.bannerUrl,
+          logoUrl: deal.logoUrl,
+          slotLabel: '16:9 PROMO BANNER SLOT',
+          badges: <Widget>[
+            if (deal.isProgramPreview)
+              const PipeBuyerVisualBadge(
+                variant: PipeBuyerBadgeVariant.programPreview,
+                compact: true,
+              ),
+            const PipeBuyerVisualBadge(
+              variant: PipeBuyerBadgeVariant.featured,
+              compact: true,
+            ),
+          ],
+          highlights: deal.productHighlights.take(3).toList(),
+          offerCallout: deal.offerBadge.isNotEmpty
+              ? 'Featured Offer: ${deal.offerBadge}'
+              : '',
+          primaryCtaLabel: deal.ctaLabel,
+          onPrimaryCta: () => onInquireDeal(deal),
+          secondaryCtaLabel: 'Reserve Promo Banner',
+          onSecondaryCta: onBecomePartner,
+        ),
+      PipeBuyerFeaturedPromoSlide(
+        id: 'reserve_partner_banner',
+        eyebrow: 'OEM, EQUIPMENT & BRAND SPONSORSHIPS',
+        title: 'Launch a 16:9 Featured Promo Banner Campaign on Pipe Buyer',
+        summary:
+            'Promote crew truck allocations, oilfield equipment packages, FR gear, or member fleet discounts directly to energy operators and contractors.',
+        slotLabel: 'UPLOAD 16:9 BANNER',
+        badges: const <Widget>[
+          PipeBuyerVisualBadge(
+            variant: PipeBuyerBadgeVariant.featured,
+            compact: true,
+          ),
+        ],
+        highlights: const <String>[
+          '16:9 Wide Promo Banner',
+          'Direct Buyer Lead Capture',
+          'North American Basins',
+        ],
+        primaryCtaLabel: 'Apply to Partner',
+        onPrimaryCta: onBecomePartner,
+      ),
+    ];
+
+    return PipeBuyerFeaturedPromoCarousel(
+      slides: slides,
+      sectionTitle: 'FEATURED PARTNER PROMO BANNER CAROUSEL',
+      keyPrefix: 'partner_featured_promo_carousel',
+    );
+  }
 }
 
 class _PartnerShowcaseCard extends StatelessWidget {
@@ -1388,6 +1472,13 @@ class _PartnerShowcaseCard extends StatelessWidget {
               ),
             ),
           ),
+          if (deal.bannerUrl.trim().isNotEmpty)
+            PipeBuyerPromoBannerImage(
+              bannerUrl: deal.bannerUrl,
+              companyName: deal.partnerName,
+              height: 132,
+              borderRadius: 0,
+            ),
           Padding(
             padding: const EdgeInsets.all(18),
             child: Column(

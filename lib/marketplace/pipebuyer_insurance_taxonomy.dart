@@ -51,6 +51,7 @@ class InsuranceProviderListing {
     this.publicPhone = '',
     this.website = '',
     this.logoUrl = '',
+    this.bannerUrl = '',
     this.countryCode = 'US',
     this.regionCode = '',
     this.headquartersCity = '',
@@ -82,6 +83,7 @@ class InsuranceProviderListing {
   final String publicPhone;
   final String website;
   final String logoUrl;
+  final String bannerUrl;
   final String countryCode;
   final String regionCode;
   final String headquartersCity;
@@ -222,6 +224,7 @@ class InsuranceProviderListing {
       publicPhone: '${json['publicPhone'] ?? json['phone'] ?? ''}'.trim(),
       website: '${json['website'] ?? ''}'.trim(),
       logoUrl: '${json['logoUrl'] ?? ''}'.trim(),
+      bannerUrl: '${json['bannerUrl'] ?? ''}'.trim(),
       countryCode: '${json['countryCode'] ?? 'US'}'.trim().toUpperCase(),
       regionCode: '${json['regionCode'] ?? ''}'.trim().toUpperCase(),
       headquartersCity:
@@ -550,6 +553,14 @@ abstract final class PipeBuyerInsuranceTaxonomy {
   static String revenueBandLabel(String code) {
     for (final item in annualRevenueBands) {
       if (item.code == code) return item.label;
+    }
+    return code;
+  }
+
+  static String providerTypeLabel(String code) {
+    final normalized = code.trim().toLowerCase();
+    for (final item in providerTypes) {
+      if (item.code == normalized) return item.label;
     }
     return code;
   }

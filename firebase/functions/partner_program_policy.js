@@ -323,6 +323,10 @@ function validatePartnerInquiryInput(input = {}) {
     ErrorClass: PartnerProgramPolicyError,
     fieldName: "logoUrl",
   });
+  const bannerUrl = normalizeLogoUrl(input.bannerUrl, {
+    ErrorClass: PartnerProgramPolicyError,
+    fieldName: "bannerUrl",
+  });
   const notes = cleanMultilineText(input.notes, 2000);
 
   return {
@@ -341,6 +345,7 @@ function validatePartnerInquiryInput(input = {}) {
     phone,
     website,
     logoUrl,
+    bannerUrl,
     notes,
   };
 }
@@ -382,6 +387,10 @@ function normalizePartnerShowcaseDeal(input = {}) {
     ErrorClass: PartnerProgramPolicyError,
     fieldName: "logoUrl",
   });
+  const bannerUrl = normalizeLogoUrl(input.bannerUrl, {
+    ErrorClass: PartnerProgramPolicyError,
+    fieldName: "bannerUrl",
+  });
   const contactEmail = input.contactEmail ?
     validateEmail(input.contactEmail, "Partner contact email") : "";
   const contactPhone = validatePhone(input.contactPhone, {required: false});
@@ -405,6 +414,7 @@ function normalizePartnerShowcaseDeal(input = {}) {
     ctaLabel,
     ctaUrl,
     logoUrl,
+    bannerUrl,
     contactEmail,
     contactPhone,
     featured,
@@ -437,6 +447,7 @@ function toPublicPartnerShowcaseDeal(showcaseId, record = {}) {
     ctaLabel: cleanText(record.ctaLabel, 48) || "Request Fleet / Deal Info",
     ctaUrl: cleanText(record.ctaUrl, 300),
     logoUrl: normalizeLogoUrl(record.logoUrl),
+    bannerUrl: normalizeLogoUrl(record.bannerUrl),
     featured: record.featured === true,
     active: record.active !== false,
     priorityRank: Number.isFinite(Number(record.priorityRank)) ?

@@ -48,6 +48,7 @@ class _PipeBuyerInsuranceProviderApplyPageState
 
   String _providerType = 'specialty_broker';
   String _logoUrl = '';
+  String _bannerUrl = '';
   final Set<String> _licensedCountries = <String>{'US'};
   final Set<String> _selectedBasins = <String>{'Permian Basin'};
   final Set<String> _selectedCoverageLines = <String>{
@@ -129,6 +130,7 @@ class _PipeBuyerInsuranceProviderApplyPageState
         phone: _phoneController.text.trim(),
         website: _websiteController.text.trim(),
         logoUrl: _logoUrl.trim(),
+        bannerUrl: _bannerUrl.trim(),
         licenseSummary: _licenseSummaryController.text.trim(),
         countryCode: _licensedCountries.first,
         regionCode: _regionCodeController.text.trim().toUpperCase(),
@@ -513,6 +515,18 @@ class _PipeBuyerInsuranceProviderApplyPageState
                     subtitle:
                         'Displayed on your verified Pipe Buyer Insurance Directory card • PNG, JPG, or WebP (max 2 MB)',
                     onChanged: (url) => setState(() => _logoUrl = url),
+                  ),
+                  const SizedBox(height: 12),
+                  PipeBuyerPromoBannerField(
+                    fieldKeyPrefix: 'insurance_provider_banner',
+                    bannerUrl: _bannerUrl,
+                    companyName: _companyNameController.text,
+                    purpose: 'insurance_banner',
+                    uploader: widget.logoUploader,
+                    title: 'Featured Promo Banner Image (Optional — 16:9 Wide)',
+                    subtitle:
+                        'Displayed in the Featured Promo Carousel & top card banner • PNG, JPG, or WebP (max 2 MB)',
+                    onChanged: (url) => setState(() => _bannerUrl = url),
                   ),
                   const SizedBox(height: 14),
                   _buildLiveCardPreview(),

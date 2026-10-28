@@ -10,8 +10,10 @@ const MAX_BASE64_LENGTH = Math.ceil((MAX_LOGO_BYTES * 4) / 3) + 128;
 
 const ALLOWED_LOGO_PURPOSES = Object.freeze(new Set([
   "insurance_provider",
+  "insurance_banner",
   "business_directory",
   "partner_brand",
+  "partner_banner",
 ]));
 
 class BusinessLogoUploadError extends Error {

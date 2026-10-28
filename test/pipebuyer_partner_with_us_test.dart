@@ -77,6 +77,7 @@ class _FakePartnerClient extends PipeBuyerPartnerClient {
     required String phone,
     String website = '',
     String logoUrl = '',
+    String bannerUrl = '',
     String notes = '',
   }) async {
     lastSubmittedInquiry = <String, Object?>{
@@ -93,6 +94,7 @@ class _FakePartnerClient extends PipeBuyerPartnerClient {
       'email': email,
       'phone': phone,
       'logoUrl': logoUrl,
+      'bannerUrl': bannerUrl,
     };
     return <String, dynamic>{
       'inquiryId': 'INQ-2026-FORD',
@@ -250,10 +252,15 @@ void main() {
         List<int>.filled(64, 0x89),
       ),
       uploadBytesOverride: ({required bytes, required purpose}) async {
+        if (purpose == 'partner_banner') {
+          return 'https://cdn.pipebuyer.example.com/banners/ford-pro-wide.jpg';
+        }
         expect(purpose, 'partner_brand');
         return 'https://cdn.pipebuyer.example.com/logos/ford-pro.png';
       },
     );
+    // Verify mobile layout (390px) renders Featured Promo Carousel cleanly without overflow
+    tester.view.physicalSize = const Size(390, 900);
     await tester.pumpWidget(
       MaterialApp(
         home: PipeBuyerPartnerWithUsPage(
@@ -261,6 +268,24 @@ void main() {
           logoUploader: logoUploader,
         ),
       ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const Key('partner_featured_promo_carousel')),
+      findsOneWidget,
+    );
+
+    tester.view.physicalSize = const Size(1280, 1400);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    expect(
+      find.byKey(const Key('partner_featured_promo_carousel')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const Key('partner_featured_promo_carousel_next')),
     );
     await tester.pumpAndSettle();
 
@@ -291,6 +316,13 @@ void main() {
     );
     await tester.ensureVisible(uploadLogoBtn);
     await tester.tap(uploadLogoBtn);
+    await tester.pumpAndSettle();
+
+    final uploadBannerBtn = find.byKey(
+      const Key('partner_brand_banner_upload_button'),
+    );
+    await tester.ensureVisible(uploadBannerBtn);
+    await tester.tap(uploadBannerBtn);
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('partner-headline-input')),
@@ -336,6 +368,10 @@ void main() {
     expect(
       fakeClient.lastSubmittedInquiry?['logoUrl'],
       'https://cdn.pipebuyer.example.com/logos/ford-pro.png',
+    );
+    expect(
+      fakeClient.lastSubmittedInquiry?['bannerUrl'],
+      'https://cdn.pipebuyer.example.com/banners/ford-pro-wide.jpg',
     );
     expect(
       find.byKey(const Key('partner-submission-confirmation')),

@@ -265,3 +265,59 @@ test("logoUrl is preserved across Insurance, Yellow Pages, and Partner Program p
   const pubShowcase = toPublicPartnerShowcaseDeal("sc_1", showcase);
   assert.equal(pubShowcase.logoUrl, sampleLogo);
 });
+
+test("bannerUrl and promo banner upload purposes are supported across Insurance and Partner policies", () => {
+  const insBanner = validateBusinessLogoUpload({
+    base64Data: VALID_PNG_BYTES.toString("base64"),
+    purpose: "insurance_banner",
+  });
+  assert.equal(insBanner.purpose, "insurance_banner");
+
+  const partnerBanner = validateBusinessLogoUpload({
+    base64Data: VALID_WEBP_BYTES.toString("base64"),
+    purpose: "partner_banner",
+  });
+  assert.equal(partnerBanner.purpose, "partner_banner");
+
+  const sampleBanner = "https://firebasestorage.googleapis.com/v0/b/flutter-flow-pipe.firebasestorage.app/o/business_logos%2Fpartner_banner%2Fbanner_1.png?alt=media&token=xyz";
+
+  const insApp = validateInsuranceProviderApplication({
+    companyName: "Lone Star Energy Underwriters",
+    providerType: "specialty_broker",
+    contactName: "Dana Vance",
+    email: "dana@lonestar-example.com",
+    phone: "432-555-0144",
+    bannerUrl: sampleBanner,
+    licenseSummary: "TX TDI #991042",
+    licensedCountries: ["US"],
+    licensedRegions: ["TX"],
+    coverageLines: ["commercial_auto_fleet"],
+  });
+  assert.equal(insApp.bannerUrl, sampleBanner);
+  const pubIns = toPublicInsuranceProvider({providerId: "prov_banner", ...insApp});
+  assert.equal(pubIns.bannerUrl, sampleBanner);
+
+  const partnerInq = validatePartnerInquiryInput({
+    companyName: "Apex Fleet Upfitters",
+    brandCategory: "oem_fleet_crew_trucks",
+    programTypes: ["showcase_sell_products"],
+    commercialModel: "sponsored_showcase",
+    headline: "Crew Truck Packages for Basin Contractors",
+    productSummary: "Turnkey commercial crew truck upfits and fleet rebates.",
+    contactName: "Alex Mercer",
+    email: "alex@apexfleet-example.com",
+    phone: "713-555-0188",
+    bannerUrl: sampleBanner,
+  });
+  assert.equal(partnerInq.bannerUrl, sampleBanner);
+  const showcase = normalizePartnerShowcaseDeal({
+    partnerName: partnerInq.companyName,
+    brandCategory: partnerInq.brandCategory,
+    programTypes: partnerInq.programTypes,
+    headline: partnerInq.headline,
+    summary: partnerInq.productSummary,
+    bannerUrl: sampleBanner,
+  });
+  const pubShowcase = toPublicPartnerShowcaseDeal("sc_banner", showcase);
+  assert.equal(pubShowcase.bannerUrl, sampleBanner);
+});

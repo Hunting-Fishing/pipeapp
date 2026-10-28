@@ -507,6 +507,7 @@ class _UpsertShowcaseDialogState extends State<_UpsertShowcaseDialog> {
   late final TextEditingController _ctaUrl;
   late String _brandCategory;
   late String _logoUrl;
+  late String _bannerUrl;
   bool _featured = true;
   bool _active = true;
   bool _saving = false;
@@ -530,6 +531,7 @@ class _UpsertShowcaseDialogState extends State<_UpsertShowcaseDialog> {
     _ctaUrl = TextEditingController(text: '${e['ctaUrl'] ?? ''}');
     _brandCategory = '${e['brandCategory'] ?? 'oem_fleet_crew_trucks'}';
     _logoUrl = '${e['logoUrl'] ?? ''}'.trim();
+    _bannerUrl = '${e['bannerUrl'] ?? ''}'.trim();
     _featured = e['featured'] == true;
     _active = e['active'] != false;
   }
@@ -572,6 +574,7 @@ class _UpsertShowcaseDialogState extends State<_UpsertShowcaseDialog> {
         'productHighlights': highlights,
         'ctaUrl': _ctaUrl.text.trim(),
         'logoUrl': _logoUrl.trim(),
+        'bannerUrl': _bannerUrl.trim(),
         'featured': _featured,
         'active': _active,
       });
@@ -620,6 +623,15 @@ class _UpsertShowcaseDialogState extends State<_UpsertShowcaseDialog> {
                   purpose: 'partner_brand',
                   title: 'Partner Brand Logo',
                   onChanged: (url) => setState(() => _logoUrl = url),
+                ),
+                const SizedBox(height: 10),
+                PipeBuyerPromoBannerField(
+                  fieldKeyPrefix: 'admin_partner_banner',
+                  bannerUrl: _bannerUrl,
+                  companyName: _partnerName.text,
+                  purpose: 'partner_banner',
+                  title: 'Featured Promo Banner Image (16:9)',
+                  onChanged: (url) => setState(() => _bannerUrl = url),
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
