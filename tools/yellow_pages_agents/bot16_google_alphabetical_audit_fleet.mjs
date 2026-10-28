@@ -13,6 +13,8 @@
  *      - Corridor 2 (`middle_east`): UAE (`AE`), Saudi Arabia (`SA`), Qatar (`QA`), Oman (`OM`), Kuwait (`KW`), Bahrain (`BH`) — Arabian Basin
  *      - Corridor 3 (`latin_america`): Brazil (`BR`), Mexico (`MX`), Argentina (`AR`), Colombia (`CO`), Guyana (`GY`), Trinidad & Tobago (`TT`)
  *      - Corridor 4 (`australia`): Australia (`AU` — WA, QLD, NT, SA, VIC) — North West Shelf, Surat/Bowen, Cooper, Bonaparte, Gippsland
+ *      - Corridor 5 (`africa`): Nigeria (`NG`), Angola (`AO`), Egypt (`EG`), Ghana (`GH`), Algeria (`DZ`), South Africa (`ZA`), Namibia (`NA`), Mozambique (`MZ`), Gabon (`GA`), Congo (`CG`), Cote d'Ivoire (`CI`), Senegal (`SN`), Uganda (`UG`), Tanzania (`TZ`), Libya (`LY`)
+ *      - Corridor 6 (`asia_caspian`): Singapore (`SG`), Malaysia (`MY`), Indonesia (`ID`), Brunei (`BN`), Thailand (`TH`), Vietnam (`VN`), Kazakhstan (`KZ`), Azerbaijan (`AZ`), India (`IN`)
  *
  * Strict Schema & Hygiene Guarantees:
  *   - Rejects permanently/temporarily closed listings (and unpublishes any existing live entry found closed).
@@ -83,7 +85,7 @@ const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 const CONSUMER_NOISE_BLOCKLIST =
-  /\b(?:gas station|petrol station|filling station|bensinstasjon|tankstation|tankstelle|posto de combust[ií]vel|posto ipiranga|posto br|gasolinera|estaci[oó]n de servicio|convenience store|service station|truck stop|car wash|auto oil change|oil change service|jiffy lube|mr\.?\s*lube|great canadian oil change|valvoline instant|take 5 oil|grease monkey|midas|meineke|kal tire|fountain tire|canadian tire|walmart|costco|7-eleven|circle k|esso|petro-canada|shell station|chevron station|mobil station|exxon station|husky|co-op gas|love's travel|pilot travel|flying j|buc-ee|quiktrip|wawa|hair|beauty|barber|nail|spa|aromatherapy|essential oil|olive oil|cooking oil|cbd oil|massage|yoga|pilates|martial arts|karate|taekwondo|dance|music school|kumon|sylvan learning|mathnasium|tutoring|daycare|preschool|montessori|primary school|high school|dog training|pet|real estate|mortgage|dental|dentist|chiropractic|optometrist|pharmacy|restaurant|pizza|cafe|coffee|bakery|hotel|motel|inn|church|mosque|cathedral|fitness|gym|crossfit|hunter safety|wilderness survival|aviation learning|scout aviation|allcpr|hero for life|mind body|dole accredited|saferphilippines|1philsafe|feati maritime|bacoor branch|supermarket|grocery)\b/iu;
+  /\b(?:gas station|petrol station|petrol pump|filling station|fuel station|bensinstasjon|tankstation|tankstelle|station-service|posto de combust[ií]vel|posto ipiranga|posto br|sonangol posto|gasolinera|estaci[oó]n de servicio|spbu|kedai mesra|petronas station|totalenergies station|oando station|conoil station|mrs oil station|bovas|ardova|rubis station|engen garage|sasol garage|caltex station|astron energy|puma energy station|ptt station|petrolimex|hp petrol pump|indian oil petrol|bharat petroleum pump|cng pump|lpg cylinder|convenience store|service station|truck stop|car wash|auto oil change|oil change service|engine oil shop|lube shop|tyre shop|jiffy lube|mr\.?\s*lube|great canadian oil change|valvoline instant|take 5 oil|grease monkey|midas|meineke|kal tire|fountain tire|canadian tire|walmart|costco|7-eleven|circle k|esso|petro-canada|shell station|chevron station|mobil station|exxon station|husky|co-op gas|love's travel|pilot travel|flying j|buc-ee|quiktrip|wawa|hair|beauty|barber|nail|spa|aromatherapy|essential oil|olive oil|cooking oil|palm oil|coconut oil|edible oil|mustard oil|vegetable oil|cbd oil|massage|yoga|pilates|martial arts|karate|taekwondo|dance|music school|driving school|ielts|toefl|spoken english|coaching classes|tuition centre|kumon|sylvan learning|mathnasium|tutoring|daycare|preschool|montessori|primary school|high school|dog training|pet|real estate|mortgage|dental|dentist|chiropractic|optometrist|pharmacy|restaurant|pizza|cafe|coffee|bakery|hotel|motel|inn|church|mosque|cathedral|temple|fitness|gym|crossfit|hunter safety|wilderness survival|aviation learning|scout aviation|allcpr|hero for life|mind body|dole accredited|saferphilippines|1philsafe|feati maritime|bacoor branch|supermarket|grocery|tailor|boutique)\b/iu;
 
 const EXTRA_VALID_US_NPA = new Set([
   "205", "209", "214", "216", "217", "219", "231", "248", "251", "256", "269", "270", "281",
@@ -97,41 +99,77 @@ const EXTRA_VALID_US_NPA = new Set([
 ]);
 
 const POSITIVE_OILFIELD_OR_TRAINING_SIGNAL =
-  /\b(?:oilfield|oil\s*&\s*gas|oil\s+and\s+gas|petroleum|petr[oó]leo|[oó]leo\s+e\s+g[aá]s|olje|gass|offshore|onshore|subsea|energy|energ[ií]a|drilling|perfura[cç][aã]o|perforaci[oó]n|boring|br[øo]nn|well\s+service|well\s+intervention|workover|wireline|slickline|coiled\s+tubing|frac|fracturing|cementing|completions|wellhead|valve|bop|pressure\s+control|octg|casing|tubing|tubular|pipe|pipeline|midstream|upstream|fpso|epci|epcm|hydrovac|vac\s+truck|vacuum\s+truck|water\s+hauling|fluid\s+hauling|winch|heavy\s+haul|heavy\s+lift|rig\s+mov|bed\s+truck|hot\s*shot|pilot\s+car|crane|picker|rigging|lifting|welding|b-pressure|fabrication|machine\s+shop|ndt|non-destructive|inspection|inspe[cç][aã]o|inspecci[oó]n|artificial\s+lift|pumpjack|compressor|compression|turbomachinery|tank|vessel|treater|separator|boiler|rental|downhole|fishing\s+tool|rig\s+mat|access\s+mat|lease\s+construction|earthwork|scada|instrumentation|automation|rov|oilfield\s+electrical|h2s|hse|industrial\s+medic|safety|seguridad\s+industrial|seguran[cç]a|sikkerhet|fire\s+watch|remediation|reclamation|decommissioning|environmental|disposal|mud|drilling\s+fluid|chemical|lubricant|bunkering|bulk\s+fuel|heavy\s+duty\s+mechanic|hydraulics|remote\s+camp|offshore\s+catering|wellsite\s+trailer|surveying|geomatics|seismic|geophysical|line\s+locat|training|courses|treinamento|capacitaci[oó]n|kurssenter|sikkerhetssenter|academy|institute|polytechnic|college|well\s+control|iwcf|wellsharp|iadc|opito|bosiet|foet|huet|cbsp|irata|nebosh|gwo|nopsema|safeland|veriforce|rigpass|confined\s+space|fall\s+protection|ground\s+disturbance|class\s+1|cdl\s+training)\b/iu;
+  /\b(?:oilfield|oil\s*&\s*gas|oil\s+and\s+gas|petroleum|petr[oó]leo|p[eé]trolier|[oó]leo\s+e\s+g[aá]s|olje|gass|migas|minyak\s+dan\s+gas|perminyakan|dầu\s+khí|нефтегаз|нефть|бурение|скважин|neft|qazma|offshore|onshore|subsea|lepas\s+pantai|energy|energ[ií]a|[eé]nergie|drilling|perfura[cç][aã]o|perforaci[oó]n|forage|pengeboran|khoan|boring|br[øo]nn|well\s+service|well\s+intervention|workover|wireline|slickline|coiled\s+tubing|frac|fracturing|cementing|completions|wellhead|valve|bop|pressure\s+control|octg|casing|tubing|tubular|pipe|pipeline|midstream|upstream|fpso|fso|epci|epcm|hydrovac|vac\s+truck|vacuum\s+truck|water\s+hauling|fluid\s+hauling|winch|heavy\s+haul|heavy\s+lift|levage|rig\s+mov|bed\s+truck|hot\s*shot|pilot\s+car|crane|picker|rigging|lifting|welding|soudure|b-pressure|fabrication|shipyard|marine\s+engineering|machine\s+shop|ndt|non-destructive|inspection|inspe[cç][aã]o|inspecci[oó]n|artificial\s+lift|pumpjack|compressor|compression|turbomachinery|tank|vessel|treater|separator|boiler|rental|downhole|fishing\s+tool|rig\s+mat|access\s+mat|lease\s+construction|earthwork|scada|instrumentation|automation|rov|oilfield\s+electrical|h2s|hse|industrial\s+medic|safety|seguridad\s+industrial|seguran[cç]a|s[eé]curit[eé]|sikkerhet|fire\s+watch|remediation|reclamation|decommissioning|environmental|disposal|mud|drilling\s+fluid|chemical|lubricant|bunkering|bulk\s+fuel|heavy\s+duty\s+mechanic|hydraulics|remote\s+camp|offshore\s+catering|wellsite\s+trailer|surveying|geomatics|seismic|geophysical|line\s+locat|training|courses|treinamento|capacitaci[oó]n|formation|pelatihan|kurssenter|sikkerhetssenter|academy|institute|polytechnic|college|well\s+control|iwcf|wellsharp|iadc|opito|bosiet|foet|huet|cbsp|t-bosiet|irata|nebosh|niosh|gwo|nopsema|safeland|veriforce|rigpass|confined\s+space|fall\s+protection|ground\s+disturbance|class\s+1|cdl\s+training)\b/iu;
 
 const AGGREGATOR_DOMAIN_BLOCKLIST =
-  /(?:google\.|gstatic\.|ggpht\.|facebook\.|instagram\.|linkedin\.|youtube\.|twitter\.|x\.com|yelp\.|yellowpages\.|yp\.ca|411\.ca|bbb\.org|mapquest\.|manta\.|cossd\.com|indeed\.|glassdoor\.|dnb\.com|zoominfo\.|chamberofcommerce\.|yell\.com|1881\.no|gulesider\.no|paginasamarillas\.|apontador\.com\.br|truelocal\.com\.au)/iu;
+  /(?:google\.|gstatic\.|ggpht\.|facebook\.|instagram\.|linkedin\.|youtube\.|twitter\.|x\.com|yelp\.|yellowpages\.|yp\.ca|411\.ca|bbb\.org|mapquest\.|manta\.|cossd\.com|indeed\.|glassdoor\.|dnb\.com|zoominfo\.|chamberofcommerce\.|yell\.com|1881\.no|gulesider\.no|paginasamarillas\.|apontador\.com\.br|truelocal\.com\.au|indiamart\.com|justdial\.com|vconnect\.com|businesslist\.com\.ng|streetdirectory\.com)/iu;
 
 // Strict ITU country dial rules for International Scope anti-zoom-out verification
 const INTL_COUNTRY_PHONE_RULES = {
+  // Corridor 1: UK / Norway & North Sea
   GB: {dial: "44", minNat: 9, maxNat: 10, countryRx: /\b(?:UK|United Kingdom|Scotland|England|Wales|AB\d{1,2}|NR\d{1,2}|TS\d{1,2}|NE\d{1,2}|HU\d{1,2})\b/iu},
   NO: {dial: "47", minNat: 8, maxNat: 8, countryRx: /\b(?:Norway|Norge|Stavanger|Tananger|Forus|Sandnes|Bergen|Oslo|Hammerfest|Kristiansund|\d{4}\s+[A-ZÆØÅ])/iu},
   NL: {dial: "31", minNat: 9, maxNat: 9, countryRx: /\b(?:Netherlands|Nederland|Rotterdam|Den Helder|IJmuiden|Groningen|Emmen|\d{4}\s*[A-Z]{2})\b/iu},
   DE: {dial: "49", minNat: 8, maxNat: 11, countryRx: /\b(?:Germany|Deutschland|Celle|Lingen|Hamburg|\b\d{5}\s+[A-ZÄÖÜ])/iu},
+  // Corridor 2: Middle East
   AE: {dial: "971", minNat: 8, maxNat: 9, countryRx: /\b(?:UAE|United Arab Emirates|Abu Dhabi|Mussafah|Musaffah|Ruwais|Dubai|Jebel Ali|Sharjah|Hamriyah|Fujairah|Ras Al Khaimah)\b/iu},
   SA: {dial: "966", minNat: 8, maxNat: 9, countryRx: /\b(?:Saudi Arabia|KSA|Dammam|Khobar|Al Khobar|Dhahran|Jubail|Ras Tanura|Abqaiq|Riyadh|Yanbu|Jeddah)\b/iu},
   QA: {dial: "974", minNat: 8, maxNat: 8, countryRx: /\b(?:Qatar|Doha|Ras Laffan|Mesaieed|Al Khor|Al Wakrah)\b/iu},
   OM: {dial: "968", minNat: 8, maxNat: 8, countryRx: /\b(?:Oman|Muscat|Sohar|Duqm|Nizwa|Ruwi|Ghala|Azaiba|Al Khuwair)\b/iu},
   KW: {dial: "965", minNat: 8, maxNat: 8, countryRx: /\b(?:Kuwait|Ahmadi|Al Ahmadi|Shuaiba|Fahaheel|Safat|Sharq)\b/iu},
   BH: {dial: "973", minNat: 8, maxNat: 8, countryRx: /\b(?:Bahrain|Manama|Sitra|Awali|Hidd|Juffair)\b/iu},
+  // Corridor 3: Latin America & Caribbean
   BR: {dial: "55", minNat: 10, maxNat: 11, countryRx: /\b(?:Brazil|Brasil|Maca[eé]|Rio de Janeiro|Niter[oó]i|Rio das Ostras|Campos|Santos|S[aã]o Paulo|Vit[oó]ria|Salvador|Cama[cç]ari|\bRJ\b|\bSP\b|\bES\b|\bBA\b|\d{5}-\d{3})\b/iu},
   MX: {dial: "52", minNat: 10, maxNat: 10, countryRx: /\b(?:Mexico|M[eé]xico|Villahermosa|Para[ií]so|Comalcalco|Ciudad del Carmen|Carmen|Reynosa|Tampico|Altamira|Coatzacoalcos|Poza Rica|Veracruz|Monterrey|Tabasco|Campeche|Tamaulipas)\b/iu},
   AR: {dial: "54", minNat: 8, maxNat: 11, countryRx: /\b(?:Argentina|Neuqu[eé]n|A[ñn]elo|Centenario|Rinc[oó]n de los Sauces|Comodoro Rivadavia|Caleta Olivia|Buenos Aires|Bah[ií]a Blanca|Chubut)\b/iu},
   CO: {dial: "57", minNat: 7, maxNat: 10, countryRx: /\b(?:Colombia|Bogot[aá]|Barrancabermeja|Yopal|Villavicencio|Cartagena|Santander|Casanare|Meta)\b/iu},
   GY: {dial: "592", minNat: 7, maxNat: 7, countryRx: /\b(?:Guyana|Georgetown|Demerara|East Bank|Eccles|Houston)\b/iu},
   TT: {dial: "1868", minNat: 7, maxNat: 10, countryRx: /\b(?:Trinidad|Tobago|San Fernando|Point Lisas|Couva|La Brea|Point Fortin|Port of Spain|Chaguaramas|Marabella)\b/iu},
+  // Corridor 4: Australia
   AU: {dial: "61", minNat: 9, maxNat: 10, countryRx: /\b(?:Australia|Perth|Welshpool|Henderson|Kewdale|Karratha|Dampier|Port Hedland|Onslow|Brisbane|Toowoomba|Roma|Chinchilla|Gladstone|Darwin|Adelaide|Moomba|Melbourne|Sale|\bWA\b|\bQLD\b|\bNT\b|\bSA\b|\bVIC\b)\b/iu},
+  // Corridor 5: Africa (West, North, East & Southern Africa Energy Basins)
+  NG: {dial: "234", minNat: 8, maxNat: 10, countryRx: /\b(?:Nigeria|Port Harcourt|Trans[\s-]*Amadi|Onne|Rivers State|Lagos|Victoria Island|Lekki|Ikoyi|Apapa|Warri|Effurun|Delta State|Eket|Akwa Ibom|Abuja)\b/iu},
+  AO: {dial: "244", minNat: 9, maxNat: 9, countryRx: /\b(?:Angola|Luanda|Talatona|Belas|Sonils|Viana|Cabinda|Malongo|Soyo|Zaire|Lobito|Benguela)\b/iu},
+  EG: {dial: "20", minNat: 8, maxNat: 10, countryRx: /\b(?:Egypt|Cairo|Maadi|New Cairo|Nasr City|Heliopolis|Katameya|Giza|Alexandria|Amreya|Abu Qir|Suez|Ain Sokhna|Port Said|Ras Gharib|Red Sea)\b/iu},
+  GH: {dial: "233", minNat: 9, maxNat: 9, countryRx: /\b(?:Ghana|Takoradi|Sekondi|Western Region|Accra|Airport Residential|East Legon|Tema)\b/iu},
+  DZ: {dial: "213", minNat: 8, maxNat: 9, countryRx: /\b(?:Algeria|Alg[eé]rie|Hassi Messaoud|Ouargla|Algiers|Alger|Hydra|Oran|Arzew|Skikda)\b/iu},
+  ZA: {dial: "27", minNat: 9, maxNat: 9, countryRx: /\b(?:South Africa|Cape Town|Saldanha|Paarden Eiland|Montague Gardens|Bellville|Durban|Umhlanga|Richards Bay|Johannesburg|Sandton|Midrand|Secunda)\b/iu},
+  NA: {dial: "264", minNat: 8, maxNat: 9, countryRx: /\b(?:Namibia|Walvis Bay|Swakopmund|Erongo|L[üu]deritz|Windhoek)\b/iu},
+  MZ: {dial: "258", minNat: 8, maxNat: 9, countryRx: /\b(?:Mozambique|Mo[cç]ambique|Maputo|Matola|Pemba|Cabo Delgado|Afungi|Beira)\b/iu},
+  GA: {dial: "241", minNat: 7, maxNat: 9, countryRx: /\b(?:Gabon|Port[\s-]*Gentil|Libreville|Owendo)\b/iu},
+  CG: {dial: "242", minNat: 9, maxNat: 9, countryRx: /\b(?:Congo|Pointe[\s-]*Noire|Brazzaville)\b/iu},
+  CI: {dial: "225", minNat: 8, maxNat: 10, countryRx: /\b(?:C[oô]te d'Ivoire|Ivory Coast|Abidjan|Treichville|Marcory|Cocody|Port[\s-]*Bou[eë]t)\b/iu},
+  SN: {dial: "221", minNat: 9, maxNat: 9, countryRx: /\b(?:Senegal|S[eé]n[eé]gal|Dakar|Almadies|Plateau)\b/iu},
+  UG: {dial: "256", minNat: 9, maxNat: 9, countryRx: /\b(?:Uganda|Kampala|Kololo|Bugolobi|Nakasero|Hoima|Buliisa|Entebbe)\b/iu},
+  TZ: {dial: "255", minNat: 9, maxNat: 9, countryRx: /\b(?:Tanzania|Dar es Salaam|Masaki|Mikocheni|Mtwara|Tanga)\b/iu},
+  LY: {dial: "218", minNat: 8, maxNat: 10, countryRx: /\b(?:Libya|Tripoli|Janzour|Hay Al Andalus|Benghazi|Misrata|Brega|Ras Lanuf)\b/iu},
+  // Corridor 6: Southeast, South & Central (Caspian) Asia
+  SG: {dial: "65", minNat: 8, maxNat: 8, countryRx: /\b(?:Singapore|Tuas|Jurong|Pioneer|Benoi|Gul Circle|Loyang|Changi|Woodlands|Ubi|Suntec)\b/iu},
+  MY: {dial: "60", minNat: 8, maxNat: 10, countryRx: /\b(?:Malaysia|Kuala Lumpur|KLCC|Petaling Jaya|Shah Alam|Subang|Klang|Selangor|Miri|Bintulu|Sarawak|Labuan|Kota Kinabalu|Sabah|Kemaman|Kerteh|Terengganu|Johor Bahru|Pasir Gudang|Pengerang)\b/iu},
+  ID: {dial: "62", minNat: 8, maxNat: 12, countryRx: /\b(?:Indonesia|Jakarta|Cilandak|Simatupang|Kuningan|Bekasi|Cikarang|Balikpapan|Kalimantan|Samarinda|Batam|Batu Ampar|Kabil|Kepulauan Riau|Duri|Pekanbaru|Riau|Surabaya|Gresik|Jawa Timur)\b/iu},
+  BN: {dial: "673", minNat: 7, maxNat: 7, countryRx: /\b(?:Brunei|Kuala Belait|Seria|Lumut|Bandar Seri Begawan|Gadong|Muara)\b/iu},
+  TH: {dial: "66", minNat: 8, maxNat: 9, countryRx: /\b(?:Thailand|Rayong|Map Ta Phut|Chonburi|Sattahip|Laem Chabang|Songkhla|Singhanakhon|Bangkok)\b/iu},
+  VN: {dial: "84", minNat: 8, maxNat: 10, countryRx: /\b(?:Vietnam|Vi[eệ]t Nam|Vung Tau|Vũng Tàu|B[aà] R[iị]a|Ho Chi Minh|TP\.?\s*HCM|Saigon|Th[uủ] Đ[uứ]c)\b/iu},
+  KZ: {dial: "77", minNat: 9, maxNat: 9, countryRx: /\b(?:Kazakhstan|Казахстан|Atyrau|Атырау|Tengiz|Aktau|Актау|Mangystau|Uralsk|Oral|Уральск|Aksai|Аксай|Almaty|Алматы)\b/iu},
+  AZ: {dial: "994", minNat: 9, maxNat: 9, countryRx: /\b(?:Azerbaijan|Azərbaycan|Baku|Bak[ıi]|Sabail|Khatai|Narimanov|Garadagh|Qaradağ|Sangachal|Sumqay[ıi]t)\b/iu},
+  IN: {dial: "91", minNat: 10, maxNat: 10, countryRx: /\b(?:India|Mumbai|Navi Mumbai|Andheri|Powai|Thane|Maharashtra|Kakinada|Visakhapatnam|Andhra Pradesh|Vadodara|Baroda|Surat|Hazira|Ankleshwar|Ahmedabad|Gujarat|Duliajan|Dibrugarh|Assam)\b/iu},
 };
 
 const WRONG_COUNTRY_BLOCK_NAMES = {
   United_States: "US",
   USA: "US",
   Canada: "CA",
+  United_Kingdom: "GB",
+  Russia: "RU",
   India: "IN",
   Philippines: "PH",
   Pakistan: "PK",
   Nigeria: "NG",
   China: "CN",
+  South_Africa: "ZA",
+  Singapore: "SG",
+  Malaysia: "MY",
+  Indonesia: "ID",
 };
 
 // Priority-ordered Canadian Hubs (Stage 1) -> US Hubs (Stage 2)
@@ -376,6 +414,82 @@ const INTERNATIONAL_HUBS = [
   {corridor: "australia", city: "Moomba", regionCode: "SA", countryCode: "AU", countryLabel: "SA, Australia", tier: 2, alpha: false},
   {corridor: "australia", city: "Sale", regionCode: "VIC", countryCode: "AU", countryLabel: "VIC, Australia", tier: 1, alpha: false},
   {corridor: "australia", city: "Melbourne", regionCode: "VIC", countryCode: "AU", countryLabel: "VIC, Australia", tier: 2, alpha: false},
+
+  // 5. Africa (West, North, East & Southern Africa Energy Basins)
+  {corridor: "africa", city: "Port Harcourt", regionCode: "RI", countryCode: "NG", countryLabel: "Rivers, Nigeria", tier: 1, alpha: true},
+  {corridor: "africa", city: "Onne", regionCode: "RI", countryCode: "NG", countryLabel: "Rivers, Nigeria", tier: 1, alpha: false},
+  {corridor: "africa", city: "Lagos", regionCode: "LA", countryCode: "NG", countryLabel: "Nigeria", tier: 1, alpha: true},
+  {corridor: "africa", city: "Warri", regionCode: "DE", countryCode: "NG", countryLabel: "Delta, Nigeria", tier: 1, alpha: true},
+  {corridor: "africa", city: "Eket", regionCode: "AK", countryCode: "NG", countryLabel: "Akwa Ibom, Nigeria", tier: 2, alpha: false},
+  {corridor: "africa", city: "Abuja", regionCode: "FC", countryCode: "NG", countryLabel: "Nigeria", tier: 2, alpha: false},
+  {corridor: "africa", city: "Luanda", regionCode: "LUA", countryCode: "AO", countryLabel: "Angola", tier: 1, alpha: true},
+  {corridor: "africa", city: "Cabinda", regionCode: "CAB", countryCode: "AO", countryLabel: "Angola", tier: 1, alpha: false},
+  {corridor: "africa", city: "Soyo", regionCode: "ZAI", countryCode: "AO", countryLabel: "Angola", tier: 1, alpha: false},
+  {corridor: "africa", city: "Lobito", regionCode: "BGU", countryCode: "AO", countryLabel: "Angola", tier: 2, alpha: false},
+  {corridor: "africa", city: "Cairo", regionCode: "CAI", countryCode: "EG", countryLabel: "Egypt", tier: 1, alpha: true},
+  {corridor: "africa", city: "Alexandria", regionCode: "ALX", countryCode: "EG", countryLabel: "Egypt", tier: 1, alpha: true},
+  {corridor: "africa", city: "Suez", regionCode: "SUZ", countryCode: "EG", countryLabel: "Egypt", tier: 1, alpha: false},
+  {corridor: "africa", city: "Port Said", regionCode: "PTS", countryCode: "EG", countryLabel: "Egypt", tier: 1, alpha: false},
+  {corridor: "africa", city: "Ras Gharib", regionCode: "BA", countryCode: "EG", countryLabel: "Red Sea, Egypt", tier: 2, alpha: false},
+  {corridor: "africa", city: "Takoradi", regionCode: "WP", countryCode: "GH", countryLabel: "Ghana", tier: 1, alpha: true},
+  {corridor: "africa", city: "Accra", regionCode: "AA", countryCode: "GH", countryLabel: "Ghana", tier: 1, alpha: true},
+  {corridor: "africa", city: "Tema", regionCode: "AA", countryCode: "GH", countryLabel: "Ghana", tier: 1, alpha: false},
+  {corridor: "africa", city: "Hassi Messaoud", regionCode: "OUA", countryCode: "DZ", countryLabel: "Algeria", tier: 1, alpha: true},
+  {corridor: "africa", city: "Algiers", regionCode: "ALG", countryCode: "DZ", countryLabel: "Algeria", tier: 1, alpha: false},
+  {corridor: "africa", city: "Oran", regionCode: "ORA", countryCode: "DZ", countryLabel: "Algeria", tier: 1, alpha: false},
+  {corridor: "africa", city: "Cape Town", regionCode: "WC", countryCode: "ZA", countryLabel: "South Africa", tier: 1, alpha: true},
+  {corridor: "africa", city: "Durban", regionCode: "KZN", countryCode: "ZA", countryLabel: "South Africa", tier: 1, alpha: false},
+  {corridor: "africa", city: "Johannesburg", regionCode: "GP", countryCode: "ZA", countryLabel: "South Africa", tier: 1, alpha: false},
+  {corridor: "africa", city: "Walvis Bay", regionCode: "ER", countryCode: "NA", countryLabel: "Namibia", tier: 1, alpha: true},
+  {corridor: "africa", city: "Lüderitz", regionCode: "KA", countryCode: "NA", countryLabel: "Namibia", tier: 1, alpha: false},
+  {corridor: "africa", city: "Windhoek", regionCode: "KH", countryCode: "NA", countryLabel: "Namibia", tier: 2, alpha: false},
+  {corridor: "africa", city: "Maputo", regionCode: "MPM", countryCode: "MZ", countryLabel: "Mozambique", tier: 1, alpha: false},
+  {corridor: "africa", city: "Pemba", regionCode: "CD", countryCode: "MZ", countryLabel: "Mozambique", tier: 1, alpha: false},
+  {corridor: "africa", city: "Port-Gentil", regionCode: "OG", countryCode: "GA", countryLabel: "Gabon", tier: 1, alpha: false},
+  {corridor: "africa", city: "Libreville", regionCode: "ES", countryCode: "GA", countryLabel: "Gabon", tier: 2, alpha: false},
+  {corridor: "africa", city: "Pointe-Noire", regionCode: "PNR", countryCode: "CG", countryLabel: "Republic of the Congo", tier: 1, alpha: false},
+  {corridor: "africa", city: "Abidjan", regionCode: "AB", countryCode: "CI", countryLabel: "Cote d'Ivoire", tier: 1, alpha: false},
+  {corridor: "africa", city: "Dakar", regionCode: "DK", countryCode: "SN", countryLabel: "Senegal", tier: 1, alpha: false},
+  {corridor: "africa", city: "Kampala", regionCode: "CMP", countryCode: "UG", countryLabel: "Uganda", tier: 1, alpha: false},
+  {corridor: "africa", city: "Dar es Salaam", regionCode: "DAR", countryCode: "TZ", countryLabel: "Tanzania", tier: 2, alpha: false},
+  {corridor: "africa", city: "Tripoli", regionCode: "TB", countryCode: "LY", countryLabel: "Libya", tier: 1, alpha: false},
+
+  // 6. Southeast, South & Central (Caspian) Asia
+  {corridor: "asia_caspian", city: "Singapore", regionCode: "SGP", countryCode: "SG", countryLabel: "Singapore", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Tuas", regionCode: "JRG", countryCode: "SG", countryLabel: "Singapore", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Jurong", regionCode: "JRG", countryCode: "SG", countryLabel: "Singapore", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Loyang", regionCode: "LYG", countryCode: "SG", countryLabel: "Singapore", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Kuala Lumpur", regionCode: "KUL", countryCode: "MY", countryLabel: "Malaysia", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Shah Alam", regionCode: "SLG", countryCode: "MY", countryLabel: "Selangor, Malaysia", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Miri", regionCode: "SWK", countryCode: "MY", countryLabel: "Sarawak, Malaysia", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Bintulu", regionCode: "SWK", countryCode: "MY", countryLabel: "Sarawak, Malaysia", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Labuan", regionCode: "SBH", countryCode: "MY", countryLabel: "Malaysia", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Kota Kinabalu", regionCode: "SBH", countryCode: "MY", countryLabel: "Sabah, Malaysia", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Kemaman", regionCode: "TRG", countryCode: "MY", countryLabel: "Terengganu, Malaysia", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Johor Bahru", regionCode: "JHR", countryCode: "MY", countryLabel: "Johor, Malaysia", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Jakarta", regionCode: "JK", countryCode: "ID", countryLabel: "Indonesia", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Balikpapan", regionCode: "KI", countryCode: "ID", countryLabel: "East Kalimantan, Indonesia", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Batam", regionCode: "KR", countryCode: "ID", countryLabel: "Indonesia", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Duri", regionCode: "RIU", countryCode: "ID", countryLabel: "Riau, Indonesia", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Pekanbaru", regionCode: "RIU", countryCode: "ID", countryLabel: "Riau, Indonesia", tier: 2, alpha: false},
+  {corridor: "asia_caspian", city: "Surabaya", regionCode: "JI", countryCode: "ID", countryLabel: "East Java, Indonesia", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Kuala Belait", regionCode: "BEL", countryCode: "BN", countryLabel: "Brunei", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Bandar Seri Begawan", regionCode: "BM", countryCode: "BN", countryLabel: "Brunei", tier: 2, alpha: false},
+  {corridor: "asia_caspian", city: "Rayong", regionCode: "RYG", countryCode: "TH", countryLabel: "Thailand", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Songkhla", regionCode: "SKA", countryCode: "TH", countryLabel: "Thailand", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Bangkok", regionCode: "BKK", countryCode: "TH", countryLabel: "Thailand", tier: 2, alpha: false},
+  {corridor: "asia_caspian", city: "Vung Tau", regionCode: "BRV", countryCode: "VN", countryLabel: "Vietnam", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Ho Chi Minh City", regionCode: "SGN", countryCode: "VN", countryLabel: "Vietnam", tier: 2, alpha: false},
+  {corridor: "asia_caspian", city: "Atyrau", regionCode: "ATY", countryCode: "KZ", countryLabel: "Kazakhstan", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Aktau", regionCode: "MAN", countryCode: "KZ", countryLabel: "Kazakhstan", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Uralsk", regionCode: "ZAP", countryCode: "KZ", countryLabel: "Kazakhstan", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Almaty", regionCode: "ALA", countryCode: "KZ", countryLabel: "Kazakhstan", tier: 2, alpha: false},
+  {corridor: "asia_caspian", city: "Baku", regionCode: "BAK", countryCode: "AZ", countryLabel: "Azerbaijan", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Sumqayit", regionCode: "SMQ", countryCode: "AZ", countryLabel: "Azerbaijan", tier: 2, alpha: false},
+  {corridor: "asia_caspian", city: "Mumbai", regionCode: "MH", countryCode: "IN", countryLabel: "Maharashtra, India", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Kakinada", regionCode: "AP", countryCode: "IN", countryLabel: "Andhra Pradesh, India", tier: 1, alpha: true},
+  {corridor: "asia_caspian", city: "Vadodara", regionCode: "GJ", countryCode: "IN", countryLabel: "Gujarat, India", tier: 1, alpha: false},
+  {corridor: "asia_caspian", city: "Duliajan", regionCode: "AS", countryCode: "IN", countryLabel: "Assam, India", tier: 2, alpha: false},
 ];
 
 const TRAINING_SEARCH_TEMPLATES_CA = [
@@ -533,10 +647,13 @@ function extractCertifications(textBlob) {
   if (/\b(?:h2s\s*alive|energy\s+safety\s+canada)\b/iu.test(textBlob)) certs.add("Energy Safety Canada / H2S Alive");
   if (/\b(?:iwcf|wellsharp|iadc)\b/iu.test(textBlob)) certs.add("IWCF / IADC WellSharp");
   if (/\b(?:safeland|safegulf|veriforce|pec)\b/iu.test(textBlob)) certs.add("PEC SafeLand / Veriforce");
-  if (/\b(?:opito|bosiet|foet|huet)\b/iu.test(textBlob)) certs.add("OPITO / IWCF");
+  if (/\b(?:opito|bosiet|t-bosiet|foet|huet)\b/iu.test(textBlob)) certs.add("OPITO / IWCF");
   if (/\b(?:dnv)\b/iu.test(textBlob)) certs.add("DNV Certified");
   if (/\b(?:achilles|fpal)\b/iu.test(textBlob)) certs.add("Achilles / FPAL");
   if (/\b(?:iktva|aramco|adnoc|icv)\b/iu.test(textBlob)) certs.add("Aramco IKTVA / ADNOC ICV");
+  if (/\b(?:petronas|cidb|niosh)\b/iu.test(textBlob)) certs.add("PETRONAS / NIOSH");
+  if (/\b(?:ncdmb|nipex|nuprc|\bdpr\b)\b/iu.test(textBlob)) certs.add("NCDMB / NIPEX");
+  if (/\b(?:migas|bnsp)\b/iu.test(textBlob)) certs.add("MIGAS / BNSP");
   if (/\b(?:iso\s*9001|iso\s*45001|iso\s*14001)\b/iu.test(textBlob)) certs.add("ISO 9001 / ISO 45001");
   if (/\b(?:secor|\bcor\b)\b/iu.test(textBlob)) certs.add("COR / SECOR");
   if (/\bisnetworld\b/iu.test(textBlob)) certs.add("ISNetworld");
@@ -666,7 +783,7 @@ function buildInternationalSearchQueue() {
   const queue = [];
   const defaultTrainCat = INCLUDE_TRAINING_CODE ? "oil_gas_training_courses" : "staffing_training_compliance";
 
-  const corridors = ["uk_norway", "middle_east", "latin_america", "australia"];
+  const corridors = ["uk_norway", "middle_east", "latin_america", "australia", "africa", "asia_caspian"];
   for (const corridor of corridors) {
     if (CORRIDOR_FILTER && corridor !== CORRIDOR_FILTER) continue;
 
@@ -679,11 +796,22 @@ function buildInternationalSearchQueue() {
     for (const hub of hubs) {
       const loc = `${hub.city}, ${hub.countryLabel}`;
       const templates = hub.tier === 1 ? [...TRAINING_SEARCH_TEMPLATES_INTL] : TRAINING_SEARCH_TEMPLATES_INTL.slice(0, 2);
-      if (hub.countryCode === "BR" && hub.tier === 1) templates.push("Treinamento Offshore CBSP HUET");
+      if (["BR", "AO", "MZ"].includes(hub.countryCode) && hub.tier === 1) {
+        templates.push("Treinamento Offshore CBSP HUET");
+      }
       if (["MX", "AR", "CO"].includes(hub.countryCode) && hub.tier === 1) {
         templates.push("Capacitación Petrolera Well Control RigPass");
       }
       if (hub.countryCode === "NO" && hub.tier === 1) templates.push("Sikkerhetssenter Offshore Kurs GSK");
+      if (["DZ", "GA", "CG", "CI", "SN"].includes(hub.countryCode) && hub.tier === 1) {
+        templates.push("Formation Sécurité Pétrolière Offshore H2S IWCF");
+      }
+      if (hub.countryCode === "ID" && hub.tier === 1) {
+        templates.push("Pelatihan Sertifikasi Migas K3 Lepas Pantai");
+      }
+      if (hub.countryCode === "MY" && hub.tier === 1) {
+        templates.push("PETRONAS Offshore Safety Training T-BOSIET");
+      }
 
       for (const tpl of templates) {
         queue.push({
@@ -705,7 +833,7 @@ function buildInternationalSearchQueue() {
     for (const hub of hubs) {
       const loc = `${hub.city}, ${hub.countryLabel}`;
       const sectors = hub.tier === 1 ? [...INTL_SECTOR_SEARCH_TEMPLATES] : INTL_SECTOR_SEARCH_TEMPLATES.slice(0, 6);
-      if (hub.countryCode === "BR" && hub.tier === 1) {
+      if (["BR", "AO", "MZ"].includes(hub.countryCode) && hub.tier === 1) {
         sectors.push({q: "Serviços de Petróleo Óleo e Gás Offshore", cat: "equipment_rentals_tools"});
       }
       if (["MX", "AR", "CO"].includes(hub.countryCode) && hub.tier === 1) {
@@ -713,6 +841,15 @@ function buildInternationalSearchQueue() {
       }
       if (hub.countryCode === "NO" && hub.tier === 1) {
         sectors.push({q: "Offshore Subsea & Oljeservice", cat: "equipment_rentals_tools"});
+      }
+      if (["DZ", "GA", "CG", "CI", "SN"].includes(hub.countryCode) && hub.tier === 1) {
+        sectors.push({q: "Services Pétroliers Forage & Offshore", cat: "drilling_rigs_directional"});
+      }
+      if (hub.countryCode === "ID" && hub.tier === 1) {
+        sectors.push({q: "Kontraktor Jasa Penunjang Migas Pengeboran", cat: "drilling_rigs_directional"});
+      }
+      if (hub.countryCode === "KZ" && hub.tier === 1) {
+        sectors.push({q: "Нефтесервисные компании бурение КРС", cat: "drilling_rigs_directional"});
       }
 
       for (const sec of sectors) {
@@ -1128,7 +1265,7 @@ function validateAndBuildInternationalRecord(card, task, indexState, seqNum) {
 
   // 1. Permanently/temporarily closed check
   if (
-    /\b(?:permanently\s+closed|temporarily\s+closed|permanent\s+stengt|fechado\s+permanentemente|cerrado\s+permanentemente)\b/iu.test(
+    /\b(?:permanently\s+closed|temporarily\s+closed|permanent\s+stengt|fechado\s+permanentemente|cerrado\s+permanentemente|ferm[eé]\s+d[eé]finitivement|tutup\s+permanen|закрыто\s+навсегда)\b/iu.test(
       fullText,
     )
   ) {
@@ -1146,7 +1283,7 @@ function validateAndBuildInternationalRecord(card, task, indexState, seqNum) {
 
   if (!POSITIVE_OILFIELD_OR_TRAINING_SIGNAL.test(fullText)) {
     if (
-      !/\b(?:industrial|equipment|contractor|supply|supplier|transport|freight|logistics|marine|shipping|port|machining|steel|manufactur|engineering|engenharia|ingenier[ií]a|testing|laboratory|safety|training)\b/iu.test(
+      !/\b(?:industrial|equipment|contractor|supply|supplier|transport|freight|logistics|marine|shipping|port|machining|steel|manufactur|engineering|engenharia|ingenier[ií]a|ing[eé]nierie|testing|laboratory|safety|training)\b/iu.test(
         fullText,
       )
     ) {
@@ -1155,7 +1292,7 @@ function validateAndBuildInternationalRecord(card, task, indexState, seqNum) {
   }
   if (task.isTrainingQuery) {
     if (
-      !/\b(?:safety|sikkerhet|seguran[cç]a|seguridad|oilfield|offshore|energy|well\s+control|h2s|iwcf|iadc|opito|bosiet|foet|huet|cbsp|irata|nebosh|gwo|industrial|emergency|first\s+aid|rescue|confined\s+space|crane|rigging|lifting|weld|ndt|polytechnic|college|institute|academy|kurssenter|treinamento|capacitaci[oó]n|technical|training)\b/iu.test(
+      !/\b(?:safety|sikkerhet|seguran[cç]a|seguridad|s[eé]curit[eé]|oilfield|offshore|migas|energy|well\s+control|h2s|iwcf|iadc|opito|bosiet|t-bosiet|foet|huet|cbsp|irata|nebosh|niosh|gwo|industrial|emergency|first\s+aid|rescue|confined\s+space|crane|rigging|lifting|weld|ndt|polytechnic|college|institute|academy|kurssenter|treinamento|capacitaci[oó]n|formation|pelatihan|technical|training)\b/iu.test(
         fullText,
       )
     ) {
@@ -1166,7 +1303,7 @@ function validateAndBuildInternationalRecord(card, task, indexState, seqNum) {
   // 3. Extract & Strictly Validate Country Dial Code + National Subscriber Digits
   let rawPhone = String(card.phone || "").trim();
   if (!rawPhone) {
-    const dialEsc = phoneRule.dial;
+    const dialEsc = targetCc === "KZ" ? "7[\\s.()-]*7" : phoneRule.dial;
     const plusRx = new RegExp(`\\+${dialEsc}[\\s.()-]*[0-9][0-9\\s.()-]{5,14}`, "u");
     const m = fullText.match(plusRx);
     if (m) rawPhone = m[0].trim();
@@ -1195,6 +1332,16 @@ function validateAndBuildInternationalRecord(card, task, indexState, seqNum) {
       if (subDigits.length !== 7 && subDigits.length !== 10 && subDigits.length !== 11) {
         return {status: "rejected_invalid_phone_len"};
       }
+    } else if (targetCc === "KZ") {
+      // Kazakhstan CIS domestic format starts with trunk 8 followed by 7xx (11 digits total) or 7xx (10 digits)
+      if (subDigits.length === 11 && (subDigits.startsWith("87") || subDigits.startsWith("77"))) {
+        subDigits = subDigits.slice(2);
+      } else if (subDigits.length === 10 && subDigits.startsWith("7")) {
+        subDigits = subDigits.slice(1);
+      } else {
+        return {status: "rejected_zoom_out_country"};
+      }
+      if (subDigits.length !== 9) return {status: "rejected_invalid_phone_len"};
     } else {
       if (subDigits.startsWith("0") && !subDigits.startsWith(phoneRule.dial)) {
         subDigits = subDigits.slice(1);
@@ -1221,6 +1368,9 @@ function validateAndBuildInternationalRecord(card, task, indexState, seqNum) {
     else if (rawDigits.length === 10 && rawDigits.startsWith("868")) {
       formattedRaw = `+1 868-${rawDigits.slice(3, 6)}-${rawDigits.slice(6)}`;
     }
+  } else if (targetCc === "KZ" && !hadExplicitPlus) {
+    const kzSub = rawDigits.length === 11 ? rawDigits.slice(1) : rawDigits;
+    formattedRaw = `+7 ${kzSub}`;
   }
 
   const phoneNorm = normalizeGlobalPhone(formattedRaw, targetCc);
@@ -1601,6 +1751,8 @@ async function main() {
     newMiddleEast: priorStats?.newMiddleEast || 0,
     newLatinAmerica: priorStats?.newLatinAmerica || 0,
     newAustralia: priorStats?.newAustralia || 0,
+    newAfrica: priorStats?.newAfrica || 0,
+    newAsiaCaspian: priorStats?.newAsiaCaspian || 0,
     newTrainingFacilities: priorStats?.newTrainingFacilities || 0,
     duplicatesAlreadyInDb: priorStats?.duplicatesAlreadyInDb || 0,
     closedOnGoogleRemoved: priorStats?.closedOnGoogleRemoved || 0,
@@ -1655,6 +1807,8 @@ async function main() {
               `  - **Middle East (\`AE\`, \`SA\`, \`QA\`, \`OM\`, \`KW\`, \`BH\`)**: **${stats.newMiddleEast.toLocaleString()}**`,
               `  - **Latin America (\`BR\`, \`MX\`, \`AR\`, \`CO\`, \`GY\`, \`TT\`)**: **${stats.newLatinAmerica.toLocaleString()}**`,
               `  - **Australia (\`AU\`)**: **${stats.newAustralia.toLocaleString()}**`,
+              `  - **Africa (\`NG\`, \`AO\`, \`EG\`, \`GH\`, \`DZ\`, \`ZA\`, \`NA\`, \`MZ\`, \`GA\`, \`CG\`, \`CI\`, \`SN\`, \`UG\`, \`TZ\`, \`LY\`)**: **${stats.newAfrica.toLocaleString()}**`,
+              `  - **Southeast, South & Central Asia (\`SG\`, \`MY\`, \`ID\`, \`BN\`, \`TH\`, \`VN\`, \`KZ\`, \`AZ\`, \`IN\`)**: **${stats.newAsiaCaspian.toLocaleString()}**`,
               `  - **International Oil & Gas Training Facilities & Courses**: **${stats.newTrainingFacilities.toLocaleString()}**`,
               `- **Already in PipeBuyer Directory (Verified Active)**: **${stats.duplicatesAlreadyInDb.toLocaleString()}**`,
               `- **Permanently Closed Businesses Caught on Google**: **${stats.closedOnGoogleRemoved.toLocaleString()}**`,
@@ -1773,6 +1927,8 @@ async function main() {
               if (task.corridor === "middle_east") stats.newMiddleEast += 1;
               if (task.corridor === "latin_america") stats.newLatinAmerica += 1;
               if (task.corridor === "australia") stats.newAustralia += 1;
+              if (task.corridor === "africa") stats.newAfrica += 1;
+              if (task.corridor === "asia_caspian") stats.newAsiaCaspian += 1;
               if (res.isTraining) stats.newTrainingFacilities += 1;
               stats.byCountry[cc] = (stats.byCountry[cc] || 0) + 1;
               const rk = `${cc}-${res.privateRecord.regionCode}`;
