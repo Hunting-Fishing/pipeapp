@@ -73,7 +73,6 @@ class InsuranceProviderListing {
     this.summary = '',
     this.highlights = const <String>[],
     this.priorityScore = 100,
-    this.isSampleShowcase = false,
   });
 
   final String providerId;
@@ -105,7 +104,6 @@ class InsuranceProviderListing {
   final String summary;
   final List<String> highlights;
   final int priorityScore;
-  final bool isSampleShowcase;
 
   String get providerTypeLabel => switch (providerType) {
         'carrier' => 'Commercial Carrier',
@@ -203,10 +201,7 @@ class InsuranceProviderListing {
     return true;
   }
 
-  factory InsuranceProviderListing.fromJson(
-    Map<String, dynamic> json, {
-    bool isSampleShowcase = false,
-  }) {
+  factory InsuranceProviderListing.fromJson(Map<String, dynamic> json) {
     List<String> readStrings(Object? raw) {
       if (raw is! List) return const <String>[];
       return raw
@@ -247,7 +242,6 @@ class InsuranceProviderListing {
       summary: '${json['summary'] ?? ''}'.trim(),
       highlights: readStrings(json['highlights']),
       priorityScore: (json['priorityScore'] as num?)?.toInt() ?? 100,
-      isSampleShowcase: isSampleShowcase || json['isSampleShowcase'] == true,
     );
   }
 }
@@ -580,208 +574,4 @@ abstract final class PipeBuyerInsuranceTaxonomy {
     }
     return '\$${amount.round()}';
   }
-
-  /// Curated showcase providers displayed when a local/preview environment has
-  /// not yet seeded `insurance_public_providers`.
-  static const showcaseProviders = <InsuranceProviderListing>[
-    InsuranceProviderListing(
-      providerId: 'showcase_permian_energy_underwriters',
-      companyName: 'Permian Energy & Fleet Underwriters',
-      providerType: 'mga',
-      publicEmail: 'submissions@permianunderwriters.example.com',
-      publicPhone: '(432) 555-0180',
-      website: 'https://permianunderwriters.example.com',
-      countryCode: 'US',
-      regionCode: 'TX',
-      headquartersCity: 'Midland',
-      licensedCountries: <String>['US'],
-      licensedRegions: <String>['TX', 'NM', 'OK', 'LA', 'ND', 'WY', 'CO'],
-      operatingBasins: <String>[
-        'Permian Basin',
-        'Eagle Ford',
-        'Haynesville',
-        'Anadarko / SCOOP-STACK',
-      ],
-      coverageLines: <String>[
-        'commercial_auto_fleet',
-        'oilfield_general_liability',
-        'motor_truck_cargo_hazmat',
-        'umbrella_excess_liability',
-      ],
-      msaCapabilities: <String>[
-        'waiver_of_subrogation',
-        'additional_insured',
-        'primary_non_contributory',
-        'thirty_day_cancellation_notice',
-        'hired_non_owned_auto',
-      ],
-      licenseSummary:
-          'Illustrative MGA Program • Multi-State Surplus & Admitted Binding',
-      amBestRating: 'A+ (Superior)',
-      maxLimitUsd: 25000000,
-      minimumPremiumUsd: 8500,
-      fastCoi24x7: true,
-      msaCompliant: true,
-      featured: true,
-      summary:
-          'Dedicated upstream & midstream oilfield hauling, OCTG cargo, and MSA excess facility with instant ISNetworld / Veriforce COI issuance.',
-      highlights: <String>[
-        'Same-day ISNetworld & PEC/Veriforce COI',
-        'Hotshot, winch truck, vac & pipe haul fleets',
-        'Up to \$25M follow-form MSA excess tower',
-      ],
-      priorityScore: 260,
-      isSampleShowcase: true,
-    ),
-    InsuranceProviderListing(
-      providerId: 'showcase_foothills_wcsb_specialty',
-      companyName: 'Foothills WCSB Energy Risk Partners',
-      providerType: 'specialty_broker',
-      publicEmail: 'oilfield@foothillsrisk.example.ca',
-      publicPhone: '(403) 555-0142',
-      website: 'https://foothillsrisk.example.ca',
-      countryCode: 'CA',
-      regionCode: 'AB',
-      headquartersCity: 'Calgary',
-      licensedCountries: <String>['CA', 'US'],
-      licensedRegions: <String>['AB', 'SK', 'BC', 'MB', 'ND', 'MT'],
-      operatingBasins: <String>[
-        'WCSB (Alberta / BC / SK)',
-        'Williston / Bakken',
-      ],
-      coverageLines: <String>[
-        'oilfield_general_liability',
-        'rig_equipment_inland_marine',
-        'commercial_auto_fleet',
-        'pollution_environmental',
-        'commercial_property_yards',
-      ],
-      msaCapabilities: <String>[
-        'waiver_of_subrogation',
-        'additional_insured',
-        'primary_non_contributory',
-        'thirty_day_cancellation_notice',
-        'sudden_accidental_pollution',
-      ],
-      licenseSummary: 'Illustrative Cross-Border WCSB Energy Brokerage Desk',
-      amBestRating: 'A (Excellent) Markets',
-      maxLimitUsd: 20000000,
-      minimumPremiumUsd: 5000,
-      fastCoi24x7: true,
-      msaCompliant: true,
-      featured: true,
-      summary:
-          'Cross-border Canadian & Bakken energy brokerage specializing in drilling rigs, pipe yards, ComplyWorks MSAs, and winter lease fleets.',
-      highlights: <String>[
-        'ComplyWorks & Avetta MSA compliance desk',
-        'Cross-border CA/US fleet & cargo filings',
-        'Scheduled rig, yellow iron & pipe yard stock',
-      ],
-      priorityScore: 255,
-      isSampleShowcase: true,
-    ),
-    InsuranceProviderListing(
-      providerId: 'showcase_ironclad_industrial_casualty',
-      companyName: 'Ironclad Industrial & Rig Casualty Co.',
-      providerType: 'carrier',
-      publicEmail: 'energy.desk@ironcladcasualty.example.com',
-      publicPhone: '(713) 555-0199',
-      website: 'https://ironcladcasualty.example.com',
-      countryCode: 'US',
-      regionCode: 'TX',
-      headquartersCity: 'Houston',
-      licensedCountries: <String>['US'],
-      licensedRegions: <String>[
-        'TX',
-        'LA',
-        'OK',
-        'NM',
-        'ND',
-        'PA',
-        'OH',
-        'WY',
-      ],
-      operatingBasins: <String>[
-        'Permian Basin',
-        'Gulf Coast & Offshore',
-        'Appalachian / Marcellus',
-      ],
-      coverageLines: <String>[
-        'rig_equipment_inland_marine',
-        'oilfield_general_liability',
-        'pollution_environmental',
-        'umbrella_excess_liability',
-        'workers_comp_crew',
-      ],
-      msaCapabilities: <String>[
-        'waiver_of_subrogation',
-        'additional_insured',
-        'primary_non_contributory',
-        'thirty_day_cancellation_notice',
-        'sudden_accidental_pollution',
-      ],
-      licenseSummary:
-          'Illustrative Admitted & E&S Commercial Carrier Program (48 US States)',
-      amBestRating: 'A+ (Superior)',
-      maxLimitUsd: 50000000,
-      minimumPremiumUsd: 15000,
-      fastCoi24x7: false,
-      msaCompliant: true,
-      featured: false,
-      summary:
-          'Direct commercial carrier writing heavy contractors equipment, workover rigs, CPL environmental liability, and \$50M energy umbrella programs.',
-      highlights: <String>[
-        'In-house oilfield loss control engineers',
-        'Blanket inland marine & downhole tool floaters',
-        'USL&H & statutory crew workers compensation',
-      ],
-      priorityScore: 185,
-      isSampleShowcase: true,
-    ),
-    InsuranceProviderListing(
-      providerId: 'showcase_bakken_plains_fleet_brokers',
-      companyName: 'High Plains Fleet & Cargo Insurance Group',
-      providerType: 'specialty_broker',
-      publicEmail: 'quotes@highplainsfleet.example.com',
-      publicPhone: '(701) 555-0164',
-      website: 'https://highplainsfleet.example.com',
-      countryCode: 'US',
-      regionCode: 'ND',
-      headquartersCity: 'Williston',
-      licensedCountries: <String>['US'],
-      licensedRegions: <String>['ND', 'MT', 'WY', 'CO', 'SD', 'TX', 'OK'],
-      operatingBasins: <String>[
-        'Williston / Bakken',
-        'DJ / Niobrara',
-        'Anadarko / SCOOP-STACK',
-      ],
-      coverageLines: <String>[
-        'commercial_auto_fleet',
-        'motor_truck_cargo_hazmat',
-        'workers_comp_crew',
-        'commercial_property_yards',
-      ],
-      msaCapabilities: <String>[
-        'waiver_of_subrogation',
-        'additional_insured',
-        'hired_non_owned_auto',
-      ],
-      licenseSummary: 'Illustrative Commercial Fleet & FMCSA Filing Desk',
-      amBestRating: 'A- (Excellent) Panel',
-      maxLimitUsd: 10000000,
-      minimumPremiumUsd: 3500,
-      fastCoi24x7: true,
-      msaCompliant: true,
-      featured: false,
-      summary:
-          'Fast-turnaround commercial trucking, owner-operator hotshot, pipe bunk flatbed cargo, and modular yard coverage with 24/7 digital COI portal.',
-      highlights: <String>[
-        'Instant FMCSA / DOT federal filings',
-        '1-to-100+ unit commercial fleet programs',
-        '24/7 automated certificate of insurance portal',
-      ],
-      priorityScore: 175,
-      isSampleShowcase: true,
-    ),
-  ];
 }

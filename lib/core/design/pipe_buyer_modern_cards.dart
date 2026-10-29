@@ -286,7 +286,8 @@ class PipeBuyerListingSkeletonGrid extends StatelessWidget {
                     : constraints.maxWidth >= 360
                         ? 2
                         : 1);
-        return Skeletonizer(
+        return ExcludeSemantics(
+            child: Skeletonizer(
           enabled: true,
           child: AlignedGridView.count(
             crossAxisCount: cols,
@@ -318,12 +319,12 @@ class PipeBuyerListingSkeletonGrid extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: const <Widget>[
                         Text(
-                          'HEAVY EQUIPMENT • MIDLAND, TX',
+                          'CATEGORY NAME • CITY, ST',
                           style: TextStyle(fontSize: 10),
                         ),
                         Gap(6),
                         Text(
-                          '2022 Industrial Equipment Inventory Placeholder',
+                          'Listing title loading here',
                           maxLines: 2,
                           style: TextStyle(
                             fontSize: 15,
@@ -332,12 +333,12 @@ class PipeBuyerListingSkeletonGrid extends StatelessWidget {
                         ),
                         Gap(8),
                         Text(
-                          '4,200 hrs • Work Ready • Inspected',
+                          'Spec • Spec • Spec',
                           style: TextStyle(fontSize: 11),
                         ),
                         Gap(12),
                         Text(
-                          '\$148,500',
+                          '\$00,000',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
@@ -350,7 +351,7 @@ class PipeBuyerListingSkeletonGrid extends StatelessWidget {
               ),
             ),
           ),
-        );
+        ));
       },
     );
   }

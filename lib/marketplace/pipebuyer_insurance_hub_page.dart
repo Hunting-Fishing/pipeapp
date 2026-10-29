@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
+import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_deep_links.dart';
 import 'marketplace_public_information.dart';
@@ -25,7 +26,6 @@ class PipeBuyerInsuranceHubPage extends StatefulWidget {
     this.initialQuery = '',
     this.initialCoverageLine = '',
     this.initialCountryCode = '',
-    this.useShowcaseFallbackWhenEmpty = false,
   });
 
   final PipeBuyerInsuranceClient? client;
@@ -33,7 +33,6 @@ class PipeBuyerInsuranceHubPage extends StatefulWidget {
   final String initialQuery;
   final String initialCoverageLine;
   final String initialCountryCode;
-  final bool useShowcaseFallbackWhenEmpty;
 
   @override
   State<PipeBuyerInsuranceHubPage> createState() =>
@@ -54,7 +53,6 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
   bool _fastCoiOnlyFilter = false;
 
   bool _loadingProviders = true;
-  bool _usingShowcaseFallback = false;
   bool _hasSeenLiveProviders = false;
   String? _providerLoadError;
   List<InsuranceProviderListing> _providers =
@@ -195,70 +193,17 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
       );
       if (!mounted) return;
 
-      if (res.providers.isNotEmpty) {
-        setState(() {
-          _hasSeenLiveProviders = true;
-          _usingShowcaseFallback = false;
-          _providers = res.providers;
-          _loadingProviders = false;
-        });
-        return;
-      }
-
-      if (!_hasSeenLiveProviders && widget.useShowcaseFallbackWhenEmpty) {
-        final filteredShowcase = PipeBuyerInsuranceTaxonomy.showcaseProviders
-            .where(
-              (provider) => provider.matchesFilters(
-                query: _searchController.text,
-                coverageLine: _selectedCoverageLineFilter,
-                countryFilter: _selectedCountryFilter,
-                regionFilter: _selectedRegionFilter,
-                providerTypeFilter: _selectedProviderTypeFilter,
-                msaOnly: _msaOnlyFilter,
-                fastCoiOnly: _fastCoiOnlyFilter,
-              ),
-            )
-            .toList(growable: false);
-        setState(() {
-          _usingShowcaseFallback = true;
-          _providers = filteredShowcase;
-          _loadingProviders = false;
-        });
-        return;
-      }
-
       setState(() {
-        _usingShowcaseFallback = false;
-        _providers = const <InsuranceProviderListing>[];
+        if (res.providers.isNotEmpty) _hasSeenLiveProviders = true;
+        _providers = res.providers;
         _loadingProviders = false;
       });
     } catch (error) {
       if (!mounted) return;
-      if (widget.useShowcaseFallbackWhenEmpty && !_hasSeenLiveProviders) {
-        final filteredShowcase = PipeBuyerInsuranceTaxonomy.showcaseProviders
-            .where(
-              (provider) => provider.matchesFilters(
-                query: _searchController.text,
-                coverageLine: _selectedCoverageLineFilter,
-                countryFilter: _selectedCountryFilter,
-                regionFilter: _selectedRegionFilter,
-                providerTypeFilter: _selectedProviderTypeFilter,
-                msaOnly: _msaOnlyFilter,
-                fastCoiOnly: _fastCoiOnlyFilter,
-              ),
-            )
-            .toList(growable: false);
-        setState(() {
-          _usingShowcaseFallback = true;
-          _providers = filteredShowcase;
-          _loadingProviders = false;
-        });
-      } else {
-        setState(() {
-          _providerLoadError = '$error'.replaceFirst('Bad state: ', '');
-          _loadingProviders = false;
-        });
-      }
+      setState(() {
+        _providerLoadError = '$error'.replaceFirst('Bad state: ', '');
+        _loadingProviders = false;
+      });
     }
   }
 
@@ -312,7 +257,7 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
 
   void _startTargetedProviderQuote(InsuranceProviderListing provider) {
     setState(() {
-      _selectedTargetProvider = provider.isSampleShowcase ? null : provider;
+      _selectedTargetProvider = provider;
       _latestReceipt = null;
       if (provider.coverageLines.isNotEmpty) {
         _rateCoverageLines
@@ -375,7 +320,6 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
           0;
 
       final targetProvider = _selectedTargetProvider;
-      final isShowcaseTarget = targetProvider?.isSampleShowcase == true;
 
       final receipt = await _client.submitRateApplication(
         companyName: _companyNameController.text.trim(),
@@ -394,7 +338,7 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
         dotOrMcNumber: _dotOrMcController.text.trim(),
         desiredEffectiveDate: _effectiveDateController.text.trim(),
         claimsSummary: _claimsSummaryController.text.trim(),
-        targetProviderId: isShowcaseTarget ? null : targetProvider?.providerId,
+        targetProviderId: targetProvider?.providerId,
         targetProviderName: targetProvider?.companyName ?? '',
         notes: _notesController.text.trim(),
       );
@@ -1027,39 +971,6 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
         ),
         const SizedBox(height: 14),
         _buildFeaturedInsurancePromoCarousel(),
-        if (_usingShowcaseFallback) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: PipeBuyerColors.industrialBlue.withValues(alpha: .08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: PipeBuyerColors.industrialBlue.withValues(alpha: .24),
-              ),
-            ),
-            child: const Row(
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  size: 18,
-                  color: PipeBuyerColors.industrialBlue,
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Featured Commercial & Oilfield Insurance Market Preview — Submit a rate application below to get matched across verified carriers & brokers.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: PipeBuyerColors.ink,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
         const SizedBox(height: 14),
         if (_loadingProviders)
           const Padding(
@@ -1199,12 +1110,12 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
     final bannerProviders = _providers
         .where(
           (p) =>
-              !p.isSampleShowcase &&
-              (p.bannerUrl.trim().isNotEmpty ||
-                  (p.featured && p.logoUrl.trim().isNotEmpty)),
+              p.bannerUrl.trim().isNotEmpty ||
+              (p.featured && p.logoUrl.trim().isNotEmpty),
         )
         .take(4)
         .toList(growable: false);
+    if (bannerProviders.isEmpty) return const SizedBox.shrink();
 
     final slides = <PipeBuyerFeaturedPromoSlide>[
       for (final provider in bannerProviders)
@@ -1213,12 +1124,10 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
           eyebrow: '${provider.companyName} • ${provider.headquartersLabel}',
           title:
               'Featured ${provider.providerTypeLabel} — ${provider.resolvedCoverageLabels.take(2).join(' & ')}',
-          summary: provider.summary.isNotEmpty
-              ? provider.summary
-              : 'Licensed commercial & oilfield insurance program with direct Pipe Buyer rate matching.',
+          summary: provider.summary,
           bannerUrl: provider.bannerUrl,
           logoUrl: provider.logoUrl,
-          slotLabel: 'FEATURED PROMO BANNER',
+          slotLabel: null,
           badges: <Widget>[
             const PipeBuyerVisualBadge(
               variant: PipeBuyerBadgeVariant.featured,
@@ -1245,121 +1154,12 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
               : 'Max Limit ${provider.formattedMaxLimit}',
           primaryCtaLabel: 'Apply for Rates',
           onPrimaryCta: () => _startTargetedProviderQuote(provider),
-          secondaryCtaLabel: 'List Your Agency',
-          onSecondaryCta: _openProviderOnboarding,
         ),
-      PipeBuyerFeaturedPromoSlide(
-        id: 'spotlight_auto_fleet',
-        eyebrow: 'COMMERCIAL FLEET & HOTSHOT SPOTLIGHT',
-        title: 'Featured Crew Truck, Hotshot & Heavy Haul Fleet Programs',
-        summary:
-            'Apply once to match your crew pickups, service trucks, hydrovacs, and pipe haulers with verified NAIC & provincial commercial auto underwriters.',
-        slotLabel: '16:9 PROMO BANNER SLOT',
-        badges: const <Widget>[
-          PipeBuyerVisualBadge(
-            variant: PipeBuyerBadgeVariant.programPreview,
-            compact: true,
-          ),
-          PipeBuyerVisualBadge(
-            variant: PipeBuyerBadgeVariant.featured,
-            compact: true,
-          ),
-          PipeBuyerVisualBadge(
-            variant: PipeBuyerBadgeVariant.fastCoi24x7,
-            compact: true,
-          ),
-        ],
-        highlights: const <String>[
-          'MCS-90 & DOT/NSC Filings',
-          'Hired & Non-Owned Auto',
-          'Crew Cab & Crane Body Physical Damage',
-        ],
-        primaryCtaLabel: 'Apply for Fleet Rates',
-        onPrimaryCta: () {
-          setState(() {
-            _selectedTargetProvider = null;
-            _rateCoverageLines
-              ..clear()
-              ..add('commercial_auto_fleet');
-            _latestReceipt = null;
-            _activeTab = InsuranceHubTab.applyForRates;
-          });
-        },
-        secondaryCtaLabel: 'Reserve Carrier Banner',
-        onSecondaryCta: _openProviderOnboarding,
-      ),
-      PipeBuyerFeaturedPromoSlide(
-        id: 'spotlight_msa_cgl',
-        eyebrow: 'OPERATOR MSA & LEASE-SITE COMPLIANCE',
-        title: 'Oilfield General Liability, Blanket Endorsements & 24/7 COI',
-        summary:
-            'Built for contractors entering E&P and midstream Master Service Agreements requiring Primary & Non-Contributory wording and Waiver of Subrogation.',
-        slotLabel: '16:9 PROMO BANNER SLOT',
-        badges: const <Widget>[
-          PipeBuyerVisualBadge(
-            variant: PipeBuyerBadgeVariant.programPreview,
-            compact: true,
-          ),
-          PipeBuyerVisualBadge(
-            variant: PipeBuyerBadgeVariant.msaReady,
-            compact: true,
-          ),
-          PipeBuyerVisualBadge(
-            variant: PipeBuyerBadgeVariant.fastCoi24x7,
-            compact: true,
-          ),
-        ],
-        highlights: const <String>[
-          'Blanket Additional Insured',
-          'Waiver of Subrogation',
-          '30-Day Cancellation Notice',
-        ],
-        primaryCtaLabel: 'Apply for MSA Coverage',
-        onPrimaryCta: () {
-          setState(() {
-            _selectedTargetProvider = null;
-            _rateCoverageLines
-              ..clear()
-              ..add('oilfield_general_liability');
-            _latestReceipt = null;
-            _activeTab = InsuranceHubTab.applyForRates;
-          });
-        },
-        secondaryCtaLabel: 'List Your Brokerage',
-        onSecondaryCta: _openProviderOnboarding,
-      ),
-      PipeBuyerFeaturedPromoSlide(
-        id: 'spotlight_carrier_banner',
-        eyebrow: 'CARRIER, MGA & SPECIALTY BROKER ONBOARDING',
-        title: 'Showcase Your Insurance Company Logo & 16:9 Promo Banner',
-        summary:
-            'Licensed commercial carriers and oilfield brokers can upload their Business Logo and wide Featured Promo Banner to receive direct rate applications.',
-        slotLabel: 'UPLOAD 16:9 BANNER',
-        badges: const <Widget>[
-          PipeBuyerVisualBadge(
-            variant: PipeBuyerBadgeVariant.featured,
-            compact: true,
-          ),
-          PipeBuyerVisualBadge(
-            variant: PipeBuyerBadgeVariant.oilfieldBroker,
-            compact: true,
-          ),
-        ],
-        highlights: const <String>[
-          'Verified NAIC / Provincial License',
-          'Custom Logo & 16:9 Banner',
-          'Direct Basin Quote Leads',
-        ],
-        primaryCtaLabel: 'List Insurance Company',
-        onPrimaryCta: _openProviderOnboarding,
-        secondaryCtaLabel: 'Apply for Company Rates',
-        onSecondaryCta: _startMultiCarrierQuote,
-      ),
     ];
 
     return PipeBuyerFeaturedPromoCarousel(
       slides: slides,
-      sectionTitle: 'FEATURED INSURANCE PROGRAMS & PROMO SPOTLIGHTS',
+      sectionTitle: 'FEATURED INSURANCE PROVIDERS',
       keyPrefix: 'insurance_featured_promo_carousel',
     );
   }
@@ -1385,129 +1185,95 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
       children: [
         Container(
           key: const Key('insurance_onboarding_program_banner'),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[Color(0xFFF8FAFC), Color(0xFFF1F5F9)],
-            ),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFCBD5E1)),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            children: [
-              const Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 5,
-                child: ColoredBox(color: PipeBuyerColors.industrialBlue),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(23, 18, 18, 18),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final wide = constraints.maxWidth >= 780;
-                    final copyBlock = const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          children: [
-                            PipeBuyerVisualBadge(
-                              variant: PipeBuyerBadgeVariant.programPreview,
-                            ),
-                            PipeBuyerVisualBadge(
-                              variant: PipeBuyerBadgeVariant.verifiedPro,
-                              label: 'VERIFIED CARRIER ONBOARDING',
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 10),
-                        Text(
-                          'Commercial & Oilfield Coverage Lanes — Verified Carrier & Broker Onboarding',
-                          style: TextStyle(
-                            fontSize: 16.5,
-                            fontWeight: FontWeight.w900,
-                            color: PipeBuyerColors.ink,
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          'Only NAIC and provincially licensed insurance companies appear once verified. Select a coverage lane below to request quotes, or list your agency and upload your Business Logo.',
-                          style: TextStyle(
-                            fontSize: 12.6,
-                            height: 1.45,
-                            color: PipeBuyerColors.slate,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    );
-                    final actionsBlock = Wrap(
-                      spacing: 10,
-                      runSpacing: 8,
-                      children: [
-                        FilledButton.icon(
-                          onPressed: _startMultiCarrierQuote,
-                          icon: const Icon(
-                            Icons.request_quote_outlined,
-                            size: 18,
-                          ),
-                          label: const Text('Apply for Commercial Rates'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _openProviderOnboarding,
-                          icon: const Icon(
-                            Icons.add_business_outlined,
-                            size: 18,
-                          ),
-                          label: const Text(
-                            'List Insurance Company & Upload Logo',
-                          ),
-                        ),
-                        if (_hasActiveBrowseFilters)
-                          TextButton.icon(
-                            onPressed: _resetFilters,
-                            icon: const Icon(
-                              Icons.restart_alt_rounded,
-                              size: 18,
-                            ),
-                            label: const Text('Reset Filters'),
-                          ),
-                      ],
-                    );
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 780;
+              const copyBlock = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'No verified insurance companies are listed yet',
+                    style: TextStyle(
+                      fontSize: 16.5,
+                      fontWeight: FontWeight.w900,
+                      color: PipeBuyerColors.ink,
+                    ),
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    'Insurance companies and brokers appear here only after Pipe Buyer verifies their NAIC or provincial license. You can still request commercial insurance quotes by coverage line below, or list your insurance company.',
+                    style: TextStyle(
+                      fontSize: 12.6,
+                      height: 1.45,
+                      color: PipeBuyerColors.slate,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              );
+              final actionsBlock = Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: _startMultiCarrierQuote,
+                    icon: const Icon(Icons.request_quote_outlined, size: 18),
+                    label: const Text('Apply for Commercial Rates'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _openProviderOnboarding,
+                    icon: const Icon(Icons.add_business_outlined, size: 18),
+                    label: const Text('List Insurance Company'),
+                  ),
+                  if (_hasActiveBrowseFilters)
+                    TextButton.icon(
+                      onPressed: _resetFilters,
+                      icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                      label: const Text('Reset Filters'),
+                    ),
+                ],
+              );
 
-                    if (!wide) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          copyBlock,
-                          const SizedBox(height: 14),
-                          actionsBlock,
-                        ],
-                      );
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(child: copyBlock),
-                        const SizedBox(width: 20),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 320),
-                          child: actionsBlock,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
+              if (!wide) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    copyBlock,
+                    const SizedBox(height: 14),
+                    actionsBlock,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Expanded(child: copyBlock),
+                  const SizedBox(width: 20),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 320),
+                    child: actionsBlock,
+                  ),
+                ],
+              );
+            },
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
+        const Text(
+          'Request quotes by coverage line',
+          style: TextStyle(
+            fontSize: 15.5,
+            fontWeight: FontWeight.w900,
+            color: PipeBuyerColors.ink,
+          ),
+        ),
+        const SizedBox(height: 10),
         if (filteredLanes.isEmpty)
           Card(
             child: Padding(
@@ -1515,7 +1281,7 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
               child: Column(
                 children: [
                   const Text(
-                    'No commercial coverage lanes matched that search term.',
+                    'No commercial coverage lines matched that search term.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                   ),
@@ -1531,10 +1297,7 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
                       ),
                       FilledButton.icon(
                         onPressed: _startMultiCarrierQuote,
-                        icon: const Icon(
-                          Icons.request_quote_outlined,
-                          size: 18,
-                        ),
+                        icon: const Icon(Icons.request_quote_outlined, size: 18),
                         label: const Text('Submit Custom Rate Application'),
                       ),
                     ],
@@ -1546,33 +1309,25 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
         else
           LayoutBuilder(
             builder: (context, constraints) {
-              final twoColumn = constraints.maxWidth >= 900;
-              final cardWidth = twoColumn
-                  ? (constraints.maxWidth - 16) / 2
-                  : constraints.maxWidth;
-              return Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: List<Widget>.generate(filteredLanes.length, (index) {
+              final columns = constraints.maxWidth >= 1000
+                  ? 3
+                  : constraints.maxWidth >= 640
+                      ? 2
+                      : 1;
+              return AlignedGridView.count(
+                crossAxisCount: columns,
+                mainAxisSpacing: 14,
+                crossAxisSpacing: 14,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filteredLanes.length,
+                itemBuilder: (context, index) {
                   final line = filteredLanes[index];
-                  final providerRole = switch (index % 3) {
-                    0 => 'specialty_broker',
-                    1 => 'mga',
-                    _ => 'carrier',
-                  };
-                  return SizedBox(
-                    width: cardWidth,
-                    child: _CoverageProgramLaneCard(
-                      line: line,
-                      featuredLane: index < 2,
-                      providerType: _selectedProviderTypeFilter.isNotEmpty
-                          ? _selectedProviderTypeFilter
-                          : providerRole,
-                      onApplyForLane: () => _startCoverageLaneQuote(line),
-                      onListAgency: _openProviderOnboarding,
-                    ),
+                  return _CoverageLineRequestCard(
+                    line: line,
+                    onRequest: () => _startCoverageLaneQuote(line),
                   );
-                }),
+                },
               );
             },
           ),
@@ -2680,11 +2435,6 @@ class _InsuranceProviderCard extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 6,
                       children: [
-                        if (provider.isSampleShowcase)
-                          const PipeBuyerVisualBadge(
-                            variant: PipeBuyerBadgeVariant.programPreview,
-                            compact: true,
-                          ),
                         PipeBuyerVisualBadge.forInsuranceProviderType(
                           provider.providerType,
                           compact: true,
@@ -2840,260 +2590,75 @@ class _InsuranceProviderCard extends StatelessWidget {
   }
 }
 
-class _CoverageProgramLaneCard extends StatelessWidget {
-  const _CoverageProgramLaneCard({
+class _CoverageLineRequestCard extends StatelessWidget {
+  const _CoverageLineRequestCard({
     required this.line,
-    required this.featuredLane,
-    required this.providerType,
-    required this.onApplyForLane,
-    required this.onListAgency,
+    required this.onRequest,
   });
 
   final InsuranceCoverageLine line;
-  final bool featuredLane;
-  final String providerType;
-  final VoidCallback onApplyForLane;
-  final VoidCallback onListAgency;
-
-  static List<String> _highlightsForLane(String code) {
-    return switch (code) {
-      'commercial_auto_fleet' => const <String>[
-          'MCS-90 & DOT/NSC Filings',
-          'Crew Pickups & Hotshots',
-          'Vac & Heavy Haul Physical Damage',
-        ],
-      'oilfield_general_liability' => const <String>[
-          'Occurrence Lease-Site CGL',
-          'Blanket Additional Insured',
-          'Waiver of Subrogation',
-        ],
-      'rig_equipment_inland_marine' => const <String>[
-          'Drilling & Workover Rigs',
-          'Blanket Contractors Iron',
-          'OCTG & Yard Pipe Stock',
-        ],
-      'motor_truck_cargo_hazmat' => const <String>[
-          'Broad-Form OCTG Cargo',
-          'Rig Move & Loading Transit',
-          'Spill & Hazmat Cleanup',
-        ],
-      'pollution_environmental' => const <String>[
-          'Contractors Pollution (CPL)',
-          'Sudden & Accidental Time-Element',
-          'Site Remediation',
-        ],
-      'umbrella_excess_liability' => const <String>[
-          '\$1M–\$25M+ Excess Towers',
-          'Follow-Form MSA Schedules',
-          'Auto, CGL & Employers Excess',
-        ],
-      'workers_comp_crew' => const <String>[
-          'Statutory WC & Stop-Gap',
-          'WCB & Multi-State Crew',
-          'USL&H Extensions',
-        ],
-      _ => const <String>[
-          'Fabrication Shops & Pipe Yards',
-          'Modular Skids & Crew Camps',
-          'Business Interruption',
-        ],
-    };
-  }
+  final VoidCallback onRequest;
 
   @override
   Widget build(BuildContext context) {
-    final highlights = _highlightsForLane(line.code);
-
-    return Container(
+    return PipeBuyerInteractiveCard(
       key: Key('coverage_lane_${line.code}'),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color:
-              featuredLane ? const Color(0xFFCBD5E1) : const Color(0xFFE2E8F0),
-        ),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: Color(0x0D0F172A),
-            blurRadius: 18,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            height: 3,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: featuredLane
-                    ? const <Color>[PipeBuyerColors.orange, Color(0xFFFF9A3D)]
-                    : const <Color>[
-                        PipeBuyerColors.industrialBlue,
-                        Color(0xFF3B82F6),
-                      ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
+      onTap: onRequest,
+      borderRadius: 16,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          PipeBuyerVisualBadge.forInsuranceProviderType(
-                            providerType,
-                            compact: true,
-                          ),
-                          if (featuredLane)
-                            const PipeBuyerVisualBadge(
-                              variant: PipeBuyerBadgeVariant.featured,
-                              compact: true,
-                            ),
-                        ],
-                      ),
-                      const Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          PipeBuyerVisualBadge(
-                            variant: PipeBuyerBadgeVariant.fastCoi24x7,
-                            compact: true,
-                          ),
-                          PipeBuyerVisualBadge(
-                            variant: PipeBuyerBadgeVariant.msaReady,
-                            compact: true,
-                          ),
-                        ],
-                      ),
-                    ],
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: PipeBuyerColors.studioSlate,
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(color: PipeBuyerColors.studioRim),
+                  ),
+                  child: const Icon(
+                    LucideIcons.shieldCheck,
+                    size: 20,
+                    color: PipeBuyerColors.orange,
                   ),
                 ),
-                const SizedBox(height: 14),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PipeBuyerCompanyLogoBadge(
-                      key: Key('lane_placeholder_${line.code}'),
-                      logoUrl: '',
-                      companyName: line.label,
-                      width: 84,
-                      height: 66,
-                      featured: featuredLane,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    line.label,
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w900,
+                      color: PipeBuyerColors.ink,
+                      height: 1.2,
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            line.label,
-                            style: const TextStyle(
-                              fontSize: 16.5,
-                              fontWeight: FontWeight.w900,
-                              color: PipeBuyerColors.ink,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'US & Canada Energy Markets  •  Carrier & Broker Slot Open',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: PipeBuyerColors.muted,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            line.description,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              height: 1.42,
-                              color: PipeBuyerColors.slate,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: highlights
-                      .map(
-                        (spec) => Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8.5,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(7),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Text(
-                            spec,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF334155),
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(growable: false),
-                ),
-                const SizedBox(height: 14),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: Wrap(
-                    spacing: 10,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      FilledButton.icon(
-                        key: Key('apply_lane_${line.code}'),
-                        onPressed: onApplyForLane,
-                        icon: const Icon(
-                          Icons.request_quote_outlined,
-                          size: 17,
-                        ),
-                        label: const Text('Apply for Rates'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: onListAgency,
-                        icon: const Icon(Icons.upload_file_rounded, size: 17),
-                        label: const Text('List Your Company'),
-                      ),
-                    ],
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(
+              line.description,
+              style: const TextStyle(
+                fontSize: 12.5,
+                height: 1.42,
+                color: PipeBuyerColors.slate,
+              ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              key: Key('apply_lane_${line.code}'),
+              onPressed: onRequest,
+              icon: const Icon(Icons.request_quote_outlined, size: 17),
+              label: const Text('Apply for Rates'),
+            ),
+          ],
+        ),
       ),
     );
   }

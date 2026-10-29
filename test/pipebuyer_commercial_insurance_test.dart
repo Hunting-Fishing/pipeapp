@@ -8,7 +8,6 @@ import 'package:pipe_app/marketplace/marketplace_deep_links.dart';
 import 'package:pipe_app/marketplace/marketplace_grouped_navigation.dart';
 import 'package:pipe_app/marketplace/marketplace_home_welcome.dart';
 import 'package:pipe_app/marketplace/pipebuyer_business_logo_uploader.dart';
-import 'package:pipe_app/marketplace/pipebuyer_business_logo_widgets.dart';
 import 'package:pipe_app/marketplace/pipebuyer_insurance_admin_page.dart';
 import 'package:pipe_app/marketplace/pipebuyer_insurance_client.dart';
 import 'package:pipe_app/marketplace/pipebuyer_insurance_hub_page.dart';
@@ -455,27 +454,6 @@ void main() {
           'sudden_accidental_pollution',
         ]),
       );
-
-      final showcase = PipeBuyerInsuranceTaxonomy.showcaseProviders;
-      expect(showcase.length, greaterThanOrEqualTo(4));
-      expect(showcase.every((p) => p.isSampleShowcase), isTrue);
-
-      final canadianMatches = showcase.where(
-        (p) => p.matchesFilters(countryFilter: 'CA'),
-      );
-      expect(canadianMatches, isNotEmpty);
-
-      final fastCoiRigMatches = showcase.where(
-        (p) => p.matchesFilters(
-          coverageLine: 'rig_equipment_inland_marine',
-          fastCoiOnly: true,
-        ),
-      );
-      expect(fastCoiRigMatches.length, 1);
-      expect(
-        fastCoiRigMatches.single.companyName,
-        'Foothills WCSB Energy Risk Partners',
-      );
     },
   );
 
@@ -586,9 +564,11 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Lone Star Basin Risk MGA'), findsOneWidget);
       expect(find.text('Prairie Foothills Energy Insurance'), findsOneWidget);
+      // The featured carousel only appears for providers that supplied a real
+      // banner or featured logo; these test providers have neither.
       expect(
         find.byKey(const Key('insurance_featured_promo_carousel')),
-        findsOneWidget,
+        findsNothing,
       );
 
       // Switch to desktop 1280x900 and test collapsible coverage filter + targeted rate application
@@ -791,7 +771,7 @@ void main() {
   );
 
   testWidgets(
-    'Insurance Hub hides unverified sample insurance companies by default and renders coverage lane previews + upgraded badges',
+    'Insurance Hub shows only real data: honest empty state with no invented providers, badges or banner slots',
     (tester) async {
       final emptyClient = _FakeInsuranceClient(
         providers: const <InsuranceProviderListing>[],
@@ -807,69 +787,34 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
 
-        // Must NOT display fictional/unsigned-up insurance companies
-        for (final sample in PipeBuyerInsuranceTaxonomy.showcaseProviders) {
-          expect(find.text(sample.companyName), findsNothing);
-        }
-
-        // Renders honest Coverage Lanes, placeholder images, and zero truck/shield icons
         expect(
           find.byKey(const Key('insurance_onboarding_program_banner')),
           findsOneWidget,
         );
-        expect(find.byType(PipeBuyerImagePlaceholder), findsWidgets);
         expect(
-          find.descendant(
-            of: find.byKey(const Key('coverage_lane_commercial_auto_fleet')),
-            matching: find.byType(PipeBuyerImagePlaceholder),
-          ),
+          find.text('No verified insurance companies are listed yet'),
           findsOneWidget,
         );
         expect(
-          find.descendant(
-            of: find.byKey(const Key('coverage_lane_commercial_auto_fleet')),
-            matching: find.byIcon(Icons.local_shipping_outlined),
-          ),
-          findsNothing,
-        );
-        expect(
-          find.descendant(
-            of: find.byKey(
-              const Key('coverage_lane_oilfield_general_liability'),
-            ),
-            matching: find.byType(PipeBuyerImagePlaceholder),
-          ),
+          find.byKey(const Key('coverage_lane_commercial_auto_fleet')),
           findsOneWidget,
         );
-        expect(
-          find.descendant(
-            of: find.byKey(
-              const Key('coverage_lane_oilfield_general_liability'),
-            ),
-            matching: find.byIcon(Icons.shield_outlined),
-          ),
-          findsNothing,
-        );
-        expect(find.text('PROGRAM PREVIEW'), findsWidgets);
-        expect(find.text('OILFIELD BROKER'), findsWidgets);
-        expect(find.text('24/7 COI'), findsWidgets);
-        expect(find.text('MSA-READY'), findsWidgets);
+
+        // Nothing invented: no program-preview badge, no fabricated provider
+        // roles/credentials, no empty promo-banner placeholders, no carousel.
+        expect(find.text('PROGRAM PREVIEW'), findsNothing);
+        expect(find.text('OILFIELD BROKER'), findsNothing);
+        expect(find.text('24/7 COI'), findsNothing);
+        expect(find.text('MSA-READY'), findsNothing);
+        expect(find.textContaining('Slot Open'), findsNothing);
+        expect(find.textContaining('PROMO BANNER SLOT'), findsNothing);
         expect(
           find.byKey(const Key('insurance_featured_promo_carousel')),
-          findsOneWidget,
+          findsNothing,
         );
       }
 
-      // Advance Featured Promo Carousel slide on desktop
-      final nextSlideBtn = find.byKey(
-        const Key('insurance_featured_promo_carousel_next'),
-      );
-      await tester.ensureVisible(nextSlideBtn);
-      await tester.tap(nextSlideBtn);
-      await tester.pumpAndSettle();
-      expect(find.text('2 / 3'), findsOneWidget);
-
-      // Clicking "Apply for Rates" on a coverage lane opens the rate form pre-selected
+      // Requesting quotes for a coverage line opens the rate form.
       final autoLaneBtn = find.byKey(
         const Key('apply_lane_commercial_auto_fleet'),
       );

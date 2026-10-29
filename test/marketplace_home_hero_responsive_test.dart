@@ -56,7 +56,9 @@ Future<void> _pumpAndCaptureHero(
     ),
     findsOneWidget,
   );
-  expect(find.text('Business account'), findsOneWidget);
+  expect(find.text('Business account'), findsNothing);
+  expect(find.text('30-day listing lifecycle'), findsNothing);
+  expect(find.text('Pipe & tubing'), findsNothing);
   expect(find.text('Browse inventory'), findsOneWidget);
   expect(find.text('Sell something'), findsOneWidget);
   expect(find.text('Request service'), findsOneWidget);

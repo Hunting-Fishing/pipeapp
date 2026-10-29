@@ -2623,7 +2623,7 @@ class _SponsoredBrandPartnerBanner extends StatelessWidget {
                                   ),
                                 ),
                                 child: const Text(
-                                  'SPONSORED',
+                                  'ADVERTISE',
                                   style: TextStyle(
                                     color: PipeBuyerColors.orangePressed,
                                     fontSize: 9.5,
@@ -2633,7 +2633,7 @@ class _SponsoredBrandPartnerBanner extends StatelessWidget {
                                 ),
                               ),
                               const Text(
-                                'PAID BRAND ADVERTISEMENT TIER',
+                                'PAID BRAND PLACEMENT',
                                 style: TextStyle(
                                   color: PipeBuyerColors.muted,
                                   fontSize: 10,
@@ -2836,7 +2836,7 @@ class _QuickAction extends StatelessWidget {
           'Open Dispatch'
         ),
       'Search for services' => (
-          '63,000+ Oil & Gas providers, training & hotels',
+          'Oil & Gas providers, training & crew hotels',
           'Search directory'
         ),
       'List services' => (

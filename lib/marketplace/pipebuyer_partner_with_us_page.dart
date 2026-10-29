@@ -24,14 +24,12 @@ class PipeBuyerPartnerWithUsPage extends StatefulWidget {
     this.initialCategoryFilter = '',
     this.client,
     this.logoUploader,
-    this.includeDefaultShowcases = true,
   });
 
   final PartnerPageSection initialSection;
   final String initialCategoryFilter;
   final PipeBuyerPartnerClient? client;
   final PipeBuyerBusinessLogoUploader? logoUploader;
-  final bool includeDefaultShowcases;
 
   @override
   State<PipeBuyerPartnerWithUsPage> createState() =>
@@ -175,11 +173,6 @@ class _PipeBuyerPartnerWithUsPageState
     final mergedById = <String, PartnerShowcaseDeal>{};
     for (final item in _liveShowcases) {
       if (item.active) mergedById[item.showcaseId] = item;
-    }
-    if (widget.includeDefaultShowcases) {
-      for (final fallback in PipeBuyerPartnerTaxonomy.defaultShowcaseDeals) {
-        mergedById.putIfAbsent(fallback.showcaseId, () => fallback);
-      }
     }
 
     final query = _searchController.text.trim().toLowerCase();
@@ -1364,27 +1357,24 @@ class _PartnerShowcaseSection extends StatelessWidget {
         deals.where((d) => d.featured).take(4).toList(growable: false);
     final sourceDeals =
         featuredDeals.isNotEmpty ? featuredDeals : deals.take(3).toList();
+    if (sourceDeals.isEmpty) return const SizedBox.shrink();
 
     final slides = <PipeBuyerFeaturedPromoSlide>[
       for (final deal in sourceDeals)
         PipeBuyerFeaturedPromoSlide(
           id: deal.showcaseId,
           eyebrow: deal.partnerName,
-          title: 'Featured Spotlight — ${deal.headline}',
+          title: deal.headline,
           summary: deal.summary,
           bannerUrl: deal.bannerUrl,
           logoUrl: deal.logoUrl,
-          slotLabel: '16:9 PROMO BANNER SLOT',
+          slotLabel: null,
           badges: <Widget>[
-            if (deal.isProgramPreview)
+            if (deal.featured)
               const PipeBuyerVisualBadge(
-                variant: PipeBuyerBadgeVariant.programPreview,
+                variant: PipeBuyerBadgeVariant.featured,
                 compact: true,
               ),
-            const PipeBuyerVisualBadge(
-              variant: PipeBuyerBadgeVariant.featured,
-              compact: true,
-            ),
           ],
           highlights: deal.productHighlights.take(3).toList(),
           offerCallout: deal.offerBadge.isNotEmpty
@@ -1392,35 +1382,12 @@ class _PartnerShowcaseSection extends StatelessWidget {
               : '',
           primaryCtaLabel: deal.ctaLabel,
           onPrimaryCta: () => onInquireDeal(deal),
-          secondaryCtaLabel: 'Reserve Promo Banner',
-          onSecondaryCta: onBecomePartner,
         ),
-      PipeBuyerFeaturedPromoSlide(
-        id: 'reserve_partner_banner',
-        eyebrow: 'OEM, EQUIPMENT & BRAND SPONSORSHIPS',
-        title: 'Launch a 16:9 Featured Promo Banner Campaign on Pipe Buyer',
-        summary:
-            'Promote crew truck allocations, oilfield equipment packages, FR gear, or member fleet discounts directly to energy operators and contractors.',
-        slotLabel: 'UPLOAD 16:9 BANNER',
-        badges: const <Widget>[
-          PipeBuyerVisualBadge(
-            variant: PipeBuyerBadgeVariant.featured,
-            compact: true,
-          ),
-        ],
-        highlights: const <String>[
-          '16:9 Wide Promo Banner',
-          'Direct Buyer Lead Capture',
-          'North American Basins',
-        ],
-        primaryCtaLabel: 'Apply to Partner',
-        onPrimaryCta: onBecomePartner,
-      ),
     ];
 
     return PipeBuyerFeaturedPromoCarousel(
       slides: slides,
-      sectionTitle: 'FEATURED PARTNER PROMO BANNER CAROUSEL',
+      sectionTitle: 'FEATURED PARTNER OFFERS',
       keyPrefix: 'partner_featured_promo_carousel',
     );
   }
@@ -1489,11 +1456,6 @@ class _PartnerShowcaseCard extends StatelessWidget {
                   runSpacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    if (deal.isProgramPreview)
-                      const PipeBuyerVisualBadge(
-                        variant: PipeBuyerBadgeVariant.programPreview,
-                        compact: true,
-                      ),
                     if (deal.featured)
                       const PipeBuyerVisualBadge(
                         variant: PipeBuyerBadgeVariant.featured,
