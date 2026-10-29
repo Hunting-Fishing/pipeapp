@@ -1298,7 +1298,7 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(
                     labelText: 'Make / manufacturer',
-                    hintText: 'Example: Caterpillar',
+                    hintText: 'Equipment manufacturer',
                     prefixIcon: Icon(Icons.precision_manufacturing_outlined),
                   ),
                 );
@@ -1306,7 +1306,7 @@ class _FreightQuoteDialogState extends State<_FreightQuoteDialog> {
                   controller: _model,
                   decoration: const InputDecoration(
                     labelText: 'Model',
-                    hintText: 'Example: 320 or D6',
+                    hintText: 'Model or tonnage class',
                     prefixIcon: Icon(Icons.badge_outlined),
                   ),
                 );

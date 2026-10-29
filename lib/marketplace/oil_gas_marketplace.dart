@@ -13,6 +13,9 @@ import '../core/accessibility/pipe_accessibility_theme.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
+import '../core/design/pipe_buyer_commerce_components.dart';
+import '../core/design/pipe_buyer_modern_cards.dart';
+import '../core/design/pipe_buyer_theme.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_auth_page.dart';
@@ -1481,8 +1484,8 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
           child: Tooltip(
             message: 'Pipe Buyer marketplace',
             child: Image.asset(
-              'assets/images/pipe_buyer_logo.png',
-              width: 54,
+              'assets/images/pipe_buyer_logo_transparent.png',
+              width: 58,
               height: 42,
               fit: BoxFit.contain,
             ),
@@ -1578,8 +1581,8 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
               ListTile(
                 contentPadding: const EdgeInsets.fromLTRB(20, 10, 16, 14),
                 leading: Image.asset(
-                  'assets/images/pipe_buyer_logo.png',
-                  width: 54,
+                  'assets/images/pipe_buyer_logo_transparent.png',
+                  width: 58,
                   height: 42,
                   fit: BoxFit.contain,
                 ),
@@ -2163,7 +2166,7 @@ class _DrawerDestination extends StatelessWidget {
       child: ListTile(
           selected: selected,
           selectedColor: _orange,
-          selectedTileColor: const Color(0xFFEAF4FD),
+          selectedTileColor: const Color(0xFFF1F5F9),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           leading: Icon(icon, size: 21),
@@ -2250,26 +2253,20 @@ class _HomePage extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1280),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
             children: [
-              const MarketplaceHomeWelcome(),
-              const SizedBox(height: 20),
-              _HomeQuickActions(
-                features: features,
-                onBrowse: onBrowse,
-                onList: onList,
-                onAuctions: onAuctions,
-                onDispatch: onDispatch,
-              ),
+              const MarketplaceHomeWelcome(includeIntentAndTrust: false),
+              const Gap(14),
               if (features.marketplace) ...[
-                const _CompactHeading('Categories'),
                 _HomeCategoryStrip(
                   regulatedListingsEnabled: features.regulatedListings,
-                  onCategory: onCategory,
+                  onCategory: (cat) => onCategory(cat ?? ''),
                 ),
+                const Gap(12),
+                const _SponsoredBrandPartnerBanner(),
                 _CompactHeading(
-                  'Featured near you',
-                  action: 'See all',
+                  'Live Marketplace Inventory',
+                  action: 'See all listings',
                   onAction: onBrowse,
                 ),
                 _FeaturedListings(
@@ -2283,7 +2280,44 @@ class _HomePage extends StatelessWidget {
                   message:
                       'Marketplace browsing and listing are temporarily paused.',
                 ),
-              const SizedBox(height: 28),
+              const _CompactHeading('Platform Workflows & Services'),
+              _HomeQuickActions(
+                features: features,
+                onBrowse: onBrowse,
+                onList: onList,
+                onAuctions: onAuctions,
+                onDispatch: onDispatch,
+              ),
+              const Gap(16),
+              const PipeBuyerTrustBand(
+                items: [
+                  PipeBuyerTrustItemData(
+                    icon: LucideIcons.shieldCheck,
+                    title: 'Verified Businesses',
+                    subtitle:
+                        'Identity and marketplace readiness are clearly surfaced.',
+                  ),
+                  PipeBuyerTrustItemData(
+                    icon: LucideIcons.messageSquareLock,
+                    title: 'Protected Messaging',
+                    subtitle:
+                        'Keep negotiations and listing context inside the app.',
+                  ),
+                  PipeBuyerTrustItemData(
+                    icon: LucideIcons.fileCheck2,
+                    title: 'Auditable Offers',
+                    subtitle:
+                        'Offer activity stays tied to the correct listing and account.',
+                  ),
+                  PipeBuyerTrustItemData(
+                    icon: LucideIcons.truck,
+                    title: 'Dispatch Ready',
+                    subtitle:
+                        'Move from equipment discovery into trucking coordination.',
+                  ),
+                ],
+              ),
+              const Gap(24),
               const PipeBuyerSiteFooter(
                 currentSurface: PipeBuyerFooterSurface.home,
               ),
@@ -2313,58 +2347,63 @@ class _HomeQuickActions extends StatelessWidget {
     final actions = <Widget>[
       if (features.marketplace)
         _QuickAction(
-          icon: Icons.storefront_outlined,
+          icon: LucideIcons.search,
           assetPath: IndustrialIconAssets.forLabel('Browse'),
           label: 'Browse marketplace',
-          color: _orange,
+          color: PipeBuyerColors.orange,
           onTap: onBrowse,
         ),
       if (features.marketplace)
         _QuickAction(
-          icon: Icons.add_circle_outline,
+          icon: LucideIcons.packagePlus,
           assetPath: IndustrialIconAssets.forLabel('Sell'),
           label: 'Create listing',
-          color: const Color(0xFFF97316),
+          color: PipeBuyerColors.orangePressed,
           onTap: onList,
         ),
       if (features.auctions)
         _QuickAction(
-          icon: Icons.gavel_outlined,
+          icon: LucideIcons.gavel,
           assetPath: IndustrialIconAssets.forLabel('Auctions'),
           label: 'Timed auctions',
-          color: const Color(0xFF7557D3),
+          color: PipeBuyerColors.industrialBlue,
           onTap: onAuctions,
         ),
       if (features.dispatch)
         _QuickAction(
-          icon: Icons.local_shipping_outlined,
+          icon: LucideIcons.truck,
           assetPath: IndustrialIconAssets.forLabel('Dispatch'),
           label: 'Dispatch services',
-          color: const Color(0xFF008B78),
+          color: PipeBuyerColors.success,
           onTap: onDispatch,
         ),
       _QuickAction(
-        icon: Icons.manage_search_rounded,
+        icon: LucideIcons.building2,
+        assetPath: IndustrialIconAssets.forLabel('Site & Property'),
         label: 'Search for services',
-        color: const Color(0xFFD97706),
+        color: PipeBuyerColors.orange,
         onTap: () => MarketplaceNavigation.openSearchServices(context),
       ),
       _QuickAction(
-        icon: Icons.workspace_premium_outlined,
+        icon: LucideIcons.badgeCheck,
+        assetPath: 'assets/images/membership_vip_subscription.svg',
         label: 'List services',
-        color: const Color(0xFF0F52BA),
+        color: PipeBuyerColors.industrialBlue,
         onTap: () => MarketplaceNavigation.openListServices(context),
       ),
       _QuickAction(
-        icon: Icons.shield_outlined,
+        icon: LucideIcons.shield,
+        assetPath:
+            'assets/images/industrial_icons/25-reporting-and-administration/06-fraud-scam.svg',
         label: 'Commercial insurance',
         color: const Color(0xFF0E7490),
         onTap: () => MarketplaceNavigation.openInsuranceHub(context),
       ),
       _QuickAction(
-        icon: Icons.handshake_outlined,
+        icon: LucideIcons.handshake,
+        assetPath: IndustrialIconAssets.wantedEquipment,
         label: 'Partner with us',
-        color: const Color(0xFFB45309),
+        color: PipeBuyerColors.orangePressed,
         onTap: () => MarketplaceNavigation.openPartnerWithUs(context),
       ),
     ];
@@ -2377,19 +2416,19 @@ class _HomeQuickActions extends StatelessWidget {
 
     return LayoutBuilder(builder: (context, constraints) {
       const spacing = 12.0;
-      final columns = constraints.maxWidth >= 760
-          ? actions.length.clamp(1, 4)
-          : constraints.maxWidth >= 430
-              ? actions.length.clamp(1, 2)
+      final columns = constraints.maxWidth >= 960
+          ? 4
+          : constraints.maxWidth >= 560
+              ? 2
               : 1;
-      final width =
-          (constraints.maxWidth - (spacing * (columns - 1))) / columns;
-      return Wrap(
-        spacing: spacing,
-        runSpacing: spacing,
-        children: actions
-            .map((action) => SizedBox(width: width, child: action))
-            .toList(growable: false),
+      return AlignedGridView.count(
+        crossAxisCount: columns,
+        mainAxisSpacing: spacing,
+        crossAxisSpacing: spacing,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: actions.length,
+        itemBuilder: (context, index) => actions[index],
       );
     });
   }
@@ -2402,84 +2441,288 @@ class _HomeCategoryStrip extends StatelessWidget {
   });
 
   final bool regulatedListingsEnabled;
-  final ValueChanged<String> onCategory;
+  final ValueChanged<String?> onCategory;
 
   @override
   Widget build(BuildContext context) {
     final categories = phase1MarketplaceCategories(
       regulatedListingsEnabled: regulatedListingsEnabled,
     );
-    return SizedBox(
-      height: 156,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          final item = categories[index];
-          final assetPath =
-              MarketplaceCatalogPhotoAssets.forCategory(item.name) ??
-                  IndustrialIconAssets.forLabel(item.name);
-          return InkWell(
-            onTap: () => onCategory(item.name),
-            borderRadius: BorderRadius.circular(18),
-            child: Container(
-              width: 164,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x160F172A),
-                    blurRadius: 14,
-                    offset: Offset(0, 5),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _MarketplaceArtworkPanel(
-                      label: item.name,
-                      assetPath: assetPath,
-                      fallbackIcon: item.icon,
-                      borderRadius: 0,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
-                    child: Row(
-                      children: [
-                        Expanded(
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        height: 112,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: categories.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            final item = categories[index];
+            final assetPath =
+                MarketplaceCatalogPhotoAssets.forCategory(item.name) ??
+                    IndustrialIconAssets.forLabel(item.name);
+            return PipeBuyerInteractiveCard(
+              onTap: () => onCategory(item.name),
+              borderRadius: 14,
+              child: SizedBox(
+                width: 102,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 7, 6, 6),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: PipeBuyerColors.studioSlate,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: PipeBuyerColors.studioRim),
+                        ),
+                        padding: const EdgeInsets.all(2),
+                        child: IndustrialAssetIcon(
+                          label: item.name,
+                          assetPath: assetPath,
+                          size: 60,
+                          borderRadius: 12,
+                          fit: BoxFit.contain,
+                          fallback: Icon(
+                            item.icon,
+                            size: 28,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const Gap(6),
+                      Expanded(
+                        child: Center(
                           child: Text(
                             item.name,
+                            textAlign: TextAlign.center,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 11.5,
-                              height: 1.15,
+                              fontSize: 10.6,
+                              height: 1.12,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF172033),
+                              color: PipeBuyerColors.ink,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 16,
-                          color: _orange,
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _SponsoredBrandPartnerBanner extends StatelessWidget {
+  const _SponsoredBrandPartnerBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('sponsored-brand-partner-banner'),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            height: 3.5,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  PipeBuyerColors.orange,
+                  Color(0xFFFF9A3D),
+                  PipeBuyerColors.orange,
                 ],
               ),
             ),
-          );
-        },
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth >= 680;
+                final copy = Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: PipeBuyerColors.studioSlate,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: PipeBuyerColors.studioRim),
+                      ),
+                      padding: const EdgeInsets.all(2),
+                      child: IndustrialAssetIcon(
+                        label: 'Sponsored Brand Advertisement',
+                        assetPath: IndustrialIconAssets.wantedEquipment,
+                        size: 46,
+                        borderRadius: 10,
+                        fallback: const Icon(
+                          LucideIcons.megaphone,
+                          color: PipeBuyerColors.orange,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                    const Gap(12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: PipeBuyerColors.orangeSoft,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: PipeBuyerColors.orange
+                                        .withValues(alpha: 0.45),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'SPONSORED',
+                                  style: TextStyle(
+                                    color: PipeBuyerColors.orangePressed,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                              ),
+                              const Text(
+                                'PAID BRAND ADVERTISEMENT TIER',
+                                style: TextStyle(
+                                  color: PipeBuyerColors.muted,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.45,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Gap(3),
+                          const Text(
+                            'Feature Your Company Logo & Services Here',
+                            style: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w900,
+                              color: PipeBuyerColors.ink,
+                            ),
+                          ),
+                          const Gap(2),
+                          const Text(
+                            'Paid Sponsor tier displays your official company logo, verified badge, website link & direct dispatch contact.',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: PipeBuyerColors.slate,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+
+                final buttons = Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () =>
+                          MarketplaceNavigation.openSearchServices(context),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 9,
+                        ),
+                      ),
+                      child: const Text('Directory'),
+                    ),
+                    FilledButton(
+                      onPressed: () =>
+                          MarketplaceNavigation.openPartnerWithUs(context),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: PipeBuyerColors.orange,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 15,
+                          vertical: 9,
+                        ),
+                      ),
+                      child: const Text('Advertise Brand'),
+                    ),
+                  ],
+                );
+
+                if (!wide) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      copy,
+                      const Gap(10),
+                      buttons,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: copy),
+                    const Gap(12),
+                    buttons,
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2497,7 +2740,7 @@ class _HomeServiceNotice extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              const Icon(Icons.info_outline, color: _muted),
+              const Icon(LucideIcons.info, color: _muted),
               const SizedBox(width: 10),
               Expanded(child: Text(message)),
             ],
@@ -2522,8 +2765,8 @@ class _MarketplaceArtworkPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
-          final artSize = (constraints.biggest.shortestSide - 10)
-              .clamp(44.0, 240.0)
+          final artSize = (constraints.biggest.shortestSide - 12)
+              .clamp(44.0, 224.0)
               .toDouble();
           return Container(
             decoration: BoxDecoration(
@@ -2532,53 +2775,26 @@ class _MarketplaceArtworkPanel extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF041F3D),
-                  Color(0xFF0B3A67),
-                  Color(0xFF07559A),
+                  PipeBuyerColors.studioSlateTop,
+                  PipeBuyerColors.studioSlate,
+                  PipeBuyerColors.studioSlateDeep,
                 ],
               ),
             ),
             clipBehavior: Clip.antiAlias,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                const Positioned(
-                  right: -30,
-                  top: -42,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Color(0x1738BDF8),
-                      shape: BoxShape.circle,
-                    ),
-                    child: SizedBox.square(dimension: 130),
-                  ),
+            child: Center(
+              child: IndustrialAssetIcon(
+                label: label,
+                assetPath: assetPath,
+                size: artSize,
+                borderRadius: borderRadius == 0 ? 14 : borderRadius - 2,
+                fit: BoxFit.contain,
+                fallback: Icon(
+                  fallbackIcon,
+                  size: artSize * .44,
+                  color: Colors.white,
                 ),
-                const Positioned(
-                  left: -48,
-                  bottom: -62,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Color(0x12FFFFFF),
-                      shape: BoxShape.circle,
-                    ),
-                    child: SizedBox.square(dimension: 150),
-                  ),
-                ),
-                Center(
-                  child: IndustrialAssetIcon(
-                    label: label,
-                    assetPath: assetPath,
-                    size: artSize,
-                    borderRadius: borderRadius == 0 ? 12 : borderRadius - 2,
-                    fit: BoxFit.contain,
-                    fallback: Icon(
-                      fallbackIcon,
-                      size: artSize * .44,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           );
         },
@@ -2604,134 +2820,113 @@ class _QuickAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final (description, actionLabel) = switch (label) {
       'Browse marketplace' => (
-          'Shop equipment, materials and property',
+          'Shop pipe, OCTG, machinery & site buildings',
           'Explore listings'
         ),
       'Create listing' => (
-          'Sell, auction or post a wanted ad',
+          'Sell, auction or post a wanted RFQ',
           'Start listing'
         ),
       'Timed auctions' => (
-          'Live bids, reserve pricing and history',
-          'View auctions'
+          'Live Timed Buying bids & reserve pricing',
+          'View Timed Buying'
         ),
       'Dispatch services' => (
-          'Carrier quotes, jobs and fleet tools',
+          'Carrier freight quotes, jobs & fleet tools',
           'Open Dispatch'
+        ),
+      'Search for services' => (
+          '63,000+ Oil & Gas providers, training & hotels',
+          'Search directory'
+        ),
+      'List services' => (
+          'Priority Verified placement in Oilfield Directory',
+          'List business'
+        ),
+      'Commercial insurance' => (
+          'MSA-ready fleet, rig, cargo & liability rates',
+          'Compare rates'
+        ),
+      'Partner with us' => (
+          'Brand sponsorships, OEM deals & advertising',
+          'Advertise brand'
         ),
       _ => ('Open Pipe Buyer services', 'Continue'),
     };
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 116),
-          child: Ink(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  color.withValues(alpha: .16),
-                  Colors.white,
-                  Colors.white,
-                ],
+    return PipeBuyerInteractiveCard(
+      onTap: onTap,
+      borderRadius: 18,
+      hoverBorderColor: color,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 112),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: PipeBuyerColors.studioSlate,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: PipeBuyerColors.studioRim),
+                ),
+                child: IndustrialAssetIcon(
+                  label: label,
+                  assetPath: assetPath,
+                  size: 66,
+                  borderRadius: 13,
+                  fallback: Icon(icon, color: PipeBuyerColors.orange, size: 28),
+                ),
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: color.withValues(alpha: .30)),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: .12),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
+              const Gap(12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        height: 1.15,
+                        fontWeight: FontWeight.w900,
+                        color: PipeBuyerColors.ink,
+                      ),
+                    ),
+                    const Gap(4),
+                    Text(
+                      description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        height: 1.28,
+                        color: PipeBuyerColors.slate,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Gap(8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          actionLabel,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 11.2,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Gap(4),
+                        Icon(LucideIcons.arrowRight, color: color, size: 13),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 82,
-                  height: 82,
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF062A51),
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x26041F3D),
-                        blurRadius: 12,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: IndustrialAssetIcon(
-                    label: label,
-                    assetPath: assetPath,
-                    size: 76,
-                    borderRadius: 15,
-                    fallback: Icon(icon, color: Colors.white, size: 34),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          height: 1.1,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          height: 1.25,
-                          color: Color(0xFF526278),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              actionLabel,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.arrow_forward_rounded,
-                                color: Colors.white, size: 14),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -2746,14 +2941,26 @@ class _CompactHeading extends StatelessWidget {
   final VoidCallback? onAction;
   @override
   Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.fromLTRB(2, 18, 2, 9),
+      padding: const EdgeInsets.fromLTRB(2, 18, 2, 10),
       child: Row(children: [
         Expanded(
             child: Text(title,
                 style: const TextStyle(
-                    fontSize: 17, fontWeight: FontWeight.w900))),
+                    fontSize: 17.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2))),
         if (action != null && action!.isNotEmpty)
-          TextButton(onPressed: onAction, child: Text(action!))
+          TextButton(
+            onPressed: onAction,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(action!),
+                const Gap(4),
+                const Icon(LucideIcons.arrowRight, size: 15),
+              ],
+            ),
+          )
       ]));
 }
 
@@ -2776,12 +2983,12 @@ class _FeaturedListings extends StatelessWidget {
         stream: FirebaseFirestore.instance
             .collection('public_listings')
             .where('status', isEqualTo: 'active')
-            .limit(6)
+            .limit(8)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return _HomeFeedNotice(
-              icon: Icons.cloud_off_outlined,
+              icon: LucideIcons.cloudOff,
               message: 'Featured listings could not be loaded.',
               action: 'Browse marketplace',
               onAction: onBrowse,
@@ -2789,8 +2996,8 @@ class _FeaturedListings extends StatelessWidget {
           }
           if (!snapshot.hasData) {
             return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 28),
-              child: Center(child: CircularProgressIndicator()),
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: PipeBuyerListingSkeletonGrid(count: 4),
             );
           }
           final live = snapshot.data!.docs
@@ -2806,11 +3013,11 @@ class _FeaturedListings extends StatelessWidget {
                   listing.transactionType != 'Auction' &&
                   (listing.category != 'Site & Property' ||
                       regulatedListingsEnabled))
-              .take(3)
+              .take(4)
               .toList(growable: false);
           if (live.isEmpty) {
             return _HomeFeedNotice(
-              icon: Icons.inventory_2_outlined,
+              icon: LucideIcons.packageSearch,
               message: 'No active listings yet.',
               action: 'Browse marketplace',
               onAction: onBrowse,
@@ -2818,28 +3025,27 @@ class _FeaturedListings extends StatelessWidget {
           }
           return LayoutBuilder(
             builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth >= 860
-                  ? 3
-                  : (constraints.maxWidth >= 360 ? 2 : 1);
-              const spacing = 14.0;
-              final totalSpacing = spacing * (crossAxisCount - 1);
-              final cardWidth =
-                  (constraints.maxWidth - totalSpacing) / crossAxisCount;
-
-              return Wrap(
-                spacing: spacing,
-                runSpacing: spacing,
-                children: live
-                    .map((item) => SizedBox(
-                          width: cardWidth,
-                          child: _ListingCard(
-                            listing: item,
-                            saved: saved.contains(item.id),
-                            onSaved: () => onSaved(item),
-                            isGrid: true,
-                          ),
-                        ))
-                    .toList(growable: false),
+              final crossAxisCount = constraints.maxWidth >= 1040
+                  ? 4
+                  : constraints.maxWidth >= 760
+                      ? 3
+                      : (constraints.maxWidth >= 360 ? 2 : 1);
+              return AlignedGridView.count(
+                crossAxisCount: crossAxisCount,
+                mainAxisSpacing: 14,
+                crossAxisSpacing: 14,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: live.length,
+                itemBuilder: (context, index) {
+                  final item = live[index];
+                  return _ListingCard(
+                    listing: item,
+                    saved: saved.contains(item.id),
+                    onSaved: () => onSaved(item),
+                    isGrid: true,
+                  );
+                },
               );
             },
           );
@@ -3150,9 +3356,9 @@ class _BrowsePageState extends State<_BrowsePage> {
 
   Widget _buildResults(List<MarketplaceListing> results) {
     if (_loading && _documents.isEmpty) {
-      return const MarketplaceDataStateView.loading(
-        title: 'Loading Marketplace listings',
-        message: 'Retrieving current sale and wanted inventory…',
+      return const SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(14, 8, 14, 28),
+        child: PipeBuyerListingSkeletonGrid(count: 8),
       );
     }
     if (_loadError != null && _documents.isEmpty) {
@@ -3202,22 +3408,14 @@ class _BrowsePageState extends State<_BrowsePage> {
     final effectiveCols =
         MarketplaceGridDensityBar.resolveColumns(screenWidth, _gridColumns);
     if (effectiveCols > 1) {
-      final aspectRatio = effectiveCols == 2
-          ? 0.84
-          : effectiveCols == 3
-              ? 0.76
-              : 0.68;
       return RefreshIndicator(
         onRefresh: () => _loadPage(reset: true),
-        child: GridView.builder(
+        child: AlignedGridView.count(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: effectiveCols,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 12,
-            childAspectRatio: aspectRatio,
-          ),
+          crossAxisCount: effectiveCols,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 12,
           itemCount: results.length + 1,
           itemBuilder: (context, index) {
             if (index == results.length) {
@@ -3507,43 +3705,49 @@ class _BrowsePageState extends State<_BrowsePage> {
       String? selected,
       bool regulatedListingsEnabled,
       ValueChanged<String?> onCategory) async {
-    final value = await showModalBottomSheet<String?>(
-        context: context,
-        isScrollControlled: true,
-        builder: (context) => SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text('Browse categories',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 14),
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount:
-                        MediaQuery.sizeOf(context).width > 600 ? 4 : 2,
-                    childAspectRatio: 1.05,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    children: [
-                      _CategoryPickerTile(
-                          label: 'All listings',
-                          icon: Icons.apps,
-                          selected: selected == null,
-                          onTap: () => Navigator.pop(context, '__all__')),
-                      ...phase1MarketplaceCategories(
-                        regulatedListingsEnabled: regulatedListingsEnabled,
-                      ).map((item) => _CategoryPickerTile(
-                          label: item.name,
-                          icon: item.icon,
-                          selected: selected == item.name,
-                          onTap: () => Navigator.pop(context, item.name)))
-                    ],
-                  )
-                ]),
+    final value = await PipeBuyerAdaptiveModal.show<String?>(
+      context: context,
+      title: 'Browse categories',
+      subtitle: 'Pick an equipment, pipe or site category',
+      builder: (modalContext) => AlignedGridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: MediaQuery.sizeOf(modalContext).width > 600 ? 4 : 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        itemCount:
+            phase1MarketplaceCategories(
+              regulatedListingsEnabled: regulatedListingsEnabled,
+            ).length +
+            1,
+        itemBuilder: (itemContext, index) {
+          final categories = phase1MarketplaceCategories(
+            regulatedListingsEnabled: regulatedListingsEnabled,
+          );
+          if (index == 0) {
+            return SizedBox(
+              height: 124,
+              child: _CategoryPickerTile(
+                label: 'All listings',
+                icon: LucideIcons.layoutGrid,
+                selected: selected == null,
+                onTap: () => Navigator.pop(itemContext, '__all__'),
               ),
-            ));
+            );
+          }
+          final item = categories[index - 1];
+          return SizedBox(
+            height: 124,
+            child: _CategoryPickerTile(
+              label: item.name,
+              icon: item.icon,
+              selected: selected == item.name,
+              onTap: () => Navigator.pop(itemContext, item.name),
+            ),
+          );
+        },
+      ),
+    );
     if (value == '__all__') onCategory(null);
     if (value != null && value != '__all__') onCategory(value);
   }
@@ -3594,11 +3798,12 @@ class _CategoryPickerTile extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Material(
-      color: selected ? const Color(0xFFF0F7FF) : Colors.white,
+  Widget build(BuildContext context) => PipeBuyerHoverLift(
+      child: Material(
+      color: selected ? const Color(0xFFFFF1E8) : Colors.white,
       shape: RoundedRectangleBorder(
           side: BorderSide(
-              color: selected ? _orange : const Color(0xFFD8E0E9),
+              color: selected ? PipeBuyerColors.orange : const Color(0xFFD8E0E9),
               width: selected ? 2 : 1),
           borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
@@ -3628,10 +3833,10 @@ class _CategoryPickerTile extends StatelessWidget {
                   if (selected)
                     const Padding(
                         padding: EdgeInsets.only(left: 4),
-                        child:
-                            Icon(Icons.check_circle, size: 18, color: _orange))
+                        child: Icon(LucideIcons.circleCheck,
+                            size: 18, color: PipeBuyerColors.orange))
                 ]))
-          ])));
+          ]))));
 }
 
 class _ListingCard extends StatelessWidget {
@@ -3674,7 +3879,8 @@ class _ListingCard extends StatelessWidget {
       'acceptedOfferId': listing.acceptedOfferId,
       'auctionEndAt': listing.auctionEndAt,
     }, currentUserUid: FirebaseAuth.instance.currentUser?.uid);
-    return Container(
+    return PipeBuyerHoverLift(
+        child: Container(
       margin:
           isGrid ? EdgeInsets.zero : const EdgeInsets.fromLTRB(14, 6, 14, 10),
       decoration: BoxDecoration(
@@ -3718,13 +3924,12 @@ class _ListingCard extends StatelessWidget {
                     aspectRatio: isGrid ? 1.34 : 2.1,
                     child: listing.imageUrl == null
                         ? fallbackArtwork()
-                        : Image.network(
-                            listing.imageUrl!,
+                        : PipeBuyerCachedImage(
+                            imageUrl: listing.imageUrl,
                             width: double.infinity,
                             height: double.infinity,
                             fit: BoxFit.cover,
-                            filterQuality: FilterQuality.medium,
-                            errorBuilder: (_, __, ___) => fallbackArtwork(),
+                            fallback: fallbackArtwork(),
                           ),
                   ),
                   // Gradient Overlay for readability
@@ -3870,16 +4075,9 @@ class _ListingCard extends StatelessWidget {
                       ),
                     ),
                     if (listing.summaryFacts.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        listing.summaryFacts.take(3).join(' • '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF475569),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      const SizedBox(height: 8),
+                      PipeBuyerSpecPillStrip(
+                        specs: listing.summaryFacts.toList(growable: false),
                       ),
                     ],
                     const SizedBox(height: 10),
@@ -3891,12 +4089,7 @@ class _ListingCard extends StatelessWidget {
                             listing.price,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF075EB8),
-                              fontSize: 18,
-                              height: 1.05,
-                              fontWeight: FontWeight.w900,
-                            ),
+                            style: PipeBuyerTypography.tabularPrice(),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -3945,8 +4138,8 @@ class _ListingCard extends StatelessWidget {
                               if (listing.sellerVerified)
                                 const Padding(
                                   padding: EdgeInsets.only(left: 4),
-                                  child: Icon(Icons.verified,
-                                      size: 13, color: _orange),
+                                  child: Icon(LucideIcons.badgeCheck,
+                                      size: 14, color: PipeBuyerColors.success),
                                 ),
                             ],
                           ),
@@ -3962,7 +4155,7 @@ class _ListingCard extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -4053,7 +4246,7 @@ class _ListingDetailsState extends State<_ListingDetails> {
                       width: 44,
                       height: 4,
                       decoration: BoxDecoration(
-                          color: Colors.white24,
+                          color: const Color(0xFFCBD5E1),
                           borderRadius: BorderRadius.circular(4)))),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
               IconButton.filledTonal(
@@ -4095,7 +4288,7 @@ class _ListingDetailsState extends State<_ListingDetails> {
                 height: _galleryPhotos.isEmpty ? 150 : 210,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                    color: const Color(0xFFEAF4FD),
+                    color: const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(18)),
                 child: _galleryPhotos.isEmpty
                     ? Center(
@@ -4118,14 +4311,27 @@ class _ListingDetailsState extends State<_ListingDetails> {
                             borderRadius: 18,
                             fallback:
                                 Icon(listing.icon, size: 90, color: _orange)))
-                    : ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: Image.network(
-                            _galleryPhotos[_selectedPhotoIndex.clamp(0, _galleryPhotos.length - 1)],
-                            width: double.infinity,
-                            height: 210,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(child: Icon(listing.icon, size: 90, color: _orange))))),
+                    : GestureDetector(
+                        onTap: () => PipeBuyerPhotoLightbox.open(
+                              context,
+                              photos: _galleryPhotos,
+                              initialIndex: _selectedPhotoIndex
+                                  .clamp(0, _galleryPhotos.length - 1),
+                              title: listing.title,
+                            ),
+                        child: MouseRegion(
+                            cursor: SystemMouseCursors.zoomIn,
+                            child: ClipRRect(
+                                borderRadius: BorderRadius.circular(18),
+                                child: PipeBuyerCachedImage(
+                                    imageUrl: _galleryPhotos[_selectedPhotoIndex
+                                        .clamp(0, _galleryPhotos.length - 1)],
+                                    width: double.infinity,
+                                    height: 210,
+                                    fit: BoxFit.cover,
+                                    fallback: Center(
+                                        child: Icon(listing.icon,
+                                            size: 90, color: _orange))))))),
             if (_galleryPhotos.length > 1) ...[
               const SizedBox(height: 10),
               SizedBox(
@@ -4151,11 +4357,11 @@ class _ListingDetailsState extends State<_ListingDetails> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(7),
-                          child: Image.network(
-                            _galleryPhotos[index],
+                          child: PipeBuyerCachedImage(
+                            imageUrl: _galleryPhotos[index],
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => ColoredBox(
-                              color: const Color(0xFFEAF4FD),
+                            fallback: ColoredBox(
+                              color: const Color(0xFFF1F5F9),
                               child:
                                   Icon(listing.icon, size: 22, color: _orange),
                             ),
@@ -4182,7 +4388,7 @@ class _ListingDetailsState extends State<_ListingDetails> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(13),
                 decoration: BoxDecoration(
-                    color: const Color(0xFFEAF4FD),
+                    color: const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(14)),
                 child: Row(children: [
                   const Icon(Icons.payments_outlined, color: _orange),
@@ -4237,8 +4443,9 @@ class _ListingDetailsState extends State<_ListingDetails> {
                                   if (listing.sellerVerified)
                                     const Padding(
                                         padding: EdgeInsets.only(left: 4),
-                                        child: Icon(Icons.verified,
-                                            size: 16, color: _orange))
+                                        child: Icon(LucideIcons.badgeCheck,
+                                            size: 16,
+                                            color: PipeBuyerColors.success))
                                 ]),
                                 Text(
                                     _isWanted
@@ -4734,7 +4941,7 @@ class _ListingDetailsState extends State<_ListingDetails> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                                color: const Color(0xFFEAF4FD),
+                                color: const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(12)),
                             child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -7329,7 +7536,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                   vertical: 9,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF4FD),
+                  color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(

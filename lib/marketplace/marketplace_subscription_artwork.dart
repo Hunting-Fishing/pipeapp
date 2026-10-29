@@ -17,34 +17,27 @@ class MarketplaceSubscriptionArtwork extends StatelessWidget {
   String get _assetPath {
     final normalized = planTitle.trim().toLowerCase();
     if (normalized.contains('vip')) {
-      return 'assets/images/subscriptions/vip_subscription.webp';
+      return 'assets/images/membership_vip_subscription.svg';
     }
     if (normalized.contains('year')) {
-      return 'assets/images/subscriptions/dispatch_yearly_subscription.webp';
+      return 'assets/images/membership_dispatch_yearly_subscription.svg';
     }
-    return 'assets/images/subscriptions/dispatch_monthly_subscription.webp';
+    return 'assets/images/membership_dispatch_monthly_subscription.svg';
   }
 
   @override
   Widget build(BuildContext context) => SizedBox(
         height: height,
         width: double.infinity,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Image.asset(
-            _assetPath,
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.high,
-            errorBuilder: (_, __, ___) => Center(
-              child: IndustrialAssetIcon(
-                label: fallbackLabel,
-                size: height.clamp(90.0, 132.0).toDouble(),
-                borderRadius: 12,
-                fallback: const Icon(
-                  Icons.workspace_premium_outlined,
-                  size: 58,
-                ),
-              ),
+        child: Center(
+          child: IndustrialAssetIcon(
+            label: fallbackLabel,
+            assetPath: _assetPath,
+            size: height.clamp(96.0, 144.0).toDouble(),
+            borderRadius: 16,
+            fallback: const Icon(
+              Icons.workspace_premium_outlined,
+              size: 58,
             ),
           ),
         ),

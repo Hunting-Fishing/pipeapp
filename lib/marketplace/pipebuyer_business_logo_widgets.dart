@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
+import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'pipebuyer_business_logo_uploader.dart';
 
@@ -468,10 +469,10 @@ class PipeBuyerCompanyLogoBadge extends StatelessWidget {
                 color: Colors.white,
                 child: Padding(
                   padding: EdgeInsets.all(pad),
-                  child: Image.network(
-                    logoUrl.trim(),
+                  child: PipeBuyerCachedImage(
+                    imageUrl: logoUrl.trim(),
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => _buildFallback(),
+                    fallback: _buildFallback(),
                   ),
                 ),
               )
@@ -781,10 +782,10 @@ class PipeBuyerPromoBannerImage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (hasValidBanner)
-              Image.network(
-                trimmedBanner,
+              PipeBuyerCachedImage(
+                imageUrl: trimmedBanner,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => PipeBuyerImagePlaceholder(
+                fallback: PipeBuyerImagePlaceholder(
                   semanticsLabel: companyName.trim().isEmpty
                       ? 'Featured promo banner placeholder'
                       : '${companyName.trim()} promo banner placeholder',
