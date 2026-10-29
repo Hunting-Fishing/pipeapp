@@ -297,8 +297,12 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
     required bool showMenuButton,
   }) {
     final theme = Theme.of(context);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final compact = screenWidth < 520;
+    final showSectionTitle =
+        title.trim().isNotEmpty && (!compact || title.trim().toLowerCase() != 'pipe buyer');
     return AppBar(
-      toolbarHeight: 64,
+      toolbarHeight: compact ? 64 : 68,
       backgroundColor: theme.appBarTheme.backgroundColor ?? PipeBuyerColors.ink,
       foregroundColor: theme.appBarTheme.foregroundColor ?? Colors.white,
       surfaceTintColor: Colors.transparent,
@@ -315,33 +319,50 @@ class MarketplaceAdaptiveShell extends StatelessWidget {
             )
           : null,
       automaticallyImplyLeading: false,
-      titleSpacing: showMenuButton ? 4 : 18,
+      titleSpacing: showMenuButton ? 2 : 18,
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 8,
-            height: 28,
-            decoration: BoxDecoration(
-              color: PipeBuyerColors.orange,
-              borderRadius: BorderRadius.circular(999),
+          InkWell(
+            key: const Key('pipe-buyer-header-logo'),
+            onTap: () => onDestinationSelected(0),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Image.asset(
+                'assets/images/pipe_buyer_logo_on_dark.png',
+                height: compact ? 34 : 42,
+                fit: BoxFit.contain,
+                semanticLabel: 'Pipe Buyer',
+              ),
             ),
           ),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.appBarTheme.titleTextStyle ??
-                  const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -.1,
-                  ),
+          if (showSectionTitle) ...[
+            const SizedBox(width: 10),
+            Container(
+              width: 1.5,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.appBarTheme.titleTextStyle ??
+                    TextStyle(
+                      color: Colors.white,
+                      fontSize: compact ? 15.5 : 17.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -.1,
+                    ),
+              ),
+            ),
+          ],
         ],
       ),
       actions: actions,
@@ -397,52 +418,25 @@ class _RailBrand extends StatelessWidget {
             mainAxisAlignment:
                 extended ? MainAxisAlignment.start : MainAxisAlignment.center,
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: PipeBuyerColors.orange,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Text(
-                  'PB',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: .2,
-                  ),
+              Flexible(
+                child: Image.asset(
+                  'assets/images/pipe_buyer_logo_on_dark.png',
+                  height: extended ? 34 : 26,
+                  fit: BoxFit.contain,
+                  semanticLabel: 'Pipe Buyer',
                 ),
               ),
               if (extended) ...[
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'PIPE BUYER',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: .7,
-                        ),
-                      ),
-                      SizedBox(height: 1),
-                      Text(
-                        'INDUSTRIAL MARKETPLACE',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 7.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: .45,
-                        ),
-                      ),
-                    ],
+                const SizedBox(width: 8),
+                const Text(
+                  'MARKETPLACE',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white60,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .5,
                   ),
                 ),
               ],
@@ -489,7 +483,8 @@ class _MarketplacePrimaryActionLayer extends StatelessWidget {
     required this.child,
   });
 
-  static const _compactActionBreakpoint = 720.0;
+  static const _compactActionBreakpoint =
+      MarketplaceAdaptiveLayout.expandedBreakpoint;
 
   final double availableWidth;
   final bool showListNow;
@@ -508,10 +503,13 @@ class _MarketplacePrimaryActionLayer extends StatelessWidget {
       return Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
             child: Align(
               alignment: Alignment.centerRight,
-              child: _MarketplaceListNowButton(onPressed: onListNow),
+              child: _MarketplaceListNowButton(
+                onPressed: onListNow,
+                compact: true,
+              ),
             ),
           ),
           Expanded(child: content),
@@ -539,27 +537,32 @@ class _MarketplacePrimaryActionLayer extends StatelessWidget {
 }
 
 class _MarketplaceListNowButton extends StatelessWidget {
-  const _MarketplaceListNowButton({required this.onPressed});
+  const _MarketplaceListNowButton({
+    required this.onPressed,
+    this.compact = false,
+  });
 
   final VoidCallback onPressed;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) => FilledButton.icon(
         key: const Key('marketplace-list-now'),
         onPressed: onPressed,
-        icon: const Icon(Icons.add_box_outlined, size: 20),
+        icon: Icon(Icons.add_box_outlined, size: compact ? 18 : 20),
         label: const Text('List Now'),
         style: FilledButton.styleFrom(
-          minimumSize: const Size(0, 48),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          minimumSize: Size(0, compact ? 36 : 48),
+          tapTargetSize: compact ? MaterialTapTargetSize.shrinkWrap : null,
+          padding: EdgeInsets.symmetric(horizontal: compact ? 14 : 20),
           backgroundColor: PipeBuyerColors.orange,
           foregroundColor: Colors.white,
-          textStyle: const TextStyle(
-            fontSize: 14,
+          textStyle: TextStyle(
+            fontSize: compact ? 13 : 14,
             fontWeight: FontWeight.w900,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(compact ? 11 : 14),
           ),
         ),
       );

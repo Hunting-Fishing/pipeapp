@@ -27,9 +27,65 @@ abstract final class PipeBuyerColors {
   static const darkMuted = Color(0xFF9AA7B6);
 
   static const industrialBlue = Color(0xFF0F52BA);
-  static const success = Color(0xFF148A45);
+  static const studioSlateTop = Color(0xFF142C47);
+  static const studioSlate = Color(0xFF0D2137);
+  static const studioSlateDeep = Color(0xFF091728);
+  static const studioRim = Color(0xFF2B4C73);
+  static const success = Color(0xFF059669);
   static const warning = Color(0xFFF59E0B);
   static const danger = Color(0xFFD92D20);
+}
+
+/// 2026 industrial typography tokens with tabular numeral alignment for prices,
+/// pipe ODs, tonnage, operating hours, and live Timed Buying countdowns.
+abstract final class PipeBuyerTypography {
+  static const List<String> uiFontFallback = <String>[
+    'Plus Jakarta Sans',
+    'Inter',
+    'Poppins',
+    'Segoe UI',
+    'Roboto',
+    'sans-serif',
+  ];
+
+  static const List<String> monoFontFallback = <String>[
+    'JetBrains Mono',
+    'Space Grotesk',
+    'Consolas',
+    'SFMono-Regular',
+    'monospace',
+  ];
+
+  static TextStyle tabularPrice({
+    double fontSize = 18.5,
+    Color color = PipeBuyerColors.ink,
+    FontWeight fontWeight = FontWeight.w900,
+    double height = 1.08,
+  }) =>
+      TextStyle(
+        fontSize: fontSize,
+        color: color,
+        fontWeight: fontWeight,
+        height: height,
+        letterSpacing: -0.35,
+        fontFamilyFallback: uiFontFallback,
+        fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+      );
+
+  static TextStyle tabularSpec({
+    double fontSize = 11.2,
+    Color color = const Color(0xFF334155),
+    FontWeight fontWeight = FontWeight.w700,
+  }) =>
+      TextStyle(
+        fontSize: fontSize,
+        color: color,
+        fontWeight: fontWeight,
+        height: 1.2,
+        letterSpacing: -0.1,
+        fontFamilyFallback: uiFontFallback,
+        fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+      );
 }
 
 /// Premium marketplace theme applied before the accessibility layer.
@@ -64,12 +120,14 @@ abstract final class PipeBuyerTheme {
       onError: Colors.white,
       surface: surface,
       onSurface: text,
+      surfaceTint: Colors.transparent,
       outline: line,
     );
 
     final base = ThemeData(
       brightness: brightness,
-      useMaterial3: false,
+      useMaterial3: true,
+      fontFamilyFallback: PipeBuyerTypography.uiFontFallback,
       colorScheme: scheme,
       primaryColor: PipeBuyerColors.orange,
       scaffoldBackgroundColor: canvas,

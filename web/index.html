@@ -17,19 +17,24 @@
 
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap">
   <link rel="preload" as="image" href="startup/oilfield_hd_bg.webp" type="image/webp">
   <link rel="preload" as="image" href="startup/pipe_buyer_logo_clean.webp" type="image/webp">
 
   <title>Pipe Buyer</title>
   <meta name="description" content="Pipe Buyer is a B2B industrial marketplace, Timed Buying platform, and trucking dispatch network for oil and gas pipe, OCTG, equipment, buildings, vehicles, and heavy machinery across the United States and Canada.">
-  <meta property="og:title" content="Pipe Buyer">
+  <meta property="og:title" content="Pipe Buyer — Industrial Pipe, Equipment & Dispatch Marketplace">
   <meta property="og:description" content="Buy and sell industrial pipe, OCTG, equipment, buildings and heavy machinery with Timed Buying and freight Dispatch across the United States and Canada.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.pipebuyer.com/">
-  <meta property="og:image" content="https://www.pipebuyer.com/assets/assets/images/pipe_buyer_logo.png">
-  <meta name="twitter:title" content="Pipe Buyer">
+  <meta property="og:image" content="https://www.pipebuyer.com/og_preview_2026.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:title" content="Pipe Buyer — Industrial Pipe, Equipment & Dispatch Marketplace">
   <meta name="twitter:description" content="Industrial marketplace, Timed Buying and freight Dispatch for pipe, OCTG, equipment and heavy machinery.">
-  <meta name="twitter:image" content="https://www.pipebuyer.com/assets/assets/images/pipe_buyer_logo.png">
+  <meta name="twitter:image" content="https://www.pipebuyer.com/og_preview_2026.png">
   <meta name="twitter:card" content="summary_large_image">
 
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0d1117">
@@ -50,10 +55,33 @@
 
   <style>
     :root {
-      --pipe-orange: #ff5a00;
+      --pipe-orange: #ff6a00;
       --pipe-orange-glow: #ff8c3a;
       --pipe-ink: #0d1117;
       --pipe-muted: #f1f5f9;
+    }
+
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.45) rgba(13, 17, 23, 0.25);
+    }
+
+    ::-webkit-scrollbar {
+      width: 9px;
+      height: 9px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(13, 17, 23, 0.14);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.55);
+      border-radius: 999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #ff6a00;
     }
 
     html,
@@ -64,7 +92,7 @@
       overflow: hidden;
       background: #0d1117;
       color: #f8fafc;
-      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
+      font-family: "Plus Jakarta Sans", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
       -webkit-text-size-adjust: 100%;
     }
 

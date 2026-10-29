@@ -26,11 +26,11 @@ const db = getFirestore(app);
 
 const labels = Object.freeze({
   "visual-auction-dozer": {
-    title: "Timed Buying — CAT D6 Dozer",
-    description: "CAT D6 dozer offered through Pipe Buyer Timed Buying with a defined closing time and visible timed-offer activity.",
+    title: "Timed Buying — LGP Crawler Dozer",
+    description: "Heavy crawler dozer offered through Pipe Buyer Timed Buying with a defined closing time and visible timed-offer activity.",
   },
   "visual-auction-upcoming": {
-    title: "Timed Buying — 2020 Bobcat T76",
+    title: "Timed Buying — 2020 Compact Track Loader",
     description: "Upcoming Pipe Buyer Timed Buying listing for a 2020 compact track loader.",
   },
   "visual-auction-ended": {

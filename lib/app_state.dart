@@ -22,12 +22,11 @@ class FFAppState extends ChangeNotifier {
 
   String categoryName = 'All';
 
-  String imagePath =
-      'https://images.unsplash.com/photo-1613490493576-7fde63acd811?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NTYyMDF8MHwxfHJhbmRvbXx8fHx8fHx8fDE3NTA3NDQ0Mjd8&ixlib=rb-4.1.0&q=80&w=1080';
+  String imagePath = '';
 
-  String name = 'Luxury Modern Villa';
+  String name = 'Industrial Inventory Listing';
 
-  String price = '\$780,990';
+  String price = '\$0';
 
   int countdownSeconds = 1;
 }

@@ -4,13 +4,19 @@ import 'package:flutter/material.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_commerce_components.dart';
+import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_auth_action_page.dart';
 import 'marketplace_home_hero_assets.dart';
 import 'marketplace_navigation.dart';
 
 class MarketplaceHomeWelcome extends StatefulWidget {
-  const MarketplaceHomeWelcome({super.key});
+  const MarketplaceHomeWelcome({
+    super.key,
+    this.includeIntentAndTrust = true,
+  });
+
+  final bool includeIntentAndTrust;
 
   @override
   State<MarketplaceHomeWelcome> createState() => _MarketplaceHomeWelcomeState();
@@ -67,6 +73,7 @@ class _MarketplaceHomeWelcomeState extends State<MarketplaceHomeWelcome> {
         final user = authSnapshot.data;
         if (user == null) {
           return MarketplaceHomeDiscoveryHero(
+            includeIntentAndTrust: widget.includeIntentAndTrust,
             onBrowse: () => MarketplaceNavigation.goToBrowse(context),
             onSell: () => MarketplaceNavigation.goToSell(context),
             onDispatch: () => MarketplaceNavigation.goToDispatch(context),
@@ -77,6 +84,8 @@ class _MarketplaceHomeWelcomeState extends State<MarketplaceHomeWelcome> {
                 MarketplaceNavigation.openListServices(context),
             onCommercialInsurance: () =>
                 MarketplaceNavigation.openInsuranceHub(context),
+            onPartnerWithUs: () =>
+                MarketplaceNavigation.openPartnerWithUs(context),
           );
         }
 
@@ -109,6 +118,7 @@ class _MarketplaceHomeWelcomeState extends State<MarketplaceHomeWelcome> {
             final hero = MarketplaceHomeDiscoveryHero(
               name: name,
               accountType: accountType,
+              includeIntentAndTrust: widget.includeIntentAndTrust,
               onBrowse: () => MarketplaceNavigation.goToBrowse(context),
               onSell: () => MarketplaceNavigation.goToSell(context),
               onDispatch: () => MarketplaceNavigation.goToDispatch(context),
@@ -119,6 +129,8 @@ class _MarketplaceHomeWelcomeState extends State<MarketplaceHomeWelcome> {
                   MarketplaceNavigation.openListServices(context),
               onCommercialInsurance: () =>
                   MarketplaceNavigation.openInsuranceHub(context),
+              onPartnerWithUs: () =>
+                  MarketplaceNavigation.openPartnerWithUs(context),
             );
             if (!showVerificationReminder) {
               return hero;
@@ -266,6 +278,7 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
     super.key,
     this.name,
     this.accountType = 'personal',
+    this.includeIntentAndTrust = true,
     this.onBrowse,
     this.onSell,
     this.onDispatch,
@@ -273,10 +286,12 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
     this.onSearchServices,
     this.onListServices,
     this.onCommercialInsurance,
+    this.onPartnerWithUs,
   });
 
   final String? name;
   final String accountType;
+  final bool includeIntentAndTrust;
   final VoidCallback? onBrowse;
   final VoidCallback? onSell;
   final VoidCallback? onDispatch;
@@ -284,6 +299,7 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
   final VoidCallback? onSearchServices;
   final VoidCallback? onListServices;
   final VoidCallback? onCommercialInsurance;
+  final VoidCallback? onPartnerWithUs;
 
   bool get _signedIn => name != null && name!.trim().isNotEmpty;
 
@@ -304,47 +320,52 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
           accountType: accountType,
           title: title,
           subtitle: subtitle,
+          compactHeight: !includeIntentAndTrust,
           onSearchServices: onSearchServices,
           onCommercialInsurance: onCommercialInsurance,
         ),
-        const SizedBox(height: 12),
-        MarketplaceHomeIntentActions(
-          onBrowse: onBrowse,
-          onSell: onSell,
-          onDispatch: onDispatch,
-          onWanted: onWanted,
-          onSearchServices: onSearchServices,
-          onListServices: onListServices,
-          onCommercialInsurance: onCommercialInsurance,
-        ),
-        const SizedBox(height: 12),
-        const PipeBuyerTrustBand(
-          items: [
-            PipeBuyerTrustItemData(
-              icon: Icons.verified_user_outlined,
-              title: 'Verified Businesses',
-              subtitle:
-                  'Identity and marketplace readiness are clearly surfaced.',
-            ),
-            PipeBuyerTrustItemData(
-              icon: Icons.forum_outlined,
-              title: 'Protected Messaging',
-              subtitle: 'Keep negotiations and listing context inside the app.',
-            ),
-            PipeBuyerTrustItemData(
-              icon: Icons.handshake_outlined,
-              title: 'Auditable Offers',
-              subtitle:
-                  'Offer activity stays tied to the correct listing and account.',
-            ),
-            PipeBuyerTrustItemData(
-              icon: Icons.local_shipping_outlined,
-              title: 'Dispatch Ready',
-              subtitle:
-                  'Move from equipment discovery into trucking coordination.',
-            ),
-          ],
-        ),
+        if (includeIntentAndTrust) ...[
+          const SizedBox(height: 12),
+          MarketplaceHomeIntentActions(
+            onBrowse: onBrowse,
+            onSell: onSell,
+            onDispatch: onDispatch,
+            onWanted: onWanted,
+            onSearchServices: onSearchServices,
+            onListServices: onListServices,
+            onCommercialInsurance: onCommercialInsurance,
+            onPartnerWithUs: onPartnerWithUs,
+          ),
+          const SizedBox(height: 12),
+          const PipeBuyerTrustBand(
+            items: [
+              PipeBuyerTrustItemData(
+                icon: LucideIcons.shieldCheck,
+                title: 'Verified Businesses',
+                subtitle:
+                    'Identity and marketplace readiness are clearly surfaced.',
+              ),
+              PipeBuyerTrustItemData(
+                icon: LucideIcons.messageSquareLock,
+                title: 'Protected Messaging',
+                subtitle:
+                    'Keep negotiations and listing context inside the app.',
+              ),
+              PipeBuyerTrustItemData(
+                icon: LucideIcons.fileCheck2,
+                title: 'Auditable Offers',
+                subtitle:
+                    'Offer activity stays tied to the correct listing and account.',
+              ),
+              PipeBuyerTrustItemData(
+                icon: LucideIcons.truck,
+                title: 'Dispatch Ready',
+                subtitle:
+                    'Move from equipment discovery into trucking coordination.',
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -360,6 +381,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
     this.onSearchServices,
     this.onListServices,
     this.onCommercialInsurance,
+    this.onPartnerWithUs,
   });
 
   final VoidCallback? onBrowse;
@@ -369,12 +391,13 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
   final VoidCallback? onSearchServices;
   final VoidCallback? onListServices;
   final VoidCallback? onCommercialInsurance;
+  final VoidCallback? onPartnerWithUs;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 980 ? 3 : 2;
+        final columns = constraints.maxWidth >= 900 ? 4 : 2;
         const spacing = 10.0;
         final cardWidth =
             (constraints.maxWidth - (spacing * (columns - 1))) / columns;
@@ -412,7 +435,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                     SizedBox(
                       width: cardWidth,
                       child: _MarketplaceIntentCard(
-                        icon: Icons.search_rounded,
+                        icon: LucideIcons.search,
                         title: 'Browse inventory',
                         subtitle: 'Find pipe, equipment and industrial assets.',
                         onTap: onBrowse,
@@ -421,7 +444,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                     SizedBox(
                       width: cardWidth,
                       child: _MarketplaceIntentCard(
-                        icon: Icons.add_box_outlined,
+                        icon: LucideIcons.packagePlus,
                         title: 'Sell something',
                         subtitle: 'Create a guided Marketplace listing.',
                         onTap: onSell,
@@ -430,7 +453,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                     SizedBox(
                       width: cardWidth,
                       child: _MarketplaceIntentCard(
-                        icon: Icons.manage_search_rounded,
+                        icon: LucideIcons.building2,
                         title: 'Search for services',
                         subtitle:
                             'Search 63,000+ Oil & Gas providers, training & crew hotels worldwide.',
@@ -440,7 +463,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                     SizedBox(
                       width: cardWidth,
                       child: _MarketplaceIntentCard(
-                        icon: Icons.workspace_premium_outlined,
+                        icon: LucideIcons.badgeCheck,
                         title: 'List services',
                         subtitle:
                             'Get Priority Verified placement in the Oilfield Directory.',
@@ -450,7 +473,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                     SizedBox(
                       width: cardWidth,
                       child: _MarketplaceIntentCard(
-                        icon: Icons.local_shipping_outlined,
+                        icon: LucideIcons.truck,
                         title: 'Request service',
                         subtitle:
                             'Find trucking and industrial service providers.',
@@ -460,7 +483,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                     SizedBox(
                       width: cardWidth,
                       child: _MarketplaceIntentCard(
-                        icon: Icons.campaign_outlined,
+                        icon: LucideIcons.megaphone,
                         title: 'Post wanted / RFQ',
                         subtitle: 'Tell the market exactly what you need.',
                         onTap: onWanted,
@@ -469,11 +492,21 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                     SizedBox(
                       width: cardWidth,
                       child: _MarketplaceIntentCard(
-                        icon: Icons.shield_outlined,
+                        icon: LucideIcons.shield,
                         title: 'Commercial insurance',
                         subtitle:
                             'Compare MSA-ready fleet, rig, cargo & liability rates.',
                         onTap: onCommercialInsurance,
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _MarketplaceIntentCard(
+                        icon: LucideIcons.handshake,
+                        title: 'Partner with us',
+                        subtitle:
+                            'Sponsor placements, OEM fleet showcases & corporate advertising.',
+                        onTap: onPartnerWithUs,
                       ),
                     ),
                   ],
@@ -502,56 +535,55 @@ class _MarketplaceIntentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: PipeBuyerColors.surfaceMuted,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 118),
-          child: Padding(
-            padding: const EdgeInsets.all(13),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: PipeBuyerColors.orangeSoft,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 21,
-                    color: PipeBuyerColors.orangePressed,
-                  ),
+    return PipeBuyerInteractiveCard(
+      onTap: onTap,
+      borderRadius: 14,
+      backgroundColor: PipeBuyerColors.field,
+      borderColor: const Color(0xFFE2E8F0),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 112),
+        child: Padding(
+          padding: const EdgeInsets.all(13),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: PipeBuyerColors.studioSlate,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: PipeBuyerColors.studioRim),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: PipeBuyerColors.orange,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: PipeBuyerColors.muted,
-                    fontSize: 11,
-                    height: 1.25,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              const Gap(10),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
                 ),
-              ],
-            ),
+              ),
+              const Gap(4),
+              Text(
+                subtitle,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PipeBuyerColors.muted,
+                  fontSize: 11,
+                  height: 1.25,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -565,6 +597,7 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
     required this.accountType,
     required this.title,
     required this.subtitle,
+    this.compactHeight = false,
     this.onSearchServices,
     this.onCommercialInsurance,
   });
@@ -573,6 +606,7 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
   final String accountType;
   final String title;
   final String subtitle;
+  final bool compactHeight;
   final VoidCallback? onSearchServices;
   final VoidCallback? onCommercialInsurance;
 
@@ -585,9 +619,11 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
         final imagePath = isMobile
             ? MarketplaceHomeHeroAssets.mobileBackground
             : MarketplaceHomeHeroAssets.desktopBackground;
-        final minHeight = isMobile
-            ? MarketplaceHomeHeroAssets.mobileMinHeight
-            : MarketplaceHomeHeroAssets.desktopMinHeight;
+        final minHeight = compactHeight
+            ? (isMobile ? 250.0 : 280.0)
+            : (isMobile
+                ? MarketplaceHomeHeroAssets.mobileMinHeight
+                : MarketplaceHomeHeroAssets.desktopMinHeight);
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(isMobile ? 20 : 24),
@@ -766,77 +802,51 @@ class _HeroBrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 58,
-          height: 58,
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .96),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black38,
-                blurRadius: 12,
-                offset: Offset(0, 4),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xBD0D1B2A),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black38,
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
-          child: Image.asset(
-            'assets/images/pipe_buyer_logo.png',
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            'assets/images/pipe_buyer_logo_on_dark.png',
+            height: 40,
             fit: BoxFit.contain,
+            semanticLabel: 'Pipe Buyer',
           ),
-        ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'PIPE BUYER',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: .4,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black87,
-                      blurRadius: 7,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'PIPE · EQUIPMENT · SOLUTIONS',
-                maxLines: 2,
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 9.5,
-                  height: 1.1,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: .55,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black87,
-                      blurRadius: 6,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const SizedBox(width: 12),
+          Container(
+            width: 1,
+            height: 24,
+            color: Colors.white.withValues(alpha: 0.22),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          const Flexible(
+            child: Text(
+              'PIPE · EQUIPMENT · SOLUTIONS',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: .65,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

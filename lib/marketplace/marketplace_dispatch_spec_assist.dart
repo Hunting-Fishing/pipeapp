@@ -586,7 +586,7 @@ class _MarketplaceDispatchSpecAssistPanelState
                 onChanged: (_) => _notify(),
                 decoration: const InputDecoration(
                   labelText: 'Make / manufacturer',
-                  hintText: 'Example: Caterpillar',
+                  hintText: 'Equipment manufacturer',
                   prefixIcon: Icon(Icons.precision_manufacturing_outlined),
                 ),
               );
@@ -595,7 +595,7 @@ class _MarketplaceDispatchSpecAssistPanelState
                 onChanged: (_) => _notify(),
                 decoration: const InputDecoration(
                   labelText: 'Model',
-                  hintText: 'Example: D6',
+                  hintText: 'Series or model code',
                   prefixIcon: Icon(Icons.badge_outlined),
                 ),
               );
@@ -641,7 +641,7 @@ class _MarketplaceDispatchSpecAssistPanelState
             decoration: const InputDecoration(
               labelText: 'Equipment details for Spec Assist',
               hintText:
-                  'Example: CAT D6 LGP, cab, PAT blade, ripper; serial prefix if known.',
+                  'Example: LGP crawler dozer, enclosed cab, 6-way blade, rear ripper; serial prefix if known.',
               helperText:
                   'Add configuration clues, serial prefix, attachments, or anything that could change transport size or weight.',
               alignLabelWithHint: true,

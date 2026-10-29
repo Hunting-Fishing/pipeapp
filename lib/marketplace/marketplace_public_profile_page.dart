@@ -188,19 +188,31 @@ class _MarketplacePublicProfilePageState
         final location =
             '${data.business['serviceAreaLabel'] ?? data.personal['baseCommunity'] ?? ''}'
                 .trim();
-        final website = '${data.business['website'] ?? ''}'.trim();
+        final tierValue = '${data.business['tier'] ?? ''}'.trim().toLowerCase();
+        final hasPaidBrandTier =
+            data.business['paidBrandTier'] == true ||
+            data.business['sponsoredActive'] == true ||
+            data.business['isPaid'] == true ||
+            const {'basic_paid', 'featured', 'enterprise'}.contains(tierValue);
+        final website = hasPaidBrandTier
+            ? '${data.business['website'] ?? ''}'.trim()
+            : '';
         final rawPhotoUrl =
             '${profile['photoUrl'] ?? profile['avatarUrl'] ?? ''}'.trim();
+        final isBusiness = data.business.isNotEmpty;
+        // Paid Brand Entitlement Policy: custom company logos on business profiles
+        // require an active paid brand/Yellow Pages tier; organic sellers use neutral initials.
         final photoUrl =
-            rawPhotoUrl.startsWith('https://') ||
-                rawPhotoUrl.startsWith('http://')
+            (!isBusiness || hasPaidBrandTier) &&
+                (rawPhotoUrl.startsWith('https://') ||
+                    rawPhotoUrl.startsWith('http://'))
             ? rawPhotoUrl
             : '';
         final publicPhone = '${data.business['publicPhone'] ?? ''}'.trim();
         final publicEmail = '${data.business['publicEmail'] ?? ''}'.trim();
         final isOwnProfile =
             FirebaseAuth.instance.currentUser?.uid == widget.userUid;
-        final isBusiness = data.business.isNotEmpty;
+        final isSponsoredStorefront = isBusiness && hasPaidBrandTier;
         final loadedListings = _listings.length;
         final dispatchDetail = DispatchPublicDetail.fromDirectoryProjection(
           data.dispatchDirectory,
@@ -217,7 +229,7 @@ class _MarketplacePublicProfilePageState
                   description: description,
                   photoUrl: photoUrl,
                   location: location,
-                  isBusiness: isBusiness,
+                  isBusiness: isSponsoredStorefront,
                   isOwnProfile: isOwnProfile,
                   listingCount: loadedListings,
                   hasMoreListings: _hasMoreListings,
