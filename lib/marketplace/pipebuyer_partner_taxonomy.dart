@@ -69,7 +69,6 @@ class PartnerShowcaseDeal {
     this.featured = false,
     this.active = true,
     this.priorityRank = 100,
-    this.isProgramPreview = false,
   });
 
   final String showcaseId;
@@ -89,7 +88,6 @@ class PartnerShowcaseDeal {
   final bool featured;
   final bool active;
   final int priorityRank;
-  final bool isProgramPreview;
 
   factory PartnerShowcaseDeal.fromJson(Map<String, dynamic> json) {
     List<String> readList(Object? raw) {
@@ -121,7 +119,6 @@ class PartnerShowcaseDeal {
       featured: json['featured'] == true,
       active: json['active'] != false,
       priorityRank: int.tryParse('${json['priorityRank'] ?? 100}') ?? 100,
-      isProgramPreview: json['isProgramPreview'] == true,
     );
   }
 
@@ -143,7 +140,6 @@ class PartnerShowcaseDeal {
         'featured': featured,
         'active': active,
         'priorityRank': priorityRank,
-        'isProgramPreview': isProgramPreview,
       };
 }
 
@@ -331,109 +327,4 @@ abstract final class PipeBuyerPartnerTaxonomy {
     }
     return null;
   }
-
-  /// Representative showcase programs displayed alongside live Firestore-backed
-  /// partner deals so corporate prospective partners and buyers can immediately
-  /// preview OEM fleet, crew truck, product merchandising, and oilfield deal formats.
-  static const List<PartnerShowcaseDeal> defaultShowcaseDeals = [
-    PartnerShowcaseDeal(
-      showcaseId: 'oem-crew-truck-fleet-program',
-      partnerName: 'Commercial OEM & Fleet Truck Program',
-      brandCategory: 'oem_fleet_crew_trucks',
-      programTypes: [
-        'promote_brand',
-        'showcase_sell_products',
-        'oilfield_deals_discounts',
-      ],
-      headline:
-          'New 4x4 Crew Trucks, Super Duty Chassis Cabs & Oilfield Upfits',
-      summary:
-          'Explore factory fleet allocations for F-250 / F-350 / F-550 class crew trucks, mechanic crane bodies, and pipeline welding rigs built for lease-road duty.',
-      offerBadge: 'OEM Fleet & Upfit Showcase',
-      discountDetails:
-          'Commercial Fleet Volume Allowances & Oilfield Upfit Incentives Available',
-      productHighlights: [
-        '4x4 Diesel Crew Cab',
-        'Service & Crane Upfits',
-        'Multi-Unit Fleet Pricing',
-      ],
-      targetRegions: [
-        'North America',
-        'Permian Basin',
-        'WCSB (Alberta / SK / BC)'
-      ],
-      ctaLabel: 'Inquire on Fleet Allocation',
-      featured: true,
-      priorityRank: 1,
-      isProgramPreview: true,
-    ),
-    PartnerShowcaseDeal(
-      showcaseId: 'oilfield-diesel-fleet-discounts',
-      partnerName: 'Basin Commercial Fuel & Tire Network',
-      brandCategory: 'oilfield_deals_discounts',
-      programTypes: ['oilfield_deals_discounts', 'promote_brand'],
-      headline:
-          'Oilfield Crew Diesel Rebates & Heavy-Duty Mud/All-Terrain Tires',
-      summary:
-          'Commercial cardlock fuel savings, roadside heavy truck support, and national account pricing on 10-ply LT and 22.5" commercial truck tires.',
-      offerBadge: 'Oilfield Crew Deal',
-      discountDetails:
-          'Fleet Per-Gallon Rebates + National Tire Account Pricing',
-      productHighlights: [
-        'Cardlock & Truck Stop Access',
-        '10-Ply Crew Truck Tires',
-        'Consolidated Basin Billing',
-      ],
-      targetRegions: ['United States', 'Canada', 'Permian Basin'],
-      ctaLabel: 'Request Crew Discount Terms',
-      featured: true,
-      priorityRank: 2,
-      isProgramPreview: true,
-    ),
-    PartnerShowcaseDeal(
-      showcaseId: 'rig-safety-fr-ppe-bundle',
-      partnerName: 'Industrial FR Workwear & Gas Detection',
-      brandCategory: 'tools_ppe_site_gear',
-      programTypes: ['showcase_sell_products', 'oilfield_deals_discounts'],
-      headline: 'Crew Outfitting: NFPA 2112 FR Garments & 4-Gas H2S Monitors',
-      summary:
-          'Outfit drilling, completions, and pipeline crews directly with compliant FR coveralls, winter parkas, impact gloves, and calibrated multi-gas detectors.',
-      offerBadge: 'Direct Crew Bundle',
-      discountDetails:
-          'Volume Crew Outfitting & Corporate Safety Account Rates',
-      productHighlights: [
-        'NFPA 2112 / CGSB 155.20 FR',
-        '4-Gas H2S Monitors',
-        'Logo Embroidery Ready',
-      ],
-      targetRegions: ['North America', 'Global'],
-      ctaLabel: 'Request Crew Bundle Quote',
-      featured: false,
-      priorityRank: 3,
-      isProgramPreview: true,
-    ),
-    PartnerShowcaseDeal(
-      showcaseId: 'wellsite-modular-command-skids',
-      partnerName: 'Modular Wellsite Offices & Workforce Skids',
-      brandCategory: 'modular_site_buildings',
-      programTypes: ['showcase_sell_products', 'advertise_campaigns'],
-      headline:
-          'All-Season Wheeled & Skidded Crew Offices, Dry Shacks & Guard Booths',
-      summary:
-          'Factory-direct modular offices, mud labs, and artic-insulated crew quarters ready for rapid mobilization across active drilling corridors.',
-      offerBadge: 'Product Showcase',
-      discountDetails:
-          'Direct Factory Purchase & Seasonal Fleet Lease Packages',
-      productHighlights: [
-        'Arctic & Desert Rated',
-        'Plug-and-Play Generator Prep',
-        'Fast Basin Delivery',
-      ],
-      targetRegions: ['WCSB (Alberta / SK / BC)', 'Permian Basin', 'Bakken'],
-      ctaLabel: 'Request Spec Sheet & Pricing',
-      featured: false,
-      priorityRank: 4,
-      isProgramPreview: true,
-    ),
-  ];
 }

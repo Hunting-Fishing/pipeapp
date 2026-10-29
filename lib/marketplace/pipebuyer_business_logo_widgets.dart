@@ -8,7 +8,6 @@ import '../core/design/pipe_buyer_theme.dart';
 import 'pipebuyer_business_logo_uploader.dart';
 
 enum PipeBuyerBadgeVariant {
-  programPreview,
   featured,
   oilfieldBroker,
   specialtyMga,
@@ -129,14 +128,6 @@ class PipeBuyerVisualBadge extends StatelessWidget {
 
   static _BadgeVisualSpec _specForVariant(PipeBuyerBadgeVariant variant) {
     return switch (variant) {
-      PipeBuyerBadgeVariant.programPreview => const _BadgeVisualSpec(
-          defaultLabel: 'PROGRAM PREVIEW',
-          icon: Icons.auto_awesome_mosaic_outlined,
-          gradientColors: <Color>[Color(0xFFEEF4FF), Color(0xFFDBEAFE)],
-          borderColor: Color(0xFF93C5FD),
-          iconColor: Color(0xFF1D4ED8),
-          textColor: Color(0xFF1E3A8A),
-        ),
       PipeBuyerBadgeVariant.featured => const _BadgeVisualSpec(
           defaultLabel: 'FEATURED',
           icon: Icons.workspace_premium_rounded,
@@ -1117,7 +1108,7 @@ class PipeBuyerFeaturedPromoSlide {
     this.onSecondaryCta,
     this.bannerUrl = '',
     this.logoUrl = '',
-    this.slotLabel = '16:9 PROMO BANNER SLOT',
+    this.slotLabel,
     this.badges = const <Widget>[],
     this.highlights = const <String>[],
     this.offerCallout = '',

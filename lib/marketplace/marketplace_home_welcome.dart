@@ -317,12 +317,9 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
       children: [
         _MarketplaceHomeHeroSurface(
           signedIn: _signedIn,
-          accountType: accountType,
           title: title,
           subtitle: subtitle,
           compactHeight: !includeIntentAndTrust,
-          onSearchServices: onSearchServices,
-          onCommercialInsurance: onCommercialInsurance,
         ),
         if (includeIntentAndTrust) ...[
           const SizedBox(height: 12),
@@ -456,7 +453,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                         icon: LucideIcons.building2,
                         title: 'Search for services',
                         subtitle:
-                            'Search 63,000+ Oil & Gas providers, training & crew hotels worldwide.',
+                            'Search Oil & Gas providers, training & crew hotels worldwide.',
                         onTap: onSearchServices,
                       ),
                     ),
@@ -594,21 +591,15 @@ class _MarketplaceIntentCard extends StatelessWidget {
 class _MarketplaceHomeHeroSurface extends StatelessWidget {
   const _MarketplaceHomeHeroSurface({
     required this.signedIn,
-    required this.accountType,
     required this.title,
     required this.subtitle,
     this.compactHeight = false,
-    this.onSearchServices,
-    this.onCommercialInsurance,
   });
 
   final bool signedIn;
-  final String accountType;
   final String title;
   final String subtitle;
   final bool compactHeight;
-  final VoidCallback? onSearchServices;
-  final VoidCallback? onCommercialInsurance;
 
   @override
   Widget build(BuildContext context) {
@@ -620,7 +611,7 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
             ? MarketplaceHomeHeroAssets.mobileBackground
             : MarketplaceHomeHeroAssets.desktopBackground;
         final minHeight = compactHeight
-            ? (isMobile ? 250.0 : 280.0)
+            ? (isMobile ? 210.0 : 240.0)
             : (isMobile
                 ? MarketplaceHomeHeroAssets.mobileMinHeight
                 : MarketplaceHomeHeroAssets.desktopMinHeight);
@@ -730,60 +721,6 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
                             ],
                           ),
                         ),
-                        SizedBox(height: isMobile ? 20 : 24),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            const _HeroCapabilityChip(
-                              icon: Icons.horizontal_rule_rounded,
-                              label: 'Pipe & tubing',
-                            ),
-                            const _HeroCapabilityChip(
-                              icon: Icons.precision_manufacturing_outlined,
-                              label: 'Heavy equipment',
-                            ),
-                            const _HeroCapabilityChip(
-                              icon: Icons.cabin_outlined,
-                              label: 'Buildings & crew sites',
-                            ),
-                            const _HeroCapabilityChip(
-                              icon: Icons.local_shipping_outlined,
-                              label: 'Trucking & Dispatch',
-                            ),
-                            _HeroCapabilityChip(
-                              icon: Icons.manage_search_rounded,
-                              label: 'Services Directory',
-                              onTap: onSearchServices,
-                            ),
-                            _HeroCapabilityChip(
-                              icon: Icons.shield_outlined,
-                              label: 'Commercial Insurance',
-                              onTap: onCommercialInsurance,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _HeroChip(
-                              icon: signedIn
-                                  ? Icons.person_outline_rounded
-                                  : Icons.public_rounded,
-                              label: signedIn
-                                  ? accountType == 'business'
-                                      ? 'Business account'
-                                      : 'Marketplace account'
-                                  : 'North America first',
-                            ),
-                            const _HeroChip(
-                              icon: Icons.event_available_outlined,
-                              label: '30-day listing lifecycle',
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
@@ -843,96 +780,6 @@ class _HeroBrandMark extends StatelessWidget {
                 fontWeight: FontWeight.w800,
                 letterSpacing: .65,
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroCapabilityChip extends StatelessWidget {
-  const _HeroCapabilityChip({
-    required this.icon,
-    required this.label,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final pill = Container(
-      constraints: const BoxConstraints(minHeight: 34),
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(
-        color: onTap != null
-            ? PipeBuyerColors.orange.withValues(alpha: .26)
-            : Colors.black.withValues(alpha: .28),
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(
-          color: onTap != null
-              ? PipeBuyerColors.orange.withValues(alpha: .72)
-              : Colors.white.withValues(alpha: .22),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: PipeBuyerColors.orange, size: 16),
-          const SizedBox(width: 7),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-    if (onTap == null) return pill;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(11),
-        child: pill,
-      ),
-    );
-  }
-}
-
-class _HeroChip extends StatelessWidget {
-  const _HeroChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 30),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: .20),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: .22)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: PipeBuyerColors.orange, size: 15),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w800,
             ),
           ),
         ],

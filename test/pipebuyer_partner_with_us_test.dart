@@ -284,16 +284,13 @@ void main() {
       find.byKey(const Key('partner_featured_promo_carousel')),
       findsOneWidget,
     );
-    await tester.tap(
-      find.byKey(const Key('partner_featured_promo_carousel_next')),
-    );
-    await tester.pumpAndSettle();
-
+    // Only real, published partner deals are shown: no invented sample deals.
+    expect(find.text('PROGRAM PREVIEW'), findsNothing);
+    expect(find.textContaining('PROMO BANNER SLOT'), findsNothing);
     expect(
       find.text('2026 Super Duty F-350 & F-550 Oilfield Crew Trucks'),
-      findsOneWidget,
+      findsWidgets,
     );
-    expect(find.text('PROGRAM PREVIEW'), findsWidgets);
     expect(find.text('FEATURED'), findsWidgets);
     expect(find.byType(PipeBuyerImagePlaceholder), findsWidgets);
     expect(
