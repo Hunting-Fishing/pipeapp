@@ -99,4 +99,50 @@ void main() {
 
     expect(decision, MarketplaceOfferDecision.counter);
   });
+
+  testWidgets(
+      'offer schedule starts blank with Select Date for each milestone until selected',
+      (tester) async {
+    final milestones = marketplaceOfferMilestones({
+      'purchaseDate': DateTime(2026, 8, 22),
+      'moneyTransferDate': DateTime(2026, 8, 25),
+      'truckingDate': DateTime(2026, 8, 31),
+    });
+    Map<String, DateTime>? selectedDates;
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          width: 420,
+          child: MarketplaceOfferScheduleCard(
+            milestones: milestones,
+            startBlankUntilSelected: true,
+            onMilestoneDateSelected: (dates) => selectedDates = dates,
+          ),
+        ),
+      ),
+    ));
+
+    expect(find.text('Purchase'), findsOneWidget);
+    expect(find.text('Transfer'), findsOneWidget);
+    expect(find.text('Trucking'), findsOneWidget);
+    expect(find.text('Select Date'), findsNWidgets(3));
+    expect(find.text('22'), findsNothing);
+    expect(find.text('25'), findsNothing);
+    expect(find.text('31'), findsNothing);
+
+    await tester.tap(find.text('Open calendar'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('15').first);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Done'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Select Date'), findsNWidgets(2));
+    expect(find.text('15'), findsOneWidget);
+    expect(selectedDates?['purchase']?.day, 15);
+  });
 }

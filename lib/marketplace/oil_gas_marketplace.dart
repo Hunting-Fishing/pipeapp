@@ -53,6 +53,7 @@ import 'marketplace_listing_form_presentation.dart';
 import 'marketplace_listing_status.dart';
 import 'marketplace_listing_media.dart';
 import 'marketplace_offer_analysis.dart';
+import 'marketplace_offer_schedule.dart';
 import 'marketplace_offer_commerce_summary.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_serial_decoder.dart';
@@ -4990,60 +4991,18 @@ class _ListingDetailsState extends State<_ListingDetails> {
                                 style: TextStyle(
                                     color: Color(0xFF66758A), fontSize: 11))),
                         const SizedBox(height: 6),
-                        _listingOfferDateButton(
-                            label: 'Purchase date',
-                            value: purchaseDate,
-                            icon: Icons.event_available_outlined,
-                            onTap: () async {
-                              final selected = await showDatePicker(
-                                  context: context,
-                                  initialDate: purchaseDate ??
-                                      DateTime.now()
-                                          .add(const Duration(days: 1)),
-                                  firstDate: DateTime.now(),
-                                  lastDate: DateTime.now()
-                                      .add(const Duration(days: 730)));
-                              if (selected != null) {
-                                purchaseDate = selected;
-                                refresh(() {});
-                              }
-                            }),
-                        _listingOfferDateButton(
-                            label: 'Money transfer date',
-                            value: moneyTransferDate,
-                            icon: Icons.account_balance_outlined,
-                            onTap: () async {
-                              final selected = await showDatePicker(
-                                  context: context,
-                                  initialDate: moneyTransferDate ??
-                                      DateTime.now()
-                                          .add(const Duration(days: 1)),
-                                  firstDate: DateTime.now(),
-                                  lastDate: DateTime.now()
-                                      .add(const Duration(days: 730)));
-                              if (selected != null) {
-                                moneyTransferDate = selected;
-                                refresh(() {});
-                              }
-                            }),
-                        _listingOfferDateButton(
-                            label: 'Trucking / pickup date',
-                            value: truckingDate,
-                            icon: Icons.local_shipping_outlined,
-                            onTap: () async {
-                              final selected = await showDatePicker(
-                                  context: context,
-                                  initialDate: truckingDate ??
-                                      DateTime.now()
-                                          .add(const Duration(days: 1)),
-                                  firstDate: DateTime.now(),
-                                  lastDate: DateTime.now()
-                                      .add(const Duration(days: 730)));
-                              if (selected != null) {
-                                truckingDate = selected;
-                                refresh(() {});
-                              }
-                            })
+                        MarketplaceOfferScheduleCard(
+                          milestones: marketplaceOfferMilestones({
+                            'purchaseDate': purchaseDate,
+                            'moneyTransferDate': moneyTransferDate,
+                            'truckingDate': truckingDate,
+                          }),
+                          onMilestoneDateSelected: (dates) => refresh(() {
+                            purchaseDate = dates['purchase'];
+                            moneyTransferDate = dates['money_transfer'];
+                            truckingDate = dates['trucking'];
+                          }),
+                        )
                       ]))),
                   actionsPadding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
                   actionsOverflowDirection: VerticalDirection.down,
@@ -5138,23 +5097,6 @@ class _ListingDetailsState extends State<_ListingDetails> {
     await MarketplaceFreightQuote.show(context,
         listingId: id, listing: document.data()!);
   }
-
-  Widget _listingOfferDateButton(
-          {required String label,
-          required DateTime? value,
-          required IconData icon,
-          required VoidCallback onTap}) =>
-      Padding(
-          padding: const EdgeInsets.only(bottom: 7),
-          child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 48),
-                  alignment: Alignment.centerLeft),
-              onPressed: onTap,
-              icon: Icon(icon),
-              label: Text(value == null
-                  ? 'Select $label'
-                  : '$label: ${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}')));
 
   Future<void> _requestLocation() async {
     final note = await _textDialog(
