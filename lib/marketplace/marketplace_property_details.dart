@@ -67,12 +67,16 @@ const propertyProductTypeDescriptions = <String, String>{
       'Industrial buildings, shops, service yards and investment property.',
   'Lease Land':
       'Land offered with an existing lease or land available for lease.',
+  'Lots & Vacant Land':
+      'Titled or unimproved lots, acreage, serviced parcels and development land.',
   'Mineral Rights':
       'Mineral interests, royalties and related subsurface rights.',
   'Oil & Gas Lease':
       'Oil and gas lease interests, royalties and producing or prospective land.',
   'Pipeline':
       'Pipeline assets, corridors, easements and right-of-way interests.',
+  'Real Estate & Property':
+      'Residential, commercial, industrial or mixed-use real estate and buildings.',
   'Storage Yard':
       'Outdoor storage yards, laydown areas and serviced industrial lots.',
   'Surface Rights':

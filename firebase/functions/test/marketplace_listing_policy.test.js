@@ -146,7 +146,16 @@ test("keeps property and business listing facts structured", () => {
   assert.deepEqual(listing.propertyFeatures, ["Power", "Fenced / gated"]);
 });
 
-test("regulated property listings fail closed by default", () => {
+test("regulated property listings are enabled by default and can be disabled via options", () => {
+  const allowed = validateMarketplaceListingInput(validListing({
+    title: "Industrial yard",
+    category: "Site & Property",
+    productType: "Industrial Real Estate",
+    propertyOffering: "Land and buildings",
+    propertyInterest: "Freehold / fee simple",
+  }), now);
+  assert.equal(allowed.category, "Site & Property");
+
   assert.throws(
       () => validateMarketplaceListingInput(validListing({
         title: "Industrial yard",
@@ -154,7 +163,7 @@ test("regulated property listings fail closed by default", () => {
         productType: "Industrial Real Estate",
         propertyOffering: "Property only",
         propertyInterest: "Freehold / fee simple",
-      }), now),
+      }), now, {regulatedListingsEnabled: false}),
       (error) =>
         error instanceof ListingPolicyError &&
         error.code === "failed-precondition",

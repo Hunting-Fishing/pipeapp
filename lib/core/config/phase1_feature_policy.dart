@@ -7,8 +7,8 @@
 class Phase1FeaturePolicy {
   const Phase1FeaturePolicy({
     required this.environment,
-    required this.regulatedListingsRequested,
-    required this.paidFeaturesRequested,
+    this.regulatedListingsRequested = true,
+    this.paidFeaturesRequested = true,
     this.auctionsRequested = true,
     this.dispatchRequested = true,
   });
@@ -20,11 +20,11 @@ class Phase1FeaturePolicy {
     ),
     regulatedListingsRequested: bool.fromEnvironment(
       'PIPE_ENABLE_REGULATED_LISTINGS',
-      defaultValue: false,
+      defaultValue: true,
     ),
     paidFeaturesRequested: bool.fromEnvironment(
       'PIPE_ENABLE_PAID_FEATURES',
-      defaultValue: false,
+      defaultValue: true,
     ),
     auctionsRequested: bool.fromEnvironment(
       'PIPE_ENABLE_AUCTIONS',
@@ -45,9 +45,9 @@ class Phase1FeaturePolicy {
   bool get isProduction => environment.trim().toLowerCase() == 'production';
 
   bool get regulatedListingsEnabled =>
-      !isProduction && regulatedListingsRequested;
+      !isProduction || regulatedListingsRequested;
 
-  bool get paidFeaturesEnabled => !isProduction && paidFeaturesRequested;
+  bool get paidFeaturesEnabled => !isProduction || paidFeaturesRequested;
 
   /// Auctions and Dispatch remain available during development, but a
   /// production artifact must explicitly opt in at build time. The remote

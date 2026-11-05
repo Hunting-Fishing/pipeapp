@@ -11,6 +11,14 @@ test("classifies pipe, tubing, casing and OCTG listings as pipe", () => {
   for (const productType of ["Pipe", "Tubing", "Casing", "OCTG", "Drill Pipe"]) {
     assert.equal(inferMarketplaceFeeClass({productType}), "pipe");
   }
+  assert.equal(
+      inferMarketplaceFeeClass({
+        category: "Site & Property",
+        productType: "Industrial Real Estate",
+        title: "Pipe Yard & Shop for Sale",
+      }),
+      "equipment_asset",
+  );
 });
 
 test("charges one dollar per stick for a normal pipe sale", () => {

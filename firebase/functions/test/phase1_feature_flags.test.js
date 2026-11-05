@@ -18,7 +18,7 @@ test("missing configuration keeps core features and closes high-risk paths", () 
   assert.equal(flags.auctions, false);
   assert.equal(flags.dispatch, false);
   assert.equal(flags.paidFeatures, false);
-  assert.equal(flags.regulatedListings, false);
+  assert.equal(flags.regulatedListings, true);
   assert.deepEqual(
       Object.fromEntries(Object.keys(safeDefaults).map(
           (key) => [key, flags[key]],

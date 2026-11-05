@@ -72,7 +72,8 @@ List<MarketplaceListingSpec> marketplaceListingSpecs(
     Icons.location_on_outlined,
   );
 
-  if (listing['quantity'] != null) {
+  if (listing['quantity'] != null &&
+      _listingSpecText(listing['category']) != 'Site & Property') {
     final quantity = _listingSpecText(listing['quantity']);
     final basis = _listingSpecText(listing['priceBasis']);
     add(
@@ -81,6 +82,53 @@ List<MarketplaceListingSpec> marketplaceListingSpecs(
       Icons.numbers_rounded,
     );
   }
+  add('Offering', listing['propertyOffering'], Icons.domain_outlined);
+  add('Interest / tenure', listing['propertyInterest'], Icons.gavel_outlined);
+  if (listing['landAreaInputValue'] != null) {
+    final unit = _listingSpecText(listing['landAreaInputUnit']);
+    add(
+      'Land area',
+      unit.isEmpty
+          ? _listingSpecText(listing['landAreaInputValue'])
+          : '${_listingSpecText(listing['landAreaInputValue'])} $unit',
+      Icons.landscape_outlined,
+    );
+  } else if (listing['landAreaAcres'] != null) {
+    add(
+      'Land area',
+      '${_listingSpecText(listing['landAreaAcres'])} Acres',
+      Icons.landscape_outlined,
+    );
+  }
+  if (listing['buildingAreaValue'] != null) {
+    final unit = _listingSpecText(listing['buildingAreaUnit']);
+    add(
+      'Building area',
+      unit.isEmpty
+          ? _listingSpecText(listing['buildingAreaValue'])
+          : '${_listingSpecText(listing['buildingAreaValue'])} $unit',
+      Icons.apartment_outlined,
+    );
+  }
+  add('Zoning / use', listing['zoningOrUse'], Icons.map_outlined);
+  add(
+    'Property features',
+    listing['propertyFeatures'],
+    Icons.checklist_rtl_outlined,
+  );
+  add(
+    'Representation',
+    listing['listingRepresentation'],
+    Icons.badge_outlined,
+  );
+  add('Brokerage', listing['brokerageName'], Icons.business_outlined);
+  add(
+    'Agent license',
+    listing['agentLicenseNumber'],
+    Icons.verified_user_outlined,
+  );
+  add('Jurisdiction', listing['agentJurisdiction'], Icons.public_outlined);
+  add('MLS® / listing ID', listing['mlsNumber'], Icons.tag_outlined);
   add('Pipe size', listing['pipeSize'], Icons.straighten_outlined);
   add('Wall / weight', listing['pipeSchedule'], Icons.line_weight_outlined);
   add('Steel grade', listing['pipeGrade'], Icons.workspace_premium_outlined);

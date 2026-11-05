@@ -10,14 +10,14 @@ void main() {
   );
   const production = Phase1FeaturePolicy(
     environment: 'production',
-    regulatedListingsRequested: true,
-    paidFeaturesRequested: true,
+    regulatedListingsRequested: false,
+    paidFeaturesRequested: false,
     auctionsRequested: false,
     dispatchRequested: false,
   );
   const productionLaunchCandidate = Phase1FeaturePolicy(
     environment: 'production',
-    regulatedListingsRequested: false,
+    regulatedListingsRequested: true,
     paidFeaturesRequested: false,
     auctionsRequested: true,
     dispatchRequested: true,
@@ -32,7 +32,7 @@ void main() {
     expect(flags.auctions, isTrue);
     expect(flags.dispatch, isTrue);
     expect(flags.paidFeatures, isFalse);
-    expect(flags.regulatedListings, isFalse);
+    expect(flags.regulatedListings, isTrue);
   });
 
   test('development can use explicitly enabled controlled features', () {

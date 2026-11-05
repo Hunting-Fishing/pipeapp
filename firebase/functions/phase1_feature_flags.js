@@ -26,7 +26,7 @@ const safeDefaults = Object.freeze({
   auctions: false,
   dispatch: false,
   paidFeatures: false,
-  regulatedListings: false,
+  regulatedListings: true,
 });
 
 function normalizePhase1FeatureFlags(data, defaults = safeDefaults) {

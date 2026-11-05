@@ -178,6 +178,9 @@ function currencyValue(map, currency, field) {
 }
 
 function inferMarketplaceFeeClass(listing) {
+  if (String((listing && listing.category) || "").trim() === "Site & Property") {
+    return "equipment_asset";
+  }
   const text = [
     listing && listing.category,
     listing && listing.productType,

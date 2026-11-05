@@ -159,7 +159,7 @@ async function main() {
     auctions: true,
     dispatch: true,
     paidFeatures: false,
-    regulatedListings: false,
+    regulatedListings: true,
     revision: 1,
     source: "visual_sandbox",
   });

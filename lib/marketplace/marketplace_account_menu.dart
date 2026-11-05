@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_admin_access.dart';
 
-class MarketplaceAccountMenuButton extends StatelessWidget {
+class MarketplaceAccountMenuButton extends StatefulWidget {
   const MarketplaceAccountMenuButton({
     super.key,
     required this.extended,
@@ -11,6 +14,7 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
     required this.onTrust,
     required this.onMemberships,
     required this.onSupport,
+    this.onAdminSettings,
     required this.onSignOut,
   });
 
@@ -19,7 +23,40 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
   final VoidCallback onTrust;
   final VoidCallback onMemberships;
   final VoidCallback onSupport;
+  final VoidCallback? onAdminSettings;
   final VoidCallback onSignOut;
+
+  @override
+  State<MarketplaceAccountMenuButton> createState() =>
+      _MarketplaceAccountMenuButtonState();
+}
+
+class _MarketplaceAccountMenuButtonState
+    extends State<MarketplaceAccountMenuButton> {
+  StreamSubscription<User?>? _tokenSubscription;
+  bool _isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tokenSubscription =
+        FirebaseAuth.instance.idTokenChanges().listen((_) => _refreshAdmin());
+    _refreshAdmin(forceRefresh: true);
+  }
+
+  @override
+  void dispose() {
+    _tokenSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshAdmin({bool forceRefresh = false}) async {
+    final authorized =
+        await marketplaceAdministratorAccess(forceRefresh: forceRefresh);
+    if (mounted && authorized != _isAdmin) {
+      setState(() => _isAdmin = authorized);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,19 +74,22 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
       onSelected: (action) {
         switch (action) {
           case _AccountMenuAction.account:
-            onAccount();
+            widget.onAccount();
             return;
           case _AccountMenuAction.trust:
-            onTrust();
+            widget.onTrust();
             return;
           case _AccountMenuAction.memberships:
-            onMemberships();
+            widget.onMemberships();
             return;
           case _AccountMenuAction.support:
-            onSupport();
+            widget.onSupport();
+            return;
+          case _AccountMenuAction.adminSettings:
+            widget.onAdminSettings?.call();
             return;
           case _AccountMenuAction.signOut:
-            onSignOut();
+            widget.onSignOut();
             return;
         }
       },
@@ -74,11 +114,39 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                          ),
+                          if (_isAdmin) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.purple.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'ADMIN',
+                                style: TextStyle(
+                                  color: Colors.purple.shade800,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       if (email.isNotEmpty)
                         Text(
@@ -131,6 +199,18 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
             subtitle: 'Help, safety and account assistance',
           ),
         ),
+        if (_isAdmin && widget.onAdminSettings != null) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: _AccountMenuAction.adminSettings,
+            child: _MenuRow(
+              icon: Icons.admin_panel_settings_outlined,
+              title: 'Admin settings',
+              subtitle: 'Platform controls, eXp Realty, billing & roles',
+              accent: Colors.purple.shade800,
+            ),
+          ),
+        ],
         const PopupMenuDivider(),
         const PopupMenuItem(
           value: _AccountMenuAction.signOut,
@@ -146,7 +226,7 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
         width: double.infinity,
         constraints: const BoxConstraints(minHeight: 52),
         padding: EdgeInsets.symmetric(
-          horizontal: extended ? 11 : 7,
+          horizontal: widget.extended ? 11 : 7,
           vertical: 8,
         ),
         decoration: BoxDecoration(
@@ -154,7 +234,7 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFDCE3EB)),
         ),
-        child: extended
+        child: widget.extended
             ? Row(
                 children: [
                   CircleAvatar(
@@ -180,11 +260,17 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
-                        const Text(
-                          'Account & membership',
+                        Text(
+                          _isAdmin
+                              ? 'Administrator • Full access'
+                              : 'Account & membership',
                           style: TextStyle(
-                            color: PipeBuyerColors.muted,
+                            color: _isAdmin
+                                ? Colors.purple.shade700
+                                : PipeBuyerColors.muted,
                             fontSize: 10,
+                            fontWeight:
+                                _isAdmin ? FontWeight.w700 : FontWeight.normal,
                           ),
                         ),
                       ],
@@ -210,7 +296,14 @@ class MarketplaceAccountMenuButton extends StatelessWidget {
   }
 }
 
-enum _AccountMenuAction { account, trust, memberships, support, signOut }
+enum _AccountMenuAction {
+  account,
+  trust,
+  memberships,
+  support,
+  adminSettings,
+  signOut,
+}
 
 class _MenuRow extends StatelessWidget {
   const _MenuRow({

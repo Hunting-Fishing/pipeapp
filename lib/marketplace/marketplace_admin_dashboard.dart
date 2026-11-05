@@ -4,11 +4,18 @@ import 'package:flutter/material.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_admin_role_manager.dart';
+import 'marketplace_admin_transaction_portal.dart';
+import 'marketplace_exp_realty.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_payment_readiness.dart';
 
 class MarketplaceAdminDashboard extends StatefulWidget {
-  const MarketplaceAdminDashboard({super.key});
+  const MarketplaceAdminDashboard({
+    super.key,
+    this.initialTabIndex = 0,
+  });
+
+  final int initialTabIndex;
 
   @override
   State<MarketplaceAdminDashboard> createState() =>
@@ -34,15 +41,23 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   bool _isAuthorized = false;
   bool _isLoadingAuth = true;
 
-  // System feature flags state
+  // System feature flags state (platform_configuration/phase1_features)
   bool _auctionsEnabled = true;
   bool _wantedMatchingEnabled = true;
+  bool _offersEnabled = true;
+  bool _dispatchEnabled = true;
+  bool _paidFeaturesEnabled = true;
+  bool _regulatedListingsEnabled = true;
   bool _maintenanceMode = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    _tabController = TabController(
+      length: 8,
+      initialIndex: widget.initialTabIndex.clamp(0, 7),
+      vsync: this,
+    );
     _checkAdminAuth();
     _loadFeatureFlags();
   }
@@ -67,15 +82,20 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   Future<void> _loadFeatureFlags() async {
     try {
       final doc = await FirebaseFirestore.instance
-          .collection('admin_settings')
-          .doc('feature_flags')
+          .collection('platform_configuration')
+          .doc('phase1_features')
           .get();
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         setState(() {
-          _auctionsEnabled = data['auctionsEnabled'] ?? true;
-          _wantedMatchingEnabled = data['wantedMatchingEnabled'] ?? true;
-          _maintenanceMode = data['maintenanceMode'] ?? false;
+          final marketplaceActive = data['marketplace'] as bool? ?? true;
+          _maintenanceMode = !marketplaceActive;
+          _wantedMatchingEnabled = data['wantedAds'] as bool? ?? true;
+          _offersEnabled = data['offers'] as bool? ?? true;
+          _auctionsEnabled = data['auctions'] as bool? ?? true;
+          _dispatchEnabled = data['dispatch'] as bool? ?? true;
+          _paidFeaturesEnabled = data['paidFeatures'] as bool? ?? false;
+          _regulatedListingsEnabled = data['regulatedListings'] as bool? ?? true;
         });
       }
     } catch (_) {}
@@ -83,16 +103,31 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
 
   Future<void> _saveFeatureFlags() async {
     try {
-      await FirebaseFirestore.instance
-          .collection('admin_settings')
-          .doc('feature_flags')
-          .set({
-        'auctionsEnabled': _auctionsEnabled,
-        'wantedMatchingEnabled': _wantedMatchingEnabled,
-        'maintenanceMode': _maintenanceMode,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'updatedBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
-      }, SetOptions(merge: true));
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null || uid.isEmpty) {
+        throw StateError('Signed-in administrator required.');
+      }
+      final docRef = FirebaseFirestore.instance
+          .collection('platform_configuration')
+          .doc('phase1_features');
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snapshot = await tx.get(docRef);
+        final currentRevision =
+            (snapshot.data()?['revision'] as num?)?.toInt() ?? 0;
+        final nextPayload = <String, dynamic>{
+          'marketplace': !_maintenanceMode,
+          'wantedAds': _wantedMatchingEnabled,
+          'offers': _offersEnabled,
+          'auctions': _auctionsEnabled,
+          'dispatch': _dispatchEnabled,
+          'paidFeatures': _paidFeaturesEnabled,
+          'regulatedListings': _regulatedListingsEnabled,
+          'revision': snapshot.exists ? currentRevision + 1 : 1,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedByUid': uid,
+        };
+        tx.set(docRef, nextPayload);
+      });
 
       if (mounted) {
         PipeFeedback.show(
@@ -246,7 +281,9 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             Tab(
                 icon: Icon(Icons.local_shipping_outlined),
                 text: 'Freight & Dispatch'),
-            Tab(icon: Icon(Icons.settings_outlined), text: 'System Config'),
+            Tab(
+                icon: Icon(Icons.admin_panel_settings_outlined),
+                text: '⚙️ Admin Settings'),
           ],
         ),
       ),
@@ -1667,7 +1704,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   Widget _buildModerationTab() {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
-          .collection('reports')
+          .collection('trust_reports')
           .limit(50)
           .snapshots(),
       builder: (context, snapshot) {
@@ -1794,66 +1831,244 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  // 8. System Feature Flags & Maintenance Mode Tab
+  // 8. Full Admin Settings & Platform Control Center Tab
   Widget _buildSystemConfigTab() {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
         _explanationBanner(
-          title: 'System Feature Flags & Controls',
+          title: 'Admin Settings — Master Platform Command Center',
           explanation:
-              'Control live platform capabilities in real time. Enable or disable the Auctions Engine, Escrow Protection, or Wanted Radar matching.',
+              'Full administrative control over live Marketplace modules, Real Estate & Business listings, eXp Realty & Licensed Realtor integration, Stripe & payout readiness, directories, and administrator roles.',
         ),
         const SizedBox(height: 16),
         Card(
-          child: ListTile(
-            leading: const Icon(Icons.admin_panel_settings_outlined),
-            title: const Text(
-              'Administrator access management',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: const Text(
-              'Primary administrator only. Grants and removals use protected Firebase claims, verified email and MFA.',
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const MarketplaceAdminRoleManager(),
-              ),
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Text(
+                    'Administration & Specialized Portals',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.admin_panel_settings_outlined,
+                    color: Colors.purple,
+                  ),
+                  title: const Text(
+                    'Administrator access management',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Primary administrator control. Manage active administrator accounts and roles.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const MarketplaceAdminRoleManager(),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(
+                    Icons.account_balance_outlined,
+                    color: Color(0xFF0878E8),
+                  ),
+                  title: const Text(
+                    'Billing, Stripe, Affiliates & Tax Readiness',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Configure Stripe Checkout, Connect payouts, fee settlement, affiliate payouts, and tax deferral.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _tabController.animateTo(3),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(
+                    Icons.receipt_long_outlined,
+                    color: Colors.teal,
+                  ),
+                  title: const Text(
+                    'Transaction & Escrow Operations Portal',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Inspect live marketplace deals, fee invoices, disputes, and financial resolutions.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const MarketplaceAdminTransactionPortal(),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(
+                    Icons.menu_book_outlined,
+                    color: Color(0xFFFF6A00),
+                  ),
+                  title: const Text(
+                    'Oilfield Directory Admin & Flagged Businesses',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Control public directory visibility, review company requests, and manage blocked phone numbers.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () =>
+                      MarketplaceNavigation.openYellowPagesAdmin(context),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(
+                    Icons.shield_outlined,
+                    color: Colors.indigo,
+                  ),
+                  title: const Text(
+                    'Commercial & Oilfield Insurance Admin',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Approve verified insurance carriers and inspect commercial rate applications.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () =>
+                      MarketplaceNavigation.openInsuranceAdmin(context),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(
+                    Icons.handshake_outlined,
+                    color: Colors.green,
+                  ),
+                  title: const Text(
+                    'Partner With Us & OEM Showcases Queue',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Review brand partnerships, featured OEM showcases, and deal leads.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => MarketplaceNavigation.openPartnerAdmin(context),
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        SwitchListTile(
-          value: _auctionsEnabled,
-          onChanged: (val) => setState(() => _auctionsEnabled = val),
-          title: const Text('Timed Auctions Engine Active',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: const Text(
-              'Allow sellers to launch timed auctions with reserve prices'),
+        const SizedBox(height: 16),
+        Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Live Marketplace Feature Switches',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Toggle live customer-facing Marketplace workflows in real time (platform_configuration/phase1_features).',
+                  style: TextStyle(fontSize: 12.5, color: Colors.black54),
+                ),
+                const Divider(height: 20),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _regulatedListingsEnabled,
+                  onChanged: (val) =>
+                      setState(() => _regulatedListingsEnabled = val),
+                  title: const Text(
+                      'Real Estate, Land, Lots & Businesses (Site & Property)',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text(
+                      'Allow users to list and browse lots, land, real estate, commercial/industrial properties, and businesses for sale'),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _paidFeaturesEnabled,
+                  onChanged: (val) =>
+                      setState(() => _paidFeaturesEnabled = val),
+                  title: const Text('Paid Listing Boosts & Featured Upgrades',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text(
+                      'Allow sellers to purchase optional paid listing boosts during listing creation and management'),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _auctionsEnabled,
+                  onChanged: (val) => setState(() => _auctionsEnabled = val),
+                  title: const Text('Timed Auctions Engine Active',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text(
+                      'Allow sellers to launch timed auctions with reserve prices'),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _offersEnabled,
+                  onChanged: (val) => setState(() => _offersEnabled = val),
+                  title: const Text('Buyer Offers & Counter-Offers Active',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text(
+                      'Allow buyers and sellers to negotiate structured offers on listings'),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _dispatchEnabled,
+                  onChanged: (val) => setState(() => _dispatchEnabled = val),
+                  title: const Text('Heavy Haul & Dispatch Board Active',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text(
+                      'Allow shippers and verified carriers to post and bid on transport loads'),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _wantedMatchingEnabled,
+                  onChanged: (val) =>
+                      setState(() => _wantedMatchingEnabled = val),
+                  title: const Text('Wanted Request Radar Matching Active',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text(
+                      'Pair buyer request ads with newly posted seller inventory'),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _maintenanceMode,
+                  onChanged: (val) => setState(() => _maintenanceMode = val),
+                  title: const Text('Platform Maintenance Mode',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.red)),
+                  subtitle: const Text(
+                      'Temporarily pause new listing creation for maintenance'),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: _saveFeatureFlags,
+                  icon: const Icon(Icons.save),
+                  label: const Text('Save System Feature Flags'),
+                ),
+              ],
+            ),
+          ),
         ),
-        SwitchListTile(
-          value: _wantedMatchingEnabled,
-          onChanged: (val) => setState(() => _wantedMatchingEnabled = val),
-          title: const Text('Wanted Request Radar Matching Active',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: const Text(
-              'Pair buyer request ads with newly posted seller inventory'),
-        ),
-        SwitchListTile(
-          value: _maintenanceMode,
-          onChanged: (val) => setState(() => _maintenanceMode = val),
-          title: const Text('Platform Maintenance Mode',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-          subtitle: const Text(
-              'Temporarily pause new listing creation for maintenance'),
-        ),
-        const SizedBox(height: 24),
-        FilledButton.icon(
-          onPressed: _saveFeatureFlags,
-          icon: const Icon(Icons.save),
-          label: const Text('Save System Feature Flags'),
-        ),
+        const SizedBox(height: 16),
+        const ExpRealtyAdminControlPanel(),
       ],
     );
   }

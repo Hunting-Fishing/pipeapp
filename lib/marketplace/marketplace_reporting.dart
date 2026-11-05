@@ -11,6 +11,8 @@ import 'industrial_icon_assets.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_command_client.dart';
 import 'marketplace_data_state.dart';
+import 'marketplace_image_normalizer.dart';
+import 'marketplace_media_repository.dart';
 import 'marketplace_support.dart';
 
 class MarketplaceReportReason {
@@ -125,7 +127,9 @@ class _ReportDialogState extends State<_ReportDialog> {
         await ImagePicker().pickMultiImage(imageQuality: 88, maxWidth: 2200);
     for (final file in picked) {
       if (_attachments.length >= 5) break;
-      if (await file.length() <= 10 * 1024 * 1024) _attachments.add(file);
+      if (await file.length() <= MarketplaceMediaRepository.maxRawPhotoBytes) {
+        _attachments.add(file);
+      }
     }
     if (mounted) setState(() {});
   }
@@ -180,23 +184,26 @@ class _ReportDialogState extends State<_ReportDialog> {
       final actions = MarketplaceActionsRepository();
       for (var i = 0; i < _attachments.length; i++) {
         final file = _attachments[i];
-        final bytes = await file.readAsBytes();
-        final extension = file.name.split('.').last.toLowerCase();
-        final contentType = extension == 'png'
-            ? 'image/png'
-            : extension == 'webp'
-                ? 'image/webp'
-                : 'image/jpeg';
+        final rawBytes = await file.readAsBytes();
+        final normalized = await normalizeImageForUpload(
+          rawBytes,
+          fileName: file.name.isEmpty ? 'evidence_${i + 1}.jpg' : file.name,
+          maxBytes: 10 * 1024 * 1024,
+          maxDimension: 2200,
+        );
         final authorization = await actions.authorizeUpload(
             purpose: 'report_evidence',
             originalName: file.name,
-            contentType: contentType,
-            sizeBytes: bytes.length,
+            contentType: normalized.contentType,
+            sizeBytes: normalized.bytes.length,
             reportId: report.id);
         final authorizationId = '${authorization['authorizationId']}';
         final ref =
             FirebaseStorage.instance.ref('${authorization['storagePath']}');
-        await ref.putData(bytes, SettableMetadata(contentType: contentType));
+        await ref.putData(
+          normalized.bytes,
+          SettableMetadata(contentType: normalized.contentType),
+        );
         final url = await ref.getDownloadURL();
         await actions.confirmUpload(authorizationId: authorizationId, url: url);
         evidence.add({

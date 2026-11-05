@@ -38,6 +38,8 @@ import 'marketplace_grid_density.dart';
 import 'marketplace_adaptive_shell.dart';
 import 'marketplace_account_device_repository.dart';
 import 'marketplace_admin_access.dart';
+import 'marketplace_admin_dashboard.dart';
+import 'marketplace_exp_realty.dart';
 import 'marketplace_avatar_image.dart';
 import 'marketplace_auctions_page.dart';
 import 'marketplace_browse_filters.dart';
@@ -293,13 +295,16 @@ const marketplaceCategories = <MarketplaceCategory>[
       'Site & Property',
       Icons.location_city,
       [
+        'Lots & Vacant Land',
+        'Real Estate & Property',
         'Business for Sale',
         'Commercial Property',
         'Farm & Ranch Land',
+        'Industrial Real Estate',
+        'Lease Land',
         'Oil & Gas Lease',
         'Mineral Rights',
         'Surface Rights',
-        'Lease Land',
         'Well Site',
         'Pipeline',
         'Battery Site',
@@ -307,9 +312,8 @@ const marketplaceCategories = <MarketplaceCategory>[
         'Fenced Yard',
         'Gate',
         'Storage Yard',
-        'Industrial Real Estate'
       ],
-      'Industrial, commercial and agricultural property, businesses, leases and rights.'),
+      'Lots, land, real estate, commercial & industrial properties, businesses for sale, leases and rights.'),
 ];
 
 List<MarketplaceCategory> phase1MarketplaceCategories(
@@ -1521,6 +1525,12 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
               onSupport: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const MarketplaceSupportPage(),
+                ),
+              ),
+              onAdminSettings: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const MarketplaceAdminDashboard(initialTabIndex: 7),
                 ),
               ),
               onSignOut: _signOut,
@@ -4651,6 +4661,13 @@ class _ListingDetailsState extends State<_ListingDetails> {
         suffix: ' / year');
     addRow('Lease / rights details', details['leaseDetails'],
         Icons.description_outlined);
+    addRow('Listed by', details['listingRepresentation'], Icons.badge_outlined);
+    addRow(
+        'Representing brokerage', details['brokerageName'], Icons.business_outlined);
+    addRow('Agent license #', details['agentLicenseNumber'],
+        Icons.verified_user_outlined);
+    addRow('Jurisdiction', details['agentJurisdiction'], Icons.public_outlined);
+    addRow('MLS® / listing ID', details['mlsNumber'], Icons.tag_outlined);
 
     final features = (details['propertyFeatures'] as Iterable?)
             ?.map((value) => '$value')
@@ -4691,6 +4708,13 @@ class _ListingDetailsState extends State<_ListingDetails> {
                       visualDensity: VisualDensity.compact))
                   .toList()),
         ],
+        if (listing.category == 'Site & Property')
+          ExpRealtyLeadInquiryCard(
+            listingId: listing.id,
+            listingTitle: listing.title,
+            locationLabel: listing.location,
+            sellerUid: listing.sellerUid,
+          ),
       ]),
     );
   }
@@ -5214,6 +5238,13 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   final _netOperatingIncome = TextEditingController();
   final _annualPropertyTax = TextEditingController();
   final _leaseDetails = TextEditingController();
+  final _brokerageName =
+      TextEditingController(text: 'eXp Realty of Canada, Inc.');
+  final _agentLicenseNumber = TextEditingController();
+  final _mlsNumber = TextEditingController();
+  String _listingRepresentation = 'Owner / Principal';
+  String _brokerageEntityId = 'exp-realty-canada';
+  String _agentJurisdiction = 'CA-AB (Alberta)';
   DateTime? _auctionStartAt;
   DateTime? _auctionEndAt;
   String? _category;
@@ -5525,6 +5556,9 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     _netOperatingIncome.dispose();
     _annualPropertyTax.dispose();
     _leaseDetails.dispose();
+    _brokerageName.dispose();
+    _agentLicenseNumber.dispose();
+    _mlsNumber.dispose();
     super.dispose();
   }
 
@@ -5881,6 +5915,15 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                   if (value == 'Business for Sale') {
                     _propertyOffering = 'Business only';
                     _propertyInterest = 'Business interest';
+                  } else if (value == 'Lots & Vacant Land' ||
+                      value == 'Farm & Ranch Land') {
+                    _propertyOffering = 'Land only';
+                    _propertyInterest = 'Freehold / fee simple';
+                  } else if (value == 'Real Estate & Property' ||
+                      value == 'Commercial Property' ||
+                      value == 'Industrial Real Estate') {
+                    _propertyOffering = 'Land and buildings';
+                    _propertyInterest = 'Freehold / fee simple';
                   } else if (value == 'Mineral Rights' ||
                       value == 'Surface Rights' ||
                       value == 'Oil & Gas Lease' ||
@@ -6498,10 +6541,15 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                         // ====================================================
                         MarketplaceListingSectionCard(
                           step: 2,
-                          title: 'Specifications, quantity & condition',
-                          description:
-                              'Auto-fill from VIN / PIN or search 50+ years of verified specs, quantity, and inspection status.',
-                          icon: Icons.tune_outlined,
+                          title: isProperty
+                              ? 'Property, land & business details'
+                              : 'Specifications, quantity & condition',
+                          description: isProperty
+                              ? 'Provide land area, building size, zoning, included assets, revenue, and lease or tenure details.'
+                              : 'Auto-fill from VIN / PIN or search 50+ years of verified specs, quantity, and inspection status.',
+                          icon: isProperty
+                              ? Icons.domain_outlined
+                              : Icons.tune_outlined,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -7284,6 +7332,8 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   }
 
   bool get _propertyNeedsLandArea => const {
+        'Lots & Vacant Land',
+        'Real Estate & Property',
         'Commercial Property',
         'Farm & Ranch Land',
         'Fenced Yard',
@@ -7640,6 +7690,20 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                   )
                   .toList(),
             ),
+            ExpRealtyListingRepresentationSection(
+              representation: _listingRepresentation,
+              brokerageEntityId: _brokerageEntityId,
+              brokerageNameController: _brokerageName,
+              agentLicenseController: _agentLicenseNumber,
+              agentJurisdiction: _agentJurisdiction,
+              mlsNumberController: _mlsNumber,
+              onRepresentationChanged: (value) =>
+                  setState(() => _listingRepresentation = value),
+              onBrokerageEntityChanged: (value) =>
+                  setState(() => _brokerageEntityId = value),
+              onJurisdictionChanged: (value) =>
+                  setState(() => _agentJurisdiction = value),
+            ),
           ],
         ),
       ),
@@ -7935,7 +7999,9 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
     if (!mounted) return;
     final message = switch (error) {
       PlatformException(code: 'camera_access_denied') =>
-        'Camera access was denied. Allow camera access in device settings and try again.',
+        'Camera access was denied. Allow camera access in your browser or device settings and try again.',
+      PlatformException(code: 'no_available_camera') =>
+        'No camera was detected on this device. Connect a camera or choose a photo from your device.',
       PlatformException(code: 'photo_access_denied') =>
         'Photo access was denied. Allow photo access in device settings and try again.',
       MissingPluginException() =>
@@ -8109,6 +8175,14 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
           'annualPropertyTax': marketplaceMoneyValue(_annualPropertyTax.text),
           'leaseDetails': _leaseDetails.text.trim(),
           'propertyFeatures': _propertyFeatures.toList()..sort(),
+          'listingRepresentation': _listingRepresentation,
+          if (_listingRepresentation == 'Licensed Realtor / Brokerage') ...{
+            'brokerageEntityId': _brokerageEntityId,
+            'brokerageName': _brokerageName.text.trim(),
+            'agentLicenseNumber': _agentLicenseNumber.text.trim(),
+            'agentJurisdiction': _agentJurisdiction,
+            'mlsNumber': _mlsNumber.text.trim(),
+          },
         },
         'transactionType': _listingType,
         if (_isWanted) ...{

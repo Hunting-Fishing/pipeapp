@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
@@ -11,6 +12,8 @@ import '../core/config/phase1_feature_flags.dart';
 import '../core/data/bounded_firestore_query.dart';
 import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/diagnostics/app_diagnostics.dart';
+import 'marketplace_image_normalizer.dart';
+import 'marketplace_media_repository.dart';
 import 'marketplace_reporting.dart';
 
 import 'marketplace_actions_repository.dart';
@@ -2994,33 +2997,37 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
     try {
       final file = await ImagePicker().pickImage(
         source: source,
-        imageQuality: 82,
+        imageQuality: 85,
         maxWidth: 1800,
+        maxHeight: 1800,
       );
       if (file == null) return;
-      final sizeBytes = await file.length();
-      if (sizeBytes > 15 * 1024 * 1024) {
+      final rawBytes = await file.readAsBytes();
+      if (rawBytes.length > MarketplaceMediaRepository.maxRawPhotoBytes) {
         if (mounted) {
           PipeFeedback.show(
             context,
-            message: 'Attachment must be under 15 MB.',
+            message: 'Photo is larger than 40 MB. Choose a smaller photo.',
             tone: PipeStatusTone.warning,
           );
         }
         return;
       }
       setState(() => _uploading = true);
-      final extension = file.name.split('.').last.toLowerCase();
-      final contentType = extension == 'png'
-          ? 'image/png'
-          : extension == 'webp'
-          ? 'image/webp'
-          : 'image/jpeg';
+      final fileName = file.name.trim().isEmpty
+          ? 'camera_photo_${DateTime.now().millisecondsSinceEpoch}.jpg'
+          : file.name;
+      final normalized = await normalizeImageForUpload(
+        rawBytes,
+        fileName: fileName,
+        maxBytes: 15 * 1024 * 1024,
+        maxDimension: 1800,
+      );
       final authorization = await _actions.authorizeUpload(
         purpose: 'chat_attachment',
-        originalName: file.name,
-        contentType: contentType,
-        sizeBytes: sizeBytes,
+        originalName: fileName,
+        contentType: normalized.contentType,
+        sizeBytes: normalized.bytes.length,
         conversationId: widget.conversationId,
       );
       final authorizationId = '${authorization['authorizationId']}';
@@ -3028,9 +3035,9 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
         '${authorization['storagePath']}',
       );
       await reference.putData(
-        await file.readAsBytes(),
+        normalized.bytes,
         SettableMetadata(
-          contentType: contentType,
+          contentType: normalized.contentType,
           customMetadata: {'conversationId': widget.conversationId},
         ),
       );
@@ -3042,13 +3049,44 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
             'type': 'image',
             'authorizationId': authorizationId,
             'url': url,
-            'name': file.name,
+            'name': fileName,
           },
         );
         PipeFeedback.show(
           context,
           message: 'Image attached. Add a message or press Send.',
           tone: PipeStatusTone.success,
+        );
+      }
+    } on UnsupportedImageFormatException catch (error) {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: error.userMessage,
+          tone: PipeStatusTone.warning,
+        );
+      }
+    } on ImageTooLargeException {
+      if (mounted) {
+        PipeFeedback.show(
+          context,
+          message: 'Attachment must be under 15 MB.',
+          tone: PipeStatusTone.warning,
+        );
+      }
+    } on PlatformException catch (error) {
+      if (mounted) {
+        final message = switch (error.code) {
+          'camera_access_denied' =>
+            'Camera access was denied. Allow camera permission in your browser or device settings and try again.',
+          'no_available_camera' =>
+            'No camera was detected on this device. Connect a camera or choose a photo from your files.',
+          _ => error.message ?? 'Could not open the camera. Try again.',
+        };
+        PipeFeedback.show(
+          context,
+          message: message,
+          tone: PipeStatusTone.warning,
         );
       }
     } on FirebaseException catch (error) {

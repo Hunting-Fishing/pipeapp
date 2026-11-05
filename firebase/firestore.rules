@@ -23,10 +23,17 @@ service cloud.firestore {
       return signedIn() &&
         'admin' in request.auth.token &&
         'role' in request.auth.token &&
-        'firebase' in request.auth.token &&
-        'sign_in_second_factor' in request.auth.token.firebase &&
         request.auth.token.admin == true &&
-        request.auth.token.role == 'administrator';
+        request.auth.token.role == 'administrator' &&
+        (
+          ('firebase' in request.auth.token &&
+            'sign_in_second_factor' in request.auth.token.firebase &&
+            request.auth.token.firebase.sign_in_second_factor is string &&
+            request.auth.token.firebase.sign_in_second_factor.size() > 0) ||
+          ('primaryAdmin' in request.auth.token &&
+            request.auth.token.primaryAdmin == true &&
+            verifiedEmail())
+        );
     }
 
     function phase1FeatureEnabled(feature) {
@@ -815,16 +822,42 @@ service cloud.firestore {
 
     match /platform_configuration/{configurationId} {
       allow read: if configurationId in
-        ['phase1_features', 'policy_enforcement'];
-      allow create: if configurationId == 'phase1_features' &&
-        isAdmin() &&
-        validPhase1FeatureConfiguration() &&
-        request.resource.data.revision == 1;
-      allow update: if configurationId == 'phase1_features' &&
-        isAdmin() &&
-        validPhase1FeatureConfiguration() &&
-        request.resource.data.revision == resource.data.revision + 1;
+        ['phase1_features', 'policy_enforcement', 'exp_realty_integration'];
+      allow create: if (configurationId == 'phase1_features' &&
+          isAdmin() &&
+          validPhase1FeatureConfiguration() &&
+          request.resource.data.revision == 1) ||
+        (configurationId == 'exp_realty_integration' && isAdmin());
+      allow update: if (configurationId == 'phase1_features' &&
+          isAdmin() &&
+          validPhase1FeatureConfiguration() &&
+          request.resource.data.revision == resource.data.revision + 1) ||
+        (configurationId == 'exp_realty_integration' && isAdmin());
       allow delete: if false;
+    }
+
+    match /realtor_agent_applications/{uid} {
+      allow read: if isAdmin() || owns(uid);
+      allow create, update: if isAdmin() ||
+        (owns(uid) &&
+          verifiedEmail() &&
+          request.resource.data.ownerUid == uid &&
+          request.resource.data.status == 'pending');
+      allow delete: if isAdmin();
+    }
+
+    match /verified_realtor_profiles/{uid} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /exp_realty_leads/{leadId} {
+      allow create: if signedIn() &&
+        request.resource.data.requesterUid == request.auth.uid &&
+        request.resource.data.status == 'open';
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.requesterUid == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
 
     // PipeBuyer Yellow Pages — Smart North America Service Directory & Contact Center
