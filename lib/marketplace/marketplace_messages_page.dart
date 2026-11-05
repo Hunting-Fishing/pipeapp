@@ -373,6 +373,7 @@ class _ConversationNegotiationPanelState
     );
     final buyerUid =
         members.where((member) => member != sellerUid).firstOrNull ?? '';
+    var selectedScheduleDates = <String, DateTime>{};
     final action = await showDialog<String>(
       context: context,
       builder: (dialogContext) => Dialog(
@@ -420,6 +421,8 @@ class _ConversationNegotiationPanelState
                     listingId: '${conversation['listingId']}',
                     askingPrice: listing['price'] as num?,
                     availableQuantity: (listing['quantity'] as num?)?.toInt(),
+                    onScheduleDatesChanged: (dates) =>
+                        selectedScheduleDates = dates,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -439,7 +442,11 @@ class _ConversationNegotiationPanelState
       ),
     );
     if (action == 'offer' && mounted) {
-      await _openProposal(conversation, listing);
+      await _openProposal(
+        conversation,
+        listing,
+        initialScheduleDates: selectedScheduleDates,
+      );
     }
   }
 
@@ -447,6 +454,7 @@ class _ConversationNegotiationPanelState
     Map<String, dynamic> conversation,
     Map<String, dynamic> listing, {
     Map<String, dynamic>? initialOffer,
+    Map<String, DateTime>? initialScheduleDates,
   }) async {
     if (!_features.offers) return;
     final latest = Map<String, dynamic>.from(
@@ -463,15 +471,9 @@ class _ConversationNegotiationPanelState
     final note = TextEditingController();
     MarketplaceLocation? dispatchDeliveryLocation =
         marketplaceLocationFromOfferDelivery(initialOffer?['dispatchDelivery']);
-    DateTime? purchaseDate = _currentOrFutureOfferDate(
-      initialOffer?['purchaseDate'],
-    );
-    DateTime? moneyTransferDate = _currentOrFutureOfferDate(
-      initialOffer?['moneyTransferDate'],
-    );
-    DateTime? truckingDate = _currentOrFutureOfferDate(
-      initialOffer?['truckingDate'],
-    );
+    DateTime? purchaseDate = initialScheduleDates?['purchase'];
+    DateTime? moneyTransferDate = initialScheduleDates?['money_transfer'];
+    DateTime? truckingDate = initialScheduleDates?['trucking'];
     MarketplaceTruckingPlan? truckingPlan = marketplaceTruckingPlanFromStorage(
       '${initialOffer?['truckingPlan'] ?? ''}',
     );
@@ -756,50 +758,17 @@ class _ConversationNegotiationPanelState
                         ),
                       ),
                       const SizedBox(height: 6),
-                      _offerDateTile(
-                        label: 'Purchase date',
-                        icon: Icons.event_available_outlined,
-                        value: purchaseDate,
-                        onTap: () async {
-                          final selected = await _pickOfferDate(
-                            dialogContext,
-                            purchaseDate,
-                          );
-                          if (selected != null) {
-                            purchaseDate = selected;
-                            refresh(() {});
-                          }
-                        },
-                      ),
-                      _offerDateTile(
-                        label: 'Money transfer date',
-                        icon: Icons.account_balance_outlined,
-                        value: moneyTransferDate,
-                        onTap: () async {
-                          final selected = await _pickOfferDate(
-                            dialogContext,
-                            moneyTransferDate,
-                          );
-                          if (selected != null) {
-                            moneyTransferDate = selected;
-                            refresh(() {});
-                          }
-                        },
-                      ),
-                      _offerDateTile(
-                        label: 'Trucking / pickup date',
-                        icon: Icons.local_shipping_outlined,
-                        value: truckingDate,
-                        onTap: () async {
-                          final selected = await _pickOfferDate(
-                            dialogContext,
-                            truckingDate,
-                          );
-                          if (selected != null) {
-                            truckingDate = selected;
-                            refresh(() {});
-                          }
-                        },
+                      MarketplaceOfferScheduleCard(
+                        milestones: marketplaceOfferMilestones({
+                          'purchaseDate': purchaseDate,
+                          'moneyTransferDate': moneyTransferDate,
+                          'truckingDate': truckingDate,
+                        }),
+                        onMilestoneDateSelected: (dates) => refresh(() {
+                          purchaseDate = dates['purchase'];
+                          moneyTransferDate = dates['money_transfer'];
+                          truckingDate = dates['trucking'];
+                        }),
                       ),
                       const SizedBox(height: 10),
                       const Text(
@@ -1024,45 +993,8 @@ class _ConversationNegotiationPanelState
     ],
   );
 
-  Widget _offerDateTile({
-    required String label,
-    required IconData icon,
-    required DateTime? value,
-    required VoidCallback onTap,
-  }) => Padding(
-    padding: const EdgeInsets.only(bottom: 7),
-    child: OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 48),
-        alignment: Alignment.centerLeft,
-      ),
-      onPressed: onTap,
-      icon: Icon(icon),
-      label: Text(
-        value == null ? 'Select $label' : '$label: ${_formatOfferDate(value)}',
-      ),
-    ),
-  );
-
-  Future<DateTime?> _pickOfferDate(BuildContext context, DateTime? current) =>
-      showDatePicker(
-        context: context,
-        initialDate: current ?? DateTime.now().add(const Duration(days: 1)),
-        firstDate: DateTime.now(),
-        lastDate: DateTime.now().add(const Duration(days: 730)),
-      );
-
   String _formatOfferDate(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-
-  DateTime? _currentOrFutureOfferDate(dynamic value) {
-    final date = marketplaceOfferDate(value);
-    if (date == null) return null;
-    final today = DateTime.now();
-    final startOfToday = DateTime(today.year, today.month, today.day);
-    final candidate = DateTime(date.year, date.month, date.day);
-    return candidate.isBefore(startOfToday) ? null : candidate;
-  }
 
   Widget _offerReviewCard({
     required IconData icon,
@@ -1118,6 +1050,7 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
     required this.sellerUid,
     this.askingPrice,
     this.availableQuantity,
+    this.onScheduleDatesChanged,
   });
   final String listingId;
   final String listingTitle;
@@ -1125,6 +1058,7 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
   final String sellerUid;
   final num? askingPrice;
   final int? availableQuantity;
+  final ValueChanged<Map<String, DateTime>>? onScheduleDatesChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1405,10 +1339,12 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          if (milestones.isNotEmpty) ...[
-            MarketplaceOfferScheduleCard(milestones: milestones),
-            const SizedBox(height: 8),
-          ],
+          MarketplaceOfferScheduleCard(
+            milestones: milestones,
+            startBlankUntilSelected: true,
+            onMilestoneDateSelected: onScheduleDatesChanged,
+          ),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 7,
             runSpacing: 7,
@@ -1611,10 +1547,12 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          if (milestones.isNotEmpty) ...[
-            MarketplaceOfferScheduleCard(milestones: milestones),
-            const SizedBox(height: 8),
-          ],
+          MarketplaceOfferScheduleCard(
+            milestones: milestones,
+            startBlankUntilSelected: true,
+            onMilestoneDateSelected: onScheduleDatesChanged,
+          ),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 6,
             runSpacing: 6,

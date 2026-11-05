@@ -273,27 +273,172 @@ class MarketplaceAcceptOfferDialog extends StatelessWidget {
   }
 }
 
-class MarketplaceOfferScheduleCard extends StatelessWidget {
+const List<_MarketplaceScheduleSlotTemplate> _defaultScheduleTemplates = [
+  _MarketplaceScheduleSlotTemplate(
+    key: 'purchase',
+    label: 'Purchase date',
+    shortLabel: 'Purchase',
+    icon: Icons.event_available_outlined,
+    color: PipeBuyerColors.success,
+    description: 'The proposed date to complete the purchase.',
+  ),
+  _MarketplaceScheduleSlotTemplate(
+    key: 'money_transfer',
+    label: 'Money transfer',
+    shortLabel: 'Transfer',
+    icon: Icons.account_balance_outlined,
+    color: PipeBuyerColors.industrialBlue,
+    description: 'The proposed date for the purchase funds to transfer.',
+  ),
+  _MarketplaceScheduleSlotTemplate(
+    key: 'trucking',
+    label: 'Trucking / pickup',
+    shortLabel: 'Trucking',
+    icon: Icons.local_shipping_outlined,
+    color: PipeBuyerColors.orange,
+    description: 'The proposed trucking, loading, or pickup date.',
+  ),
+];
+
+class _MarketplaceScheduleSlotTemplate {
+  const _MarketplaceScheduleSlotTemplate({
+    required this.key,
+    required this.label,
+    required this.shortLabel,
+    required this.icon,
+    required this.color,
+    required this.description,
+  });
+
+  final String key;
+  final String label;
+  final String shortLabel;
+  final IconData icon;
+  final Color color;
+  final String description;
+
+  _MarketplaceScheduleSlot withDate(DateTime? date) => _MarketplaceScheduleSlot(
+        key: key,
+        label: label,
+        shortLabel: shortLabel,
+        date: date,
+        icon: icon,
+        color: color,
+        description: description,
+      );
+}
+
+class _MarketplaceScheduleSlot {
+  const _MarketplaceScheduleSlot({
+    required this.key,
+    required this.label,
+    required this.shortLabel,
+    required this.date,
+    required this.icon,
+    required this.color,
+    required this.description,
+  });
+
+  final String key;
+  final String label;
+  final String shortLabel;
+  final DateTime? date;
+  final IconData icon;
+  final Color color;
+  final String description;
+}
+
+class MarketplaceOfferScheduleCard extends StatefulWidget {
   const MarketplaceOfferScheduleCard({
     super.key,
-    required this.milestones,
+    this.milestones = const <MarketplaceOfferMilestone>[],
     this.compact = true,
+    this.startBlankUntilSelected = false,
+    this.onMilestoneDateSelected,
   });
 
   final List<MarketplaceOfferMilestone> milestones;
   final bool compact;
+  final bool startBlankUntilSelected;
+  final ValueChanged<Map<String, DateTime>>? onMilestoneDateSelected;
+
+  @override
+  State<MarketplaceOfferScheduleCard> createState() =>
+      _MarketplaceOfferScheduleCardState();
+}
+
+class _MarketplaceOfferScheduleCardState
+    extends State<MarketplaceOfferScheduleCard> {
+  final Map<String, DateTime> _selectedDates = <String, DateTime>{};
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.startBlankUntilSelected) {
+      for (final milestone in widget.milestones) {
+        _selectedDates[milestone.key] = milestone.date;
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant MarketplaceOfferScheduleCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.startBlankUntilSelected &&
+        widget.milestones != oldWidget.milestones) {
+      _selectedDates
+        ..clear()
+        ..addEntries(
+          widget.milestones.map((m) => MapEntry(m.key, m.date)),
+        );
+    }
+  }
+
+  List<_MarketplaceScheduleSlot> _buildSlots() {
+    if (!widget.startBlankUntilSelected &&
+        widget.onMilestoneDateSelected == null &&
+        widget.milestones.isNotEmpty &&
+        _selectedDates.length == widget.milestones.length) {
+      final provided = widget.milestones
+          .map(
+            (m) => _MarketplaceScheduleSlot(
+              key: m.key,
+              label: m.label,
+              shortLabel: m.shortLabel,
+              date: _selectedDates[m.key] ?? m.date,
+              icon: m.icon,
+              color: m.color,
+              description: m.description,
+            ),
+          )
+          .toList();
+      for (final template in _defaultScheduleTemplates) {
+        if (!provided.any((slot) => slot.key == template.key)) {
+          provided.add(template.withDate(_selectedDates[template.key]));
+        }
+      }
+      return provided;
+    }
+    return _defaultScheduleTemplates
+        .map((template) => template.withDate(_selectedDates[template.key]))
+        .toList();
+  }
+
+  bool get _interactiveSelection =>
+      widget.startBlankUntilSelected || widget.onMilestoneDateSelected != null;
 
   @override
   Widget build(BuildContext context) {
-    if (milestones.isEmpty) return const SizedBox.shrink();
+    final slots = _buildSlots();
+    final selectedCount = slots.where((slot) => slot.date != null).length;
     final largeText = MediaQuery.textScalerOf(context).scale(12) >= 18;
     final stackedHeader = MediaQuery.sizeOf(context).width < 420 || largeText;
     final title = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: compact ? 34 : 40,
-          height: compact ? 34 : 40,
+          width: widget.compact ? 34 : 40,
+          height: widget.compact ? 34 : 40,
           decoration: BoxDecoration(
             color: PipeBuyerColors.orangeSoft,
             borderRadius: BorderRadius.circular(10),
@@ -315,9 +460,11 @@ class MarketplaceOfferScheduleCard extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                     ),
               ),
-              if (!compact)
+              if (!widget.compact)
                 Text(
-                  '${milestones.length} proposed milestone${milestones.length == 1 ? '' : 's'}',
+                  selectedCount == 0
+                      ? 'Select dates for purchase, transfer, and trucking'
+                      : '$selectedCount proposed milestone${selectedCount == 1 ? '' : 's'}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
             ],
@@ -326,21 +473,23 @@ class MarketplaceOfferScheduleCard extends StatelessWidget {
       ],
     );
     final openCalendar = TextButton.icon(
-      onPressed: () => _openCalendar(context, milestones.first),
+      onPressed: () => _openCalendar(context, slots, slots.first),
       icon: const Icon(Icons.open_in_full, size: 15),
       label: const Text('Open calendar'),
     );
-    final milestoneTiles = milestones
-        .map((milestone) => _MarketplaceMilestoneTile(
-              milestone: milestone,
+    final milestoneTiles = slots
+        .map((slot) => _MarketplaceMilestoneTile(
+              slot: slot,
               expanded: largeText,
-              onTap: () => _openCalendar(context, milestone),
+              onTap: () => (_interactiveSelection || slot.date == null)
+                  ? _pickSlotDate(context, slot)
+                  : _openCalendar(context, slots, slot),
             ))
         .toList();
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(compact ? 12 : 15),
+      padding: EdgeInsets.all(widget.compact ? 12 : 15),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
@@ -383,43 +532,84 @@ class MarketplaceOfferScheduleCard extends StatelessWidget {
     );
   }
 
+  Future<void> _pickSlotDate(
+    BuildContext context,
+    _MarketplaceScheduleSlot slot,
+  ) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final current = slot.date;
+    final initialDate = current != null && !current.isBefore(today)
+        ? current
+        : today.add(const Duration(days: 1));
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 730)),
+      helpText: 'Select ${slot.label}',
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _selectedDates[slot.key] = selected;
+    });
+    widget.onMilestoneDateSelected?.call(
+      Map<String, DateTime>.unmodifiable(_selectedDates),
+    );
+  }
+
   Future<void> _openCalendar(
-          BuildContext context, MarketplaceOfferMilestone selected) =>
+    BuildContext context,
+    List<_MarketplaceScheduleSlot> slots,
+    _MarketplaceScheduleSlot selected,
+  ) =>
       showDialog<void>(
         context: context,
         builder: (_) => _MarketplaceOfferCalendarDialog(
-          milestones: milestones,
+          slots: slots,
           initiallySelected: selected,
+          onDateChanged: (key, date) {
+            if (!mounted) return;
+            setState(() {
+              _selectedDates[key] = date;
+            });
+            widget.onMilestoneDateSelected?.call(
+              Map<String, DateTime>.unmodifiable(_selectedDates),
+            );
+          },
         ),
       );
 }
 
 class _MarketplaceMilestoneTile extends StatelessWidget {
   const _MarketplaceMilestoneTile({
-    required this.milestone,
+    required this.slot,
     required this.onTap,
     this.expanded = false,
   });
 
-  final MarketplaceOfferMilestone milestone;
+  final _MarketplaceScheduleSlot slot;
   final VoidCallback onTap;
   final bool expanded;
 
   @override
-  Widget build(BuildContext context) => Material(
-        color: milestone.color.withValues(alpha: .07),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(11),
-          side: BorderSide(color: milestone.color.withValues(alpha: .25)),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(11),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 7, 11, 7),
-            child: Row(
-              mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
-              children: [
+  Widget build(BuildContext context) {
+    final date = slot.date;
+    return Material(
+      color: slot.color.withValues(alpha: .07),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(11),
+        side: BorderSide(color: slot.color.withValues(alpha: .25)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(11),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 7, 11, 7),
+          child: Row(
+            mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
+            children: [
+              if (date != null)
                 Container(
                   width: 38,
                   padding: const EdgeInsets.symmetric(vertical: 4),
@@ -427,22 +617,22 @@ class _MarketplaceMilestoneTile extends StatelessWidget {
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: milestone.color.withValues(alpha: .16),
+                      color: slot.color.withValues(alpha: .16),
                     ),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        _monthShort(milestone.date.month).toUpperCase(),
+                        _monthShort(date.month).toUpperCase(),
                         style: TextStyle(
                           fontSize: 8,
                           fontWeight: FontWeight.w900,
-                          color: milestone.color,
+                          color: slot.color,
                         ),
                       ),
                       Text(
-                        '${milestone.date.day}',
+                        '${date.day}',
                         style: const TextStyle(
                           height: 1,
                           fontSize: 16,
@@ -451,43 +641,68 @@ class _MarketplaceMilestoneTile extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                Icon(milestone.icon, size: 17, color: milestone.color),
-                const SizedBox(width: 6),
-                if (expanded)
-                  Expanded(
-                    child: Text(
-                      milestone.shortLabel,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: slot.color.withValues(alpha: .22),
                     ),
-                  )
-                else
-                  Text(
-                    milestone.shortLabel,
+                  ),
+                  child: Text(
+                    'Select Date',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: slot.color,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Icon(slot.icon, size: 17, color: slot.color),
+              const SizedBox(width: 6),
+              if (expanded)
+                Expanded(
+                  child: Text(
+                    slot.shortLabel,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-              ],
-            ),
+                )
+              else
+                Text(
+                  slot.shortLabel,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _MarketplaceOfferCalendarDialog extends StatefulWidget {
   const _MarketplaceOfferCalendarDialog({
-    required this.milestones,
+    required this.slots,
     required this.initiallySelected,
+    this.onDateChanged,
   });
 
-  final List<MarketplaceOfferMilestone> milestones;
-  final MarketplaceOfferMilestone initiallySelected;
+  final List<_MarketplaceScheduleSlot> slots;
+  final _MarketplaceScheduleSlot initiallySelected;
+  final void Function(String key, DateTime date)? onDateChanged;
 
   @override
   State<_MarketplaceOfferCalendarDialog> createState() =>
@@ -496,18 +711,47 @@ class _MarketplaceOfferCalendarDialog extends StatefulWidget {
 
 class _MarketplaceOfferCalendarDialogState
     extends State<_MarketplaceOfferCalendarDialog> {
-  late MarketplaceOfferMilestone _selected;
+  late List<_MarketplaceScheduleSlot> _slots;
+  late String _selectedKey;
   late DateTime _visibleMonth;
+
+  _MarketplaceScheduleSlot get _selected =>
+      _slots.firstWhere((slot) => slot.key == _selectedKey,
+          orElse: () => _slots.first);
 
   @override
   void initState() {
     super.initState();
+    _slots = List<_MarketplaceScheduleSlot>.of(widget.slots);
     _select(widget.initiallySelected);
   }
 
-  void _select(MarketplaceOfferMilestone milestone) {
-    _selected = milestone;
-    _visibleMonth = DateTime(milestone.date.year, milestone.date.month);
+  void _select(_MarketplaceScheduleSlot slot) {
+    _selectedKey = slot.key;
+    final focusDate = slot.date ??
+        _slots.where((item) => item.date != null).firstOrNull?.date ??
+        DateTime.now();
+    _visibleMonth = DateTime(focusDate.year, focusDate.month);
+  }
+
+  void _assignSelectedDate(DateTime date) {
+    final index = _slots.indexWhere((slot) => slot.key == _selectedKey);
+    if (index < 0) return;
+    final current = _slots[index];
+    final updated = _MarketplaceScheduleSlot(
+      key: current.key,
+      label: current.label,
+      shortLabel: current.shortLabel,
+      date: date,
+      icon: current.icon,
+      color: current.color,
+      description: current.description,
+    );
+    setState(() {
+      _slots[index] = updated;
+      _visibleMonth = DateTime(date.year, date.month);
+    });
+    widget.onDateChanged?.call(updated.key, date);
   }
 
   @override
@@ -530,19 +774,21 @@ class _MarketplaceOfferCalendarDialogState
                 Wrap(
                   spacing: 7,
                   runSpacing: 7,
-                  children: widget.milestones
-                      .map((milestone) => ChoiceChip(
-                            selected: identical(milestone, _selected),
+                  children: _slots
+                      .map((slot) => ChoiceChip(
+                            selected: slot.key == _selectedKey,
                             avatar: Icon(
-                              milestone.icon,
+                              slot.icon,
                               size: 17,
-                              color: milestone.color,
+                              color: slot.color,
                             ),
                             label: Text(
-                              '${milestone.shortLabel} ${_formatDate(milestone.date)}',
+                              slot.date == null
+                                  ? '${slot.shortLabel} • Select Date'
+                                  : '${slot.shortLabel} ${_formatDate(slot.date!)}',
                             ),
                             onSelected: (_) =>
-                                setState(() => _select(milestone)),
+                                setState(() => _select(slot)),
                           ))
                       .toList(),
                 ),
@@ -645,7 +891,9 @@ class _MarketplaceOfferCalendarDialogState
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              _formatLongDate(_selected.date),
+                              _selected.date == null
+                                  ? 'Select Date'
+                                  : _formatLongDate(_selected.date!),
                               style:
                                   const TextStyle(fontWeight: FontWeight.w800),
                             ),
@@ -685,10 +933,11 @@ class _MarketplaceOfferCalendarDialogState
       final day = index - leading + 1;
       if (day < 1 || day > days) return const SizedBox.shrink();
       final date = DateTime(_visibleMonth.year, _visibleMonth.month, day);
-      final events = widget.milestones
-          .where((milestone) => _sameDay(milestone.date, date))
+      final events = _slots
+          .where((slot) => slot.date != null && _sameDay(slot.date!, date))
           .toList();
-      final selected = _sameDay(_selected.date, date);
+      final selected =
+          _selected.date != null && _sameDay(_selected.date!, date);
       return Padding(
         padding: const EdgeInsets.all(2),
         child: Material(
@@ -709,9 +958,13 @@ class _MarketplaceOfferCalendarDialogState
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
-            onTap: events.isEmpty
-                ? null
-                : () => setState(() => _select(events.first)),
+            onTap: () {
+              if (_selected.date == null || events.isEmpty) {
+                _assignSelectedDate(date);
+              } else {
+                setState(() => _select(events.first));
+              }
+            },
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
               child: Column(
