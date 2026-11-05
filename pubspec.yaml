@@ -41,11 +41,6 @@ dependencies:
   cloud_firestore: 6.7.1
   cloud_functions: 6.3.5
   collection: 1.19.1
-  dropdown_button2: 
-    git:
-      url: https://github.com/FlutterFlow/dropdown_button2.git
-      ref: 514178337dfbea442f617daed39c704b57593fc9
-      path: packages/dropdown_button2
   easy_debounce: 2.0.1
   equatable: 2.0.7
   expandable: 5.0.1
@@ -216,6 +211,20 @@ flutter:
     - assets/pdfs/
     - assets/jsons/
     - assets/data/
+
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/PlusJakartaSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/PlusJakartaSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/PlusJakartaSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/PlusJakartaSans-ExtraBold.ttf
+          weight: 800
 
 
 

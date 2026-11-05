@@ -233,15 +233,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
-  dropdown_button2:
-    dependency: "direct main"
-    description:
-      path: "packages/dropdown_button2"
-      ref: "514178337dfbea442f617daed39c704b57593fc9"
-      resolved-ref: "514178337dfbea442f617daed39c704b57593fc9"
-      url: "https://github.com/FlutterFlow/dropdown_button2.git"
-    source: git
-    version: "2.3.9"
   easy_debounce:
     dependency: "direct main"
     description:

@@ -13,7 +13,6 @@ import '../core/accessibility/pipe_accessibility_theme.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
-import '../core/design/pipe_buyer_commerce_components.dart';
 import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import '../core/diagnostics/app_diagnostics.dart';
@@ -2288,35 +2287,6 @@ class _HomePage extends StatelessWidget {
                 onAuctions: onAuctions,
                 onDispatch: onDispatch,
               ),
-              const Gap(16),
-              const PipeBuyerTrustBand(
-                items: [
-                  PipeBuyerTrustItemData(
-                    icon: LucideIcons.shieldCheck,
-                    title: 'Verified Businesses',
-                    subtitle:
-                        'Identity and marketplace readiness are clearly surfaced.',
-                  ),
-                  PipeBuyerTrustItemData(
-                    icon: LucideIcons.messageSquareLock,
-                    title: 'Protected Messaging',
-                    subtitle:
-                        'Keep negotiations and listing context inside the app.',
-                  ),
-                  PipeBuyerTrustItemData(
-                    icon: LucideIcons.fileCheck2,
-                    title: 'Auditable Offers',
-                    subtitle:
-                        'Offer activity stays tied to the correct listing and account.',
-                  ),
-                  PipeBuyerTrustItemData(
-                    icon: LucideIcons.truck,
-                    title: 'Dispatch Ready',
-                    subtitle:
-                        'Move from equipment discovery into trucking coordination.',
-                  ),
-                ],
-              ),
               const Gap(24),
               const PipeBuyerSiteFooter(
                 currentSurface: PipeBuyerFooterSurface.home,
@@ -3497,40 +3467,15 @@ class _BrowsePageState extends State<_BrowsePage> {
       draft = draft.copyWith(clearCondition: true);
     }
 
-    final result = await showModalBottomSheet<MarketplaceBrowseFilters>(
+    final result = await PipeBuyerAdaptiveModal.show<MarketplaceBrowseFilters>(
         context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
+        title: 'Filter Marketplace',
+        subtitle: 'Filters search the complete live inventory',
         builder: (sheetContext) => StatefulBuilder(
-            builder: (context, setSheetState) => Padding(
-                padding: EdgeInsets.fromLTRB(
-                    20, 18, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
-                child: SingleChildScrollView(
-                    child: Column(
+            builder: (context, setSheetState) => Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                      Row(children: [
-                        const Icon(Icons.tune_rounded, color: _orange),
-                        const SizedBox(width: 10),
-                        const Expanded(
-                            child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                              Text('Filter Marketplace',
-                                  style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w900)),
-                              Text('Filters search the complete live inventory',
-                                  style:
-                                      TextStyle(color: _muted, fontSize: 12)),
-                            ])),
-                        IconButton(
-                            tooltip: 'Close',
-                            onPressed: () => Navigator.pop(sheetContext),
-                            icon: const Icon(Icons.close))
-                      ]),
-                      const SizedBox(height: 18),
                       DropdownButtonFormField<String>(
                           initialValue: draft.transactionType ?? '__all__',
                           decoration: const InputDecoration(
@@ -3694,7 +3639,7 @@ class _BrowsePageState extends State<_BrowsePage> {
                                 icon: const Icon(Icons.check),
                                 label: const Text('Apply filters')))
                       ])
-                    ])))));
+                    ])));
     minimumController.dispose();
     maximumController.dispose();
     if (result != null && mounted) _applyFilters(result);
@@ -3868,6 +3813,9 @@ class _ListingCard extends StatelessWidget {
           fallbackIcon: listing.icon,
           borderRadius: 0,
         );
+    final cardPhotos = marketplaceListingImageUrls(listing.details)
+        .take(6)
+        .toList(growable: false);
     final presentation = MarketplaceListingPresentation.fromMap({
       'sellerUid': listing.sellerUid,
       'createdAt': listing.createdAt,
@@ -3924,13 +3872,18 @@ class _ListingCard extends StatelessWidget {
                     aspectRatio: isGrid ? 1.34 : 2.1,
                     child: listing.imageUrl == null
                         ? fallbackArtwork()
-                        : PipeBuyerCachedImage(
-                            imageUrl: listing.imageUrl,
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                            fallback: fallbackArtwork(),
-                          ),
+                        : (cardPhotos.length > 1
+                            ? PipeBuyerPhotoPager(
+                                urls: cardPhotos,
+                                fallback: fallbackArtwork(),
+                              )
+                            : PipeBuyerCachedImage(
+                                imageUrl: listing.imageUrl,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                fallback: fallbackArtwork(),
+                              )),
                   ),
                   // Gradient Overlay for readability
                   Positioned.fill(
@@ -6673,7 +6626,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                                             ? 'Mill or manufacturer (optional)'
                                             : 'Brand or manufacturer',
                                         hintText: isPipe
-                                            ? 'Tenaris, Evraz, Algoma, Vallourec'
+                                            ? 'Mill or manufacturer name'
                                             : null,
                                         prefixIcon: const Icon(
                                           Icons.factory_outlined,
@@ -6914,7 +6867,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
                                         labelText:
                                             'Enter thread or connection *',
                                         hintText:
-                                            'Example: VAM Top, Tenaris Blue, Hydril CS',
+                                            'Example: premium or API thread connection',
                                         prefixIcon: Icon(
                                           Icons.edit_outlined,
                                           size: 20,
@@ -8665,7 +8618,7 @@ class _AddListingPageState extends State<_AddListingPage> {
                 controller: _titleController,
                 decoration: const InputDecoration(
                     labelText: 'Listing title',
-                    hintText: 'e.g. CAT 320 Hydraulic Excavator'),
+                    hintText: 'e.g. 2022 Hydraulic Excavator'),
                 validator: (value) => value == null || value.trim().isEmpty
                     ? 'Enter a title'
                     : null),

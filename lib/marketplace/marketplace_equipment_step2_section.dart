@@ -834,8 +834,8 @@ class _MarketplaceEquipmentStep2SectionState
       decoration: InputDecoration(
         labelText: 'Search make, model or year',
         hintText: isTransport
-            ? 'e.g. 2020 Peterbilt 389, Kenworth T880...'
-            : 'e.g. 2022 Case SV340B, Bobcat T76, Cat 320D...',
+            ? 'Type a year, make or model of the truck or trailer...'
+            : 'Type a year, make or model of the equipment...',
         prefixIcon: const Icon(Icons.search_rounded, size: 20),
         suffixIcon: _quickSearchQuery.isEmpty
             ? null
@@ -866,7 +866,7 @@ class _MarketplaceEquipmentStep2SectionState
           : 'Showing ${widget.category ?? 'category'} manufacturers (${categoryManufacturers.length}) — Tap to show all ${allManufacturers.length}',
       prefixIcon: Icons.factory_outlined,
       searchHintText:
-          'Search manufacturer or alias (e.g. CAT, Deere, Case, Peterbilt)...',
+          'Search manufacturer or alias...',
       emptyStateText:
           'No manufacturer matched — select "$kManualCatalogOptionValue" below.',
       onChanged: _handleBrandSelected,
@@ -1209,7 +1209,7 @@ class _MarketplaceEquipmentStep2SectionState
                       const SizedBox(width: 5),
                       Expanded(
                         child: Text(
-                          'Attempt auto-fill with VIN # or equipment PIN: Enter a 17-char truck/trailer VIN (US DOT NHTSA) or heavy-equipment PIN (Caterpillar, Deere, Bobcat, Case, Komatsu, JCB, Kubota, Volvo CE) — or quick-search 50+ years.',
+                          'Attempt auto-fill with VIN # or equipment PIN: Enter a 17-char truck/trailer VIN (US DOT NHTSA) or heavy-equipment PIN — or quick-search 50+ years.',
                           style: TextStyle(
                             fontSize: 11,
                             height: 1.25,
