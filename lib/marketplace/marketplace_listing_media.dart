@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_vip_access.dart';
@@ -186,50 +187,11 @@ class _RemoteListingPhoto extends StatelessWidget {
   final BoxFit fit;
 
   @override
-  Widget build(BuildContext context) => Image.network(
-        url,
+  Widget build(BuildContext context) => PipeBuyerCachedImage(
+        imageUrl: url,
         fit: fit,
         filterQuality: FilterQuality.high,
-        gaplessPlayback: true,
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded) return child;
-          return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 240),
-            switchInCurve: Curves.easeOut,
-            child: frame != null
-                ? KeyedSubtree(key: const ValueKey('photo'), child: child)
-                : Stack(
-                    key: const ValueKey('loading'),
-                    fit: StackFit.expand,
-                    children: [
-                      _IndustrialFallback(
-                        label: fallbackLabel,
-                        title: title,
-                        category: category,
-                      ),
-                      const Center(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Color(0xD9111820),
-                            shape: BoxShape.circle,
-                          ),
-                          child: SizedBox.square(
-                            dimension: 44,
-                            child: Padding(
-                              padding: EdgeInsets.all(10),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: PipeBuyerColors.orange,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-          );
-        },
-        errorBuilder: (_, __, ___) => _IndustrialFallback(
+        fallback: _IndustrialFallback(
           label: fallbackLabel,
           title: title,
           category: category,

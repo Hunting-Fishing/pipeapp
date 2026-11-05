@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
+import '../core/design/pipe_buyer_modern_cards.dart';
 import 'industrial_icon_assets.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_command_client.dart';
@@ -1308,12 +1309,11 @@ class _ModerationCaseQueue extends StatelessWidget {
                                       child: photoUrl.isEmpty
                                           ? const Icon(Icons
                                               .image_not_supported_outlined)
-                                          : Image.network(
-                                              photoUrl,
+                                          : PipeBuyerCachedImage(
+                                              imageUrl: photoUrl,
                                               fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) =>
-                                                  const Icon(Icons
-                                                      .broken_image_outlined),
+                                              fallback: const Icon(Icons
+                                                  .broken_image_outlined),
                                             ),
                                     ),
                                     Padding(
@@ -1344,17 +1344,16 @@ class _ModerationCaseQueue extends StatelessWidget {
                             children: attachments
                                 .map((item) => ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      '${item['url']}',
+                                    child: PipeBuyerCachedImage(
+                                      imageUrl: '${item['url']}',
                                       width: 150,
                                       height: 110,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) =>
-                                          const SizedBox(
-                                              width: 150,
-                                              height: 110,
-                                              child: Icon(
-                                                  Icons.broken_image_outlined)),
+                                      fallback: const SizedBox(
+                                          width: 150,
+                                          height: 110,
+                                          child: Icon(
+                                              Icons.broken_image_outlined)),
                                     )))
                                 .toList())
                       ],

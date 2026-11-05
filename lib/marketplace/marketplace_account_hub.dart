@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
+import '../core/design/pipe_buyer_modern_cards.dart';
 
 import 'marketplace_messages_page.dart';
 import 'marketplace_auth_action_page.dart';
@@ -870,9 +871,10 @@ class _MyListingsState extends State<_MyListings> {
                               ? const Icon(Icons.inventory_2_outlined)
                               : ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(thumbnail,
+                                  child: PipeBuyerCachedImage(
+                                      imageUrl: thumbnail,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Icon(
+                                      fallback: const Icon(
                                           Icons.inventory_2_outlined))),
                           Positioned(
                               right: 1,
@@ -1136,8 +1138,14 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
           if (thumbnail != null)
             ClipRRect(
                 borderRadius: BorderRadius.circular(14),
-                child:
-                    Image.network(thumbnail, height: 210, fit: BoxFit.cover)),
+                child: PipeBuyerCachedImage(
+                    imageUrl: thumbnail,
+                    height: 210,
+                    fit: BoxFit.cover,
+                    fallback: const SizedBox(
+                        height: 210,
+                        child: Center(
+                            child: Icon(Icons.inventory_2_outlined, size: 42))))),
           const SizedBox(height: 14),
           Row(children: [
             Chip(

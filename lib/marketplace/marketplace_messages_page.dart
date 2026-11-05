@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/config/phase1_feature_flags.dart';
 import '../core/data/bounded_firestore_query.dart';
+import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_reporting.dart';
 
@@ -2713,11 +2714,19 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                                     'image')
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
-                                child: Image.network(
-                                  '${(message['attachment'] as Map)['url']}',
+                                child: PipeBuyerCachedImage(
+                                  imageUrl:
+                                      '${(message['attachment'] as Map)['url']}',
                                   width: 220,
                                   height: 160,
                                   fit: BoxFit.cover,
+                                  fallback: const SizedBox(
+                                    width: 220,
+                                    height: 160,
+                                    child: Center(
+                                      child: Icon(Icons.broken_image_outlined),
+                                    ),
+                                  ),
                                 ),
                               ),
                             if (hiddenByModeration)
