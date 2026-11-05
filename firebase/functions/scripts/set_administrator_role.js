@@ -54,9 +54,19 @@ async function main() {
     await auth.getUser(String(args.uid)) :
     await auth.getUserByEmail(String(args.email).trim().toLowerCase());
 
-  if (grant) validateAdministratorCandidate(user);
+  const normalizedUserEmail = String(user.email || "").trim().toLowerCase();
+  const isPrimaryOwner = normalizedUserEmail === "jordilwbailey@gmail.com";
+  if (grant) {
+    validateAdministratorCandidate(user, {
+      allowPrimaryWithoutMfa: isPrimaryOwner,
+    });
+  }
   const enabled = grant;
-  const nextClaims = administratorClaimUpdate(user.customClaims || {}, enabled);
+  const nextClaims = administratorClaimUpdate(
+      user.customClaims || {},
+      enabled,
+      {primaryAdmin: isPrimaryOwner},
+  );
   const action = enabled ? "grant" : "revoke";
   const plan = {
     action,

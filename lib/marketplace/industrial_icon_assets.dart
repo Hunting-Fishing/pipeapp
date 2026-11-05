@@ -719,7 +719,8 @@ abstract final class IndustrialIconAssets {
     if (_containsAny(label, ['access road entrance'])) {
       return accessRoadEntrance;
     }
-    if (_containsAny(label, ['industrial real estate'])) {
+    if (_containsAny(
+        label, ['industrial real estate', 'real estate & property'])) {
       return industrialRealEstate;
     }
     if (_containsAny(label, ['commercial property', 'business for sale'])) {
@@ -732,7 +733,8 @@ abstract final class IndustrialIconAssets {
       'oil & gas lease',
       'oil and gas lease',
       'mineral rights',
-      'surface rights'
+      'surface rights',
+      'lots & vacant land',
     ])) {
       return leaseLand;
     }

@@ -37,6 +37,7 @@ import 'marketplace_actions_repository.dart';
 import 'marketplace_payout_settings.dart';
 import 'marketplace_admin_dashboard.dart';
 import 'marketplace_about_page.dart';
+import 'marketplace_exp_realty.dart';
 
 class MarketplaceAccountHub extends StatefulWidget {
   const MarketplaceAccountHub(
@@ -3204,6 +3205,7 @@ class _AccountSettingsState extends State<_AccountSettings> {
         state: widget.adminState,
         onRefresh: widget.onRefreshAdmin,
       ),
+      const ExpRealtyAccountApplicationCard(),
       ListTile(
           leading: const Icon(Icons.lock_reset_outlined),
           title: const Text('Send password reset email'),

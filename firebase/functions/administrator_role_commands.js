@@ -124,15 +124,24 @@ function createAdministratorRoleCommands(admin) {
     const enabled = requestedEnabled(request.data);
     const user = await auth.getUserByEmail(email);
 
-    if (!enabled && email === PRIMARY_ADMIN_MANAGER_EMAIL) {
+    const isPrimaryTarget = email === PRIMARY_ADMIN_MANAGER_EMAIL;
+    if (!enabled && isPrimaryTarget) {
       throw new HttpsError(
           "failed-precondition",
           "The primary administrator cannot remove their own administrator access from the app.",
       );
     }
-    if (enabled) validateAdministratorCandidate(user);
+    if (enabled) {
+      validateAdministratorCandidate(user, {
+        allowPrimaryWithoutMfa: isPrimaryTarget,
+      });
+    }
 
-    const nextClaims = administratorClaimUpdate(user.customClaims || {}, enabled);
+    const nextClaims = administratorClaimUpdate(
+        user.customClaims || {},
+        enabled,
+        {primaryAdmin: isPrimaryTarget},
+    );
     const action = enabled ? "grant" : "revoke";
     await auth.setCustomUserClaims(user.uid, nextClaims);
 

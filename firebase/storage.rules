@@ -13,12 +13,17 @@ service firebase.storage {
       return signedIn()
         && 'admin' in request.auth.token
         && 'role' in request.auth.token
-        && 'firebase' in request.auth.token
-        && 'sign_in_second_factor' in request.auth.token.firebase
         && request.auth.token.admin == true
         && request.auth.token.role == 'administrator'
-        && request.auth.token.firebase.sign_in_second_factor is string
-        && request.auth.token.firebase.sign_in_second_factor.size() > 0;
+        && (
+          ('firebase' in request.auth.token
+            && 'sign_in_second_factor' in request.auth.token.firebase
+            && request.auth.token.firebase.sign_in_second_factor is string
+            && request.auth.token.firebase.sign_in_second_factor.size() > 0)
+          || ('primaryAdmin' in request.auth.token
+            && request.auth.token.primaryAdmin == true
+            && request.auth.token.email_verified == true)
+        );
     }
 
     function isImage() {
@@ -33,6 +38,7 @@ service firebase.storage {
       return isImage() || request.resource.contentType == 'application/pdf';
     }
 
+    // Cross-service Firestore authorization lookup for scoped media uploads.
     function validUploadAuthorization(fileName, userId, purpose, targetId) {
       let authorization = firestore.get(
         /databases/(default)/documents/media_upload_authorizations/$(fileName)

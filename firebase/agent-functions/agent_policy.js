@@ -60,9 +60,12 @@ function requireAdministratorContext(context) {
   }
   const token = context.auth.token || {};
   const firebase = token.firebase || {};
+  const hasSecondFactor = typeof firebase.sign_in_second_factor === "string" &&
+    firebase.sign_in_second_factor.trim() !== "";
+  const hasPrimaryAdminClaim = token.primaryAdmin === true &&
+    token.email_verified === true;
   if (token.admin !== true || token.role !== "administrator" ||
-      typeof firebase.sign_in_second_factor !== "string" ||
-      firebase.sign_in_second_factor.trim() === "") {
+      (!hasSecondFactor && !hasPrimaryAdminClaim)) {
     throw new AgentPolicyError(
         "permission-denied",
         "Administrator access requires an approved role and MFA session.",

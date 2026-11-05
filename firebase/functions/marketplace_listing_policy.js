@@ -47,6 +47,12 @@ const publicListingFields = new Set([
   "annualPropertyTax",
   "leaseDetails",
   "propertyFeatures",
+  "listingRepresentation",
+  "brokerageEntityId",
+  "brokerageName",
+  "agentLicenseNumber",
+  "agentJurisdiction",
+  "mlsNumber",
   "transactionType",
   "wantedStatus",
   "responseCount",
@@ -143,6 +149,10 @@ function buildMarketplaceSearchTokens(listing) {
   const tokens = new Set();
   const addPhrase = (value) => {
     if (tokens.size >= maximumSearchTokens) return;
+    if (Array.isArray(value)) {
+      for (const item of value) addPhrase(item);
+      return;
+    }
     const words = normalizeMarketplaceSearchText(value, 80)
         .split(" ")
         .filter(Boolean);
@@ -171,6 +181,13 @@ function buildMarketplaceSearchTokens(listing) {
     "pipeGrade",
     "pipeConnection",
     "pipeLengthRange",
+    "propertyOffering",
+    "propertyInterest",
+    "zoningOrUse",
+    "leaseDetails",
+    "propertyFeatures",
+    "brokerageName",
+    "mlsNumber",
     "condition",
     "publicLocationName",
     "nearestTown",
@@ -271,8 +288,11 @@ function validateLocation(value) {
 }
 
 function regulatedListingsEnabled() {
-  return String(process.env.PIPE_REGULATED_LISTINGS_ENABLED || "")
-      .toLowerCase() === "true";
+  const raw = String(process.env.PIPE_REGULATED_LISTINGS_ENABLED || "")
+      .trim()
+      .toLowerCase();
+  if (!raw) return true;
+  return raw === "true";
 }
 
 function validateMarketplaceListingInput(

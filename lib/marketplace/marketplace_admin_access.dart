@@ -18,6 +18,12 @@ MarketplaceAdministratorState marketplaceAdministratorClaimsState(
     return MarketplaceAdministratorState.roleMissing;
   }
 
+  final hasPrimaryAdminClaim =
+      values['primaryAdmin'] == true && values['email_verified'] == true;
+  if (hasPrimaryAdminClaim) {
+    return MarketplaceAdministratorState.authorized;
+  }
+
   final firebase = values['firebase'];
   final secondFactor = firebase is Map
       ? firebase['sign_in_second_factor']?.toString().trim()

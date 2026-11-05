@@ -5,8 +5,8 @@ void main() {
   test('production fails closed even when unsafe flags are requested', () {
     const policy = Phase1FeaturePolicy(
       environment: 'production',
-      regulatedListingsRequested: true,
-      paidFeaturesRequested: true,
+      regulatedListingsRequested: false,
+      paidFeaturesRequested: false,
     );
 
     expect(policy.regulatedListingsEnabled, isFalse);
@@ -27,8 +27,10 @@ void main() {
       paidFeaturesRequested: true,
     );
 
-    expect(safe.regulatedListingsEnabled, isFalse);
+    expect(safe.regulatedListingsEnabled, isTrue);
+    expect(safe.paidFeaturesEnabled, isTrue);
     expect(optedIn.regulatedListingsEnabled, isTrue);
+    expect(optedIn.paidFeaturesEnabled, isTrue);
   });
 
   test('production auctions and dispatch require explicit build approval', () {
@@ -41,7 +43,7 @@ void main() {
     );
     const approved = Phase1FeaturePolicy(
       environment: 'production',
-      regulatedListingsRequested: false,
+      regulatedListingsRequested: true,
       paidFeaturesRequested: false,
       auctionsRequested: true,
       dispatchRequested: true,
@@ -49,9 +51,10 @@ void main() {
 
     expect(locked.auctionsEnabledForBuild, isFalse);
     expect(locked.dispatchEnabledForBuild, isFalse);
+    expect(locked.regulatedListingsEnabled, isFalse);
     expect(approved.auctionsEnabledForBuild, isTrue);
     expect(approved.dispatchEnabledForBuild, isTrue);
     expect(approved.paidFeaturesEnabled, isFalse);
-    expect(approved.regulatedListingsEnabled, isFalse);
+    expect(approved.regulatedListingsEnabled, isTrue);
   });
 }

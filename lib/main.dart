@@ -18,6 +18,7 @@ import 'core/design/pipe_buyer_theme.dart';
 import 'core/diagnostics/app_diagnostics.dart';
 import 'core/startup/pipe_startup_monitor.dart';
 import 'marketplace/marketplace_notification_service.dart';
+import 'marketplace/web_camera_picker.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'flutter_flow/internationalization.dart';
@@ -94,6 +95,7 @@ Future<FFAppState> _initializePipeBuyer(
       );
   GoRouter.optionURLReflectsImperativeAPIs = true;
   usePathUrlStrategy();
+  installWebCameraPicker();
 
   await initFirebase(
     onCoreInitialized: AppDiagnostics.initializeRemoteReporting,

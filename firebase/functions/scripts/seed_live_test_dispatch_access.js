@@ -31,6 +31,7 @@ async function main() {
       offers: true,
       auctions: true,
       dispatch: true,
+      regulatedListings: true,
       updatedAt: now,
       source: "live_test_dispatch_access",
     }, {merge: true}),

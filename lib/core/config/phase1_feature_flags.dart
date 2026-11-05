@@ -21,7 +21,7 @@ class Phase1FeatureFlags {
     auctions: true,
     dispatch: true,
     paidFeatures: false,
-    regulatedListings: false,
+    regulatedListings: true,
     revision: 0,
   );
 
@@ -67,11 +67,12 @@ class Phase1FeatureFlags {
             safeDefaults.paidFeatures,
           ) &&
           buildPolicy.paidFeaturesEnabled,
-      regulatedListings: remoteValue(
-            'regulatedListings',
-            safeDefaults.regulatedListings,
-          ) &&
-          buildPolicy.regulatedListingsEnabled,
+      regulatedListings: localIntegration ||
+          (remoteValue(
+                'regulatedListings',
+                safeDefaults.regulatedListings,
+              ) &&
+              buildPolicy.regulatedListingsEnabled),
       revision: ((data?['revision'] as num?)?.toInt() ?? 0).clamp(0, 1 << 31),
     );
   }
