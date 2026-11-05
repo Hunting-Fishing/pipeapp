@@ -212,6 +212,127 @@ class PipeBuyerCachedImage extends StatelessWidget {
   }
 }
 
+/// Swipeable multi-photo preview for listing cards: touch swipe on mobile,
+/// hover arrows on desktop, and animated dots. Only real listing photos are shown.
+class PipeBuyerPhotoPager extends StatefulWidget {
+  const PipeBuyerPhotoPager({
+    super.key,
+    required this.urls,
+    required this.fallback,
+  });
+
+  final List<String> urls;
+  final Widget fallback;
+
+  @override
+  State<PipeBuyerPhotoPager> createState() => _PipeBuyerPhotoPagerState();
+}
+
+class _PipeBuyerPhotoPagerState extends State<PipeBuyerPhotoPager> {
+  final PageController _controller = PageController();
+  bool _hovered = false;
+  int _index = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _go(int delta) {
+    final next = (_index + delta).clamp(0, widget.urls.length - 1);
+    if (next == _index) return;
+    _controller.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Widget _arrow(IconData icon, String tooltip, VoidCallback onTap) {
+    return Material(
+      color: const Color(0xCCFFFFFF),
+      shape: const CircleBorder(),
+      elevation: 1,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Tooltip(
+          message: tooltip,
+          child: Padding(
+            padding: const EdgeInsets.all(5),
+            child: Icon(icon, size: 16, color: PipeBuyerColors.ink),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = widget.urls.length;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          PageView.builder(
+            controller: _controller,
+            itemCount: count,
+            onPageChanged: (i) => setState(() => _index = i),
+            itemBuilder: (context, i) => PipeBuyerCachedImage(
+              imageUrl: widget.urls[i],
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              fallback: widget.fallback,
+            ),
+          ),
+          if (_hovered && _index > 0)
+            Positioned(
+              left: 8,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: _arrow(LucideIcons.chevronLeft, 'Previous photo', () => _go(-1)),
+              ),
+            ),
+          if (_hovered && _index < count - 1)
+            Positioned(
+              right: 8,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: _arrow(LucideIcons.chevronRight, 'Next photo', () => _go(1)),
+              ),
+            ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 8,
+            child: IgnorePointer(
+              child: Center(
+                child: SmoothPageIndicator(
+                  controller: _controller,
+                  count: count,
+                  effect: const WormEffect(
+                    dotHeight: 6,
+                    dotWidth: 6,
+                    spacing: 5,
+                    activeDotColor: PipeBuyerColors.orange,
+                    dotColor: Colors.white70,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Compact technical spec pill strip (`4-1/2" OD`, `E-75`, `4,380 hrs`, etc.)
 /// formatted with tabular numerals for rapid B2B spec scanning.
 class PipeBuyerSpecPillStrip extends StatelessWidget {

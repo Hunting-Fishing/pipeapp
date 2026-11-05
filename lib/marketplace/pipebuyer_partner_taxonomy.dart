@@ -219,7 +219,7 @@ abstract final class PipeBuyerPartnerTaxonomy {
       description:
           'Position your brand directly in front of oilfield buyers, fleet managers, contractors, and procurement teams.',
       examples: [
-        'OEM commercial vehicle & crew truck spotlights (e.g., Ford Super Duty / Chassis Cab)',
+        'OEM commercial vehicle & crew truck spotlights (e.g., chassis cab & fleet programs)',
         'Dedicated brand showcase profile & regional dealer routing',
         'Co-branded basin & seasonal fleet readiness campaigns',
       ],

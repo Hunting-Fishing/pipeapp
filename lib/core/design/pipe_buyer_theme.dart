@@ -39,9 +39,10 @@ abstract final class PipeBuyerColors {
 /// 2026 industrial typography tokens with tabular numeral alignment for prices,
 /// pipe ODs, tonnage, operating hours, and live Timed Buying countdowns.
 abstract final class PipeBuyerTypography {
+  /// Bundled in `assets/fonts` and declared in `pubspec.yaml` (weights 400-800).
+  static const String uiFontFamily = 'PlusJakartaSans';
+
   static const List<String> uiFontFallback = <String>[
-    'Plus Jakarta Sans',
-    'Inter',
     'Poppins',
     'Segoe UI',
     'Roboto',
@@ -68,6 +69,7 @@ abstract final class PipeBuyerTypography {
         fontWeight: fontWeight,
         height: height,
         letterSpacing: -0.35,
+        fontFamily: uiFontFamily,
         fontFamilyFallback: uiFontFallback,
         fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
       );
@@ -83,6 +85,7 @@ abstract final class PipeBuyerTypography {
         fontWeight: fontWeight,
         height: 1.2,
         letterSpacing: -0.1,
+        fontFamily: uiFontFamily,
         fontFamilyFallback: uiFontFallback,
         fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
       );
@@ -127,6 +130,7 @@ abstract final class PipeBuyerTheme {
     final base = ThemeData(
       brightness: brightness,
       useMaterial3: true,
+      fontFamily: PipeBuyerTypography.uiFontFamily,
       fontFamilyFallback: PipeBuyerTypography.uiFontFallback,
       colorScheme: scheme,
       primaryColor: PipeBuyerColors.orange,
