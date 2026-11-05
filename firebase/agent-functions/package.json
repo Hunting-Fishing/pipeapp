@@ -7,7 +7,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "check": "node --check index.js && node --check agent_policy.js && npm test",
+    "check": "node --check index.js && node --check agent_policy.js && node --check exp_realty_integrations.js && npm test",
     "lint": "eslint --max-warnings=0 .",
     "test": "node --test test/*.test.js"
   },

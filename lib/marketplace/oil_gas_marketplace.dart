@@ -4708,13 +4708,15 @@ class _ListingDetailsState extends State<_ListingDetails> {
                       visualDensity: VisualDensity.compact))
                   .toList()),
         ],
-        if (listing.category == 'Site & Property')
+        if (listing.category == 'Site & Property') ...[
+          CreaDdfComplianceAttributionNotice(details: details),
           ExpRealtyLeadInquiryCard(
             listingId: listing.id,
             listingTitle: listing.title,
             locationLabel: listing.location,
             sellerUid: listing.sellerUid,
           ),
+        ],
       ]),
     );
   }
