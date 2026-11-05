@@ -169,6 +169,7 @@ class PipeBuyerCachedImage extends StatelessWidget {
     this.fit = BoxFit.cover,
     this.width,
     this.height,
+    this.filterQuality = FilterQuality.medium,
   });
 
   final String? imageUrl;
@@ -176,6 +177,7 @@ class PipeBuyerCachedImage extends StatelessWidget {
   final BoxFit fit;
   final double? width;
   final double? height;
+  final FilterQuality filterQuality;
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +192,7 @@ class PipeBuyerCachedImage extends StatelessWidget {
       width: width,
       height: height,
       fit: fit,
-      filterQuality: FilterQuality.medium,
+      filterQuality: filterQuality,
       fadeInDuration: const Duration(milliseconds: 160),
       placeholder: (context, _) => Container(
         width: width,

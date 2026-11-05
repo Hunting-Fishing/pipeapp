@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
+import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_profile_repository.dart';
 import 'marketplace_profile_community.dart';
@@ -614,14 +615,14 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                   style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
                 ),
               )
-            : Image.network(
-                _photoUrl,
+            : PipeBuyerCachedImage(
                 key: ValueKey(_photoUrl),
+                imageUrl: _photoUrl,
                 width: 74,
                 height: 74,
                 fit: BoxFit.cover,
                 filterQuality: FilterQuality.high,
-                errorBuilder: (_, __, ___) => Center(
+                fallback: Center(
                   child: Text(name.isEmpty ? '?' : name[0].toUpperCase()),
                 ),
               );
@@ -1102,9 +1103,10 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
                         borderRadius: BorderRadius.circular(18),
                         child: _avatarBytes != null
                             ? Image.memory(_avatarBytes!, fit: BoxFit.contain)
-                            : Image.network(_photoUrl,
+                            : PipeBuyerCachedImage(
+                                imageUrl: _photoUrl,
                                 fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => const Material(
+                                fallback: const Material(
                                     child: Padding(
                                         padding: EdgeInsets.all(28),
                                         child: Text(

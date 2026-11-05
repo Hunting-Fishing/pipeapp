@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/data/bounded_firestore_query.dart';
 import '../core/design/pipe_buyer_components.dart';
+import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/design/pipe_buyer_theme.dart';
 
 import 'marketplace_actions_repository.dart';
@@ -813,10 +814,10 @@ class _ListingCard extends StatelessWidget {
                       color: PipeBuyerColors.slate,
                     ),
                   )
-                : Image.network(
-                    thumbnail,
+                : PipeBuyerCachedImage(
+                    imageUrl: thumbnail,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    fallback: Container(
                       color: Theme.of(
                         context,
                       ).colorScheme.surfaceContainerHighest,
