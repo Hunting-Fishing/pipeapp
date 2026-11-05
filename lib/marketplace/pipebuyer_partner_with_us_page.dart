@@ -439,7 +439,7 @@ class _PipeBuyerPartnerWithUsPageState
             ),
             const SizedBox(height: 8),
             const Text(
-              'Tell us how your company wants to collaborate with Pipe Buyer—from OEM commercial crew truck showcases (such as Ford fleet & upfit programs) to direct product sales, category advertising, and oilfield member discounts.',
+              'Tell us how your company wants to collaborate with Pipe Buyer—from OEM commercial crew truck showcases (such as commercial fleet & upfit programs) to direct product sales, category advertising, and oilfield member discounts.',
               style: TextStyle(
                 color: PipeBuyerColors.slate,
                 fontSize: 13.5,
@@ -462,7 +462,7 @@ class _PipeBuyerPartnerWithUsPageState
                   decoration: const InputDecoration(
                     labelText: 'Company / Brand Name *',
                     hintText:
-                        'e.g., Ford Pro Commercial Fleet / Regional Dealer Group',
+                        'e.g., Commercial Fleet Division / Regional Dealer Group',
                     prefixIcon: Icon(Icons.business_outlined),
                   ),
                   validator: (value) {

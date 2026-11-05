@@ -400,7 +400,7 @@ class _PipeBuyerPartnerAdminPageState extends State<PipeBuyerPartnerAdminPage>
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'No custom database showcases published yet. Default curated showcases remain visible until you add or approve custom partner deals.',
+                'No partner showcases published in the database yet. Publish or approve a partner deal to display it live on the Partner With Us page.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
