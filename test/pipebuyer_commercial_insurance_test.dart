@@ -647,7 +647,10 @@ void main() {
       );
 
       // Navigate to My Applications tab via receipt button
-      await tester.tap(find.text('View My Rate Applications'));
+      final viewAppsBtn = find.text('View My Rate Applications');
+      await tester.ensureVisible(viewAppsBtn);
+      await tester.pumpAndSettle();
+      await tester.tap(viewAppsBtn);
       await tester.pumpAndSettle();
       expect(find.text('Redwater Tubular & Hauling LLC'), findsOneWidget);
       expect(tester.takeException(), isNull);

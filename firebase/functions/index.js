@@ -15,6 +15,9 @@ const { createAdminRuntime } = require("./admin_runtime");
 const {
   createAdministratorRoleCommands,
 } = require("./administrator_role_commands");
+const {
+  createAdminUserPermissionsCommands,
+} = require("./admin_user_permissions_commands");
 const { createAccountCommands } = require("./account_commands");
 const { createPublicTrustProjection } = require("./public_trust_projection");
 const {
@@ -65,6 +68,7 @@ const {
 const {
   createBusinessLogoUploadCommands,
 } = require("./business_logo_upload");
+const {createShopStoreCommands} = require("./shop_store_commands");
 const admin = createAdminRuntime();
 
 async function notifyActiveAdministrators(notification) {
@@ -110,6 +114,7 @@ async function createAutomatedReviewCase(reportId, report) {
 
 const accountCommands = createAccountCommands(admin);
 const administratorRoleCommands = createAdministratorRoleCommands(admin);
+const adminUserPermissionsCommands = createAdminUserPermissionsCommands(admin);
 const accountPrivacyCommands = createAccountPrivacyCommands(admin);
 const accountVerificationCommands = createAccountVerificationCommands(admin);
 const marketplaceUserBlockCommands = createMarketplaceUserBlockCommands(admin);
@@ -140,6 +145,9 @@ const insuranceMarketplaceCommands = createInsuranceMarketplaceCommands(admin, {
   notifyAdministrators: notifyActiveAdministrators,
 });
 const businessLogoUploadCommands = createBusinessLogoUploadCommands(admin);
+const shopStoreCommands = createShopStoreCommands(admin, {
+  notifyAdministrators: notifyActiveAdministrators,
+});
 exports.syncDispatchDirectoryFromPublicProfile = onDocumentWritten(
   {
     document: "public_business_profiles/{companyId}",
@@ -165,6 +173,14 @@ exports.listAdministratorRoles = onCall(
 exports.manageAdministratorRole = onCall(
   protectedCallableOptions,
   administratorRoleCommands.manageAdministratorRole,
+);
+exports.listAdminUsersAndPermissions = onCall(
+  protectedCallableOptions,
+  adminUserPermissionsCommands.listAdminUsersAndPermissions,
+);
+exports.updateAdminUserPermissions = onCall(
+  protectedCallableOptions,
+  adminUserPermissionsCommands.updateAdminUserPermissions,
 );
 exports.registerNotificationEndpoint = onCall(
   protectedCallableOptions,
@@ -1369,4 +1385,70 @@ exports.updateInsuranceRateApplicationStatus = onCall(
 exports.uploadBusinessLogo = onCall(
   protectedCallableOptions,
   businessLogoUploadCommands.uploadBusinessLogo,
+);
+
+// PipeBuyer Shopping Store — Amazon Affiliate, Brand Partners, Distributors & Vendor Portal
+exports.getShopSession = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.getShopSession,
+);
+exports.parseShopAffiliateLink = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.parseShopAffiliateLink,
+);
+exports.listShopStoreCatalog = onCall(
+  publicDirectoryReadOptions,
+  shopStoreCommands.listShopStoreCatalog,
+);
+exports.recordShopAffiliateClick = onCall(
+  publicDirectoryReadOptions,
+  shopStoreCommands.recordShopAffiliateClick,
+);
+exports.toggleSavedShopProduct = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.toggleSavedShopProduct,
+);
+exports.submitShopVendorApplication = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.submitShopVendorApplication,
+);
+exports.getShopAdminDashboard = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.getShopAdminDashboard,
+);
+exports.updateShopStoreSettings = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.updateShopStoreSettings,
+);
+exports.upsertShopProduct = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.upsertShopProduct,
+);
+exports.bulkUpsertShopProducts = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.bulkUpsertShopProducts,
+);
+exports.setShopProductVisibility = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.setShopProductVisibility,
+);
+exports.deleteShopProduct = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.deleteShopProduct,
+);
+exports.restoreStarterShopProducts = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.restoreStarterShopProducts,
+);
+exports.reviewShopVendorApplication = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.reviewShopVendorApplication,
+);
+exports.listShopStaff = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.listShopStaff,
+);
+exports.manageShopStaff = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.manageShopStaff,
 );

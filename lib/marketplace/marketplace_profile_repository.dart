@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'marketplace_account_role_switcher.dart';
 import 'marketplace_location.dart';
 import 'marketplace_profile_community.dart';
 import 'regional_phone_field.dart';
@@ -210,14 +211,40 @@ class MarketplaceProfileRepository {
           .data() ??
       {};
 
-  Future<void> saveBusiness(Map<String, dynamic> values) async {
+  Future<void> saveBusiness(
+    Map<String, dynamic> values, {
+    String businessProfileId = 'primary',
+  }) async {
     final uid = _uid;
+    final cleanProfileId =
+        businessProfileId.trim().isEmpty ? 'primary' : businessProfileId.trim();
     final publicRef =
         _firestore.collection('public_business_profiles').doc(uid);
     final privateRef = _firestore.collection('business_private').doc(uid);
     final userRef = _firestore.collection('users').doc(uid);
     await _firestore.runTransaction((transaction) async {
       final userSnapshot = await transaction.get(userRef);
+      final existingUser = userSnapshot.data() ?? const <String, dynamic>{};
+      final existingRoster = existingUser['businessProfiles'];
+      final nextRoster = existingRoster is Map
+          ? Map<String, dynamic>.from(existingRoster)
+          : <String, dynamic>{};
+      nextRoster[cleanProfileId] = <String, dynamic>{
+        'id': cleanProfileId,
+        'publicName': values['publicName'],
+        'legalName': values['legalName'],
+        'publicPhone': values['publicPhone'],
+        'publicEmail': values['publicEmail'],
+        'website': values['website'],
+        'serviceArea': values['serviceArea'],
+        'serviceAreaLabel': values['serviceAreaLabel'],
+        'serviceCountryCodes': values['serviceCountryCodes'],
+        'serviceRegionKeys': values['serviceRegionKeys'],
+        'servicePlaceKeys': values['servicePlaceKeys'],
+        'privateAddress': values['privateAddress'],
+        'yardLocation': values['yardLocation'],
+        'description': values['description'],
+      };
       transaction.set(
         publicRef,
         {
@@ -251,6 +278,8 @@ class MarketplaceProfileRepository {
       final userValues = <String, dynamic>{
         'uid': uid,
         'accountType': 'business',
+        'activeBusinessProfileId': cleanProfileId,
+        'businessProfiles': nextRoster,
         'businessName': values['publicName'],
         'displayName': values['publicName'],
         'display_name': values['publicName'],
@@ -261,6 +290,79 @@ class MarketplaceProfileRepository {
       };
       if (!userSnapshot.exists) {
         userValues.addAll({
+          'userScore': 70,
+          'accountVerified': false,
+        });
+      }
+      transaction.set(userRef, userValues, SetOptions(merge: true));
+    });
+  }
+
+  Future<void> activateBusinessProfile(
+    MarketplaceBusinessProfileEntry entry,
+  ) async {
+    final uid = _uid;
+    final cleanId = entry.id.trim().isEmpty ? 'primary' : entry.id.trim();
+    final userRef = _firestore.collection('users').doc(uid);
+    final publicRef =
+        _firestore.collection('public_business_profiles').doc(uid);
+    final privateRef = _firestore.collection('business_private').doc(uid);
+    await _firestore.runTransaction((transaction) async {
+      final userSnapshot = await transaction.get(userRef);
+      final existingUser = userSnapshot.data() ?? const <String, dynamic>{};
+      final existingRoster = existingUser['businessProfiles'];
+      final nextRoster = existingRoster is Map
+          ? Map<String, dynamic>.from(existingRoster)
+          : <String, dynamic>{};
+      nextRoster[cleanId] = entry.toMap();
+
+      if (entry.hasContent) {
+        transaction.set(
+          publicRef,
+          {
+            'publicName': entry.publicName,
+            'publicPhone': entry.publicPhone,
+            'publicEmail': entry.publicEmail,
+            'website': entry.website,
+            'serviceArea': entry.serviceArea,
+            'serviceAreaLabel': entry.serviceAreaLabel,
+            'serviceCountryCodes': entry.serviceCountryCodes,
+            'serviceRegionKeys': entry.serviceRegionKeys,
+            'servicePlaceKeys': entry.servicePlaceKeys,
+            'description': entry.description,
+            'ownerUid': uid,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+        transaction.set(
+          privateRef,
+          {
+            'legalName': entry.legalName,
+            'privateAddress': entry.privateAddress,
+            'yardLocation': entry.yardLocation,
+            'ownerUid': uid,
+            'memberUids': FieldValue.arrayUnion([uid]),
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      }
+
+      final userValues = <String, dynamic>{
+        'accountType': 'business',
+        'activeBusinessProfileId': cleanId,
+        'businessProfiles': nextRoster,
+        if (entry.publicName.trim().isNotEmpty)
+          'businessName': entry.publicName.trim(),
+        'profileComplete': entry.hasContent,
+        'roleVersion': 0,
+        'accountTypeChangedAt': FieldValue.serverTimestamp(),
+        'roleSyncRequestedAt': FieldValue.serverTimestamp(),
+      };
+      if (!userSnapshot.exists) {
+        userValues.addAll({
+          'uid': uid,
           'userScore': 70,
           'accountVerified': false,
         });

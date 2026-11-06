@@ -21,19 +21,49 @@ function verificationState(token = {}) {
   };
 }
 
+const USER_RESTRICTION_CODES = Object.freeze([
+  "restrict_store_products",
+  "restrict_marketplace_selling",
+  "restrict_messaging_offers",
+  "restrict_dispatch",
+]);
+
+function assertNotRestrictedFor(request, capabilityCode = "") {
+  const token = request && request.auth && request.auth.token || {};
+  if (token.restricted === true) {
+    throw new AccountSecurityError(
+        "permission-denied",
+        "This account is currently restricted by a Pipe Buyer Administrator.",
+    );
+  }
+  const code = String(capabilityCode || "").trim();
+  if (code && Array.isArray(token.restrictions) && token.restrictions.includes(code)) {
+    throw new AccountSecurityError(
+        "permission-denied",
+        "Your account has been restricted from performing this action by an Administrator.",
+    );
+  }
+}
+
 function requireAuthenticatedIdentity(
     request,
     {
       requireEmail = false,
       requirePhone = false,
       allowUnverified = false,
+      allowRestricted = false,
+      requiredCapability = "",
     } = {},
 ) {
   const uid = request && request.auth && request.auth.uid;
   if (!uid) {
     throw new AccountSecurityError("unauthenticated", "Sign in to continue.");
   }
-  const state = verificationState(request.auth.token || {});
+  const token = request.auth.token || {};
+  if (!allowRestricted) {
+    assertNotRestrictedFor(request, requiredCapability);
+  }
+  const state = verificationState(token);
   const hasEitherVerified = state.emailVerified === true ||
     state.phoneVerified === true;
   if (!allowUnverified && !hasEitherVerified) {
@@ -71,6 +101,8 @@ function phoneRegistryKey(phoneNumber) {
 
 module.exports = {
   AccountSecurityError,
+  USER_RESTRICTION_CODES,
+  assertNotRestrictedFor,
   phoneRegistryKey,
   requireAuthenticatedIdentity,
   verificationState,

@@ -31,6 +31,7 @@ function createAccountCommands(admin) {
         requireEmail: false,
         requirePhone: false,
         allowUnverified: true,
+        allowRestricted: true,
       });
       const userRef = db.collection("users").doc(identity.uid);
       const registryKey = identity.phoneVerified ?

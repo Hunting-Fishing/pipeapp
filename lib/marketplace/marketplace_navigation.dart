@@ -7,6 +7,9 @@ import 'pipebuyer_insurance_provider_apply_page.dart';
 import 'pipebuyer_list_services_page.dart';
 import 'pipebuyer_partner_admin_page.dart';
 import 'pipebuyer_partner_with_us_page.dart';
+import 'pipebuyer_shop_admin_page.dart';
+import 'pipebuyer_shop_store_page.dart';
+import 'pipebuyer_shop_vendor_apply_page.dart';
 import 'pipebuyer_yellow_pages_directory_page.dart';
 
 @immutable
@@ -152,6 +155,52 @@ class MarketplaceNavigation {
     return Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => const PipeBuyerInsuranceAdminPage(),
+      ),
+    );
+  }
+
+  /// Opens the Account section directly on the Admin Portal tab (index 7).
+  static void openAdminPortalTab(BuildContext context) =>
+      goToAccount(context, subTabIndex: 7);
+
+  static Future<void> openShopStore(
+    BuildContext context, {
+    String initialQuery = '',
+    String initialCategoryCode = '',
+    String initialBrand = '',
+    String initialSourceCode = '',
+  }) {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PipeBuyerShopStorePage(
+          initialQuery: initialQuery,
+          initialCategoryCode: initialCategoryCode,
+          initialBrand: initialBrand,
+          initialSourceCode: initialSourceCode,
+        ),
+      ),
+    );
+  }
+
+  static Future<bool?> openShopVendorApply(
+    BuildContext context, {
+    String initialTrack = 'industrial_distributor',
+    String initialBrand = '',
+  }) {
+    return Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => PipeBuyerShopVendorApplyPage(
+          initialTrack: initialTrack,
+          initialBrand: initialBrand,
+        ),
+      ),
+    );
+  }
+
+  static Future<void> openShopAdmin(BuildContext context) {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const PipeBuyerShopAdminPage(),
       ),
     );
   }

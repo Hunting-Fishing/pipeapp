@@ -5,6 +5,7 @@ const {
   AdministratorAuthorizationError,
   administratorClaimUpdate,
   enrolledFactorCount,
+  hasVerifiedFederatedProvider,
   requireAdministrator,
   validateAdministratorCandidate,
 } = require("./administrator_authorization");
@@ -76,7 +77,7 @@ function createAdministratorRoleCommands(admin) {
   const FieldValue = admin.firestore.FieldValue;
 
   const listAdministratorRoles = command(async (request) => {
-    requireAdministratorManager(request);
+    requireAdministrator(request);
     const snapshot = await db.collection("administrator_roles")
         .where("active", "==", true)
         .get();
@@ -134,13 +135,18 @@ function createAdministratorRoleCommands(admin) {
     if (enabled) {
       validateAdministratorCandidate(user, {
         allowPrimaryWithoutMfa: isPrimaryTarget,
+        allowVerifiedFederated: true,
       });
     }
 
+    const isFederated = hasVerifiedFederatedProvider(user);
     const nextClaims = administratorClaimUpdate(
         user.customClaims || {},
         enabled,
-        {primaryAdmin: isPrimaryTarget},
+        {
+          primaryAdmin: isPrimaryTarget,
+          federatedAdminApproved: isFederated,
+        },
     );
     const action = enabled ? "grant" : "revoke";
     await auth.setCustomUserClaims(user.uid, nextClaims);

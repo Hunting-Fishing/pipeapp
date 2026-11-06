@@ -10,6 +10,8 @@ import 'package:flutter/services.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_account_role_switcher.dart';
+import 'marketplace_navigation.dart';
 import 'marketplace_profile_repository.dart';
 import 'marketplace_profile_community.dart';
 import 'marketplace_primary_community_selector.dart';
@@ -88,6 +90,9 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
   String _preferredContact = 'In-app message';
   String _accountType = 'personal';
   String _accountEmail = '';
+  String _activeBusinessProfileId = 'primary';
+  List<MarketplaceBusinessProfileEntry> _businessProfiles = const [];
+  List<MarketplaceWebsiteRoleEntry> _websiteRoles = const [];
   MarketplaceServiceArea? _serviceAreaSelection;
   MarketplaceLocation? _primaryCommunityLocation;
   MarketplaceLocation? _businessYardLocation;
@@ -135,9 +140,15 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     Map<String, dynamic>? privateBusiness;
     _loadIssues.clear();
     try {
-      await user.getIdToken();
+      final tokenResult = await user.getIdTokenResult(true);
+      _websiteRoles = resolveWebsiteRolesFromClaims(tokenResult.claims);
     } catch (_) {
-      _loadIssues.add('Secure account session');
+      try {
+        final fallbackToken = await user.getIdTokenResult();
+        _websiteRoles = resolveWebsiteRolesFromClaims(fallbackToken.claims);
+      } catch (_) {
+        _loadIssues.add('Secure account session');
+      }
     }
     try {
       personal = await _repo.loadPersonal();
@@ -207,40 +218,11 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
         publicSeller?['photoUrl'] ??
         user.photoURL);
     if (avatarUrl.isNotEmpty) _photoUrl = avatarUrl;
-    if (publicBusiness != null) {
-      _businessName.text = '${publicBusiness['publicName'] ?? ''}';
-      _businessPhone.text = '${publicBusiness['publicPhone'] ?? ''}';
-      _businessEmail.text = '${publicBusiness['publicEmail'] ?? ''}';
-      _website.text = '${publicBusiness['website'] ?? ''}';
-      _businessBio.text = '${publicBusiness['description'] ?? ''}';
-    }
-    if (privateBusiness != null) {
-      _legalBusinessName.text = '${privateBusiness['legalName'] ?? ''}';
-      _businessAddress.text = '${privateBusiness['privateAddress'] ?? ''}';
-    }
-    final serviceArea = publicBusiness?['serviceArea'];
-    if (serviceArea is Map) {
-      try {
-        _serviceAreaSelection = MarketplaceServiceArea.fromMap(
-            Map<String, dynamic>.from(serviceArea));
-        _serviceArea.text = _serviceAreaSelection!.summary;
-      } catch (_) {
-        _serviceArea.text = '${publicBusiness?['serviceAreaLabel'] ?? ''}';
-        _loadIssues.add('Service-area map');
-      }
-    } else if (publicBusiness != null) {
-      _serviceArea.text =
-          '${publicBusiness['serviceAreaLabel'] ?? serviceArea ?? ''}';
-    }
-    final yardLocation = privateBusiness?['yardLocation'];
-    if (yardLocation is Map) {
-      try {
-        _businessYardLocation = MarketplaceLocation.fromPrivateData(
-            Map<String, dynamic>.from(yardLocation));
-      } catch (_) {
-        _loadIssues.add('Yard map pin');
-      }
-    }
+    _syncLoadedBusinessRoster(
+      personal: personal,
+      publicBusiness: publicBusiness,
+      privateBusiness: privateBusiness,
+    );
     if (_profileSourceLoaded) {
       _scheduleCompletionSync(immediate: true);
     }
@@ -256,6 +238,80 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
         if (mounted) setState(() => _avatarBytes = bytes);
       } catch (_) {
         if (mounted) setState(() => _avatarBytes = null);
+      }
+    }
+  }
+
+  void _syncLoadedBusinessRoster({
+    required Map<String, dynamic>? personal,
+    required Map<String, dynamic>? publicBusiness,
+    required Map<String, dynamic>? privateBusiness,
+  }) {
+    final byId = <String, MarketplaceBusinessProfileEntry>{};
+    final rawRoster = personal?['businessProfiles'];
+    if (rawRoster is Map) {
+      for (final item in rawRoster.entries) {
+        if (item.value is Map) {
+          final entry = MarketplaceBusinessProfileEntry.fromMap(
+            '${item.key}',
+            Map<String, dynamic>.from(item.value as Map),
+          );
+          byId[entry.id] = entry;
+        }
+      }
+    }
+    final mergedPrimaryMap = <String, dynamic>{
+      ...?publicBusiness,
+      ...?privateBusiness,
+    };
+    final primaryFallback =
+        MarketplaceBusinessProfileEntry.fromMap('primary', mergedPrimaryMap);
+    if (!byId.containsKey('primary') && primaryFallback.hasContent) {
+      byId['primary'] = primaryFallback;
+    }
+    final requestedId =
+        '${personal?['activeBusinessProfileId'] ?? 'primary'}'.trim();
+    _activeBusinessProfileId = requestedId.isEmpty
+        ? 'primary'
+        : (byId.containsKey(requestedId) || byId.isEmpty
+            ? requestedId
+            : byId.keys.first);
+    _businessProfiles = byId.values.toList(growable: false);
+    final activeEntry = byId[_activeBusinessProfileId] ?? primaryFallback;
+    _applyBusinessEntryToForm(activeEntry, recordLoadIssues: true);
+  }
+
+  void _applyBusinessEntryToForm(
+    MarketplaceBusinessProfileEntry entry, {
+    bool recordLoadIssues = false,
+  }) {
+    _businessName.text = entry.publicName;
+    _legalBusinessName.text = entry.legalName;
+    _businessPhone.text = entry.publicPhone;
+    _businessEmail.text = entry.publicEmail;
+    _website.text = entry.website;
+    _businessAddress.text = entry.privateAddress;
+    _businessBio.text = entry.description;
+    _serviceAreaSelection = null;
+    if (entry.serviceArea != null) {
+      try {
+        _serviceAreaSelection =
+            MarketplaceServiceArea.fromMap(entry.serviceArea!);
+        _serviceArea.text = _serviceAreaSelection!.summary;
+      } catch (_) {
+        _serviceArea.text = entry.serviceAreaLabel;
+        if (recordLoadIssues) _loadIssues.add('Service-area map');
+      }
+    } else {
+      _serviceArea.text = entry.serviceAreaLabel;
+    }
+    _businessYardLocation = null;
+    if (entry.yardLocation != null) {
+      try {
+        _businessYardLocation =
+            MarketplaceLocation.fromPrivateData(entry.yardLocation!);
+      } catch (_) {
+        if (recordLoadIssues) _loadIssues.add('Yard map pin');
       }
     }
   }
@@ -1228,80 +1284,224 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
     }
   }
 
-  Widget _accountTypeBanner() => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: const BoxDecoration(color: PipeBuyerColors.orangeSoft),
-        child: Row(children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
+  Widget _accountTypeBanner() {
+    final activeBizName = _businessName.text.trim();
+    final title = _accountType == 'business'
+        ? (activeBizName.isEmpty
+            ? 'Business account'
+            : 'Business • $activeBizName')
+        : 'Personal account';
+    final hasExtraBadges =
+        _websiteRoles.isNotEmpty || _businessProfiles.length > 1;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: const BoxDecoration(color: PipeBuyerColors.orangeSoft),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                _accountType == 'business'
+                    ? Icons.business_center_outlined
+                    : Icons.person_outline,
+                color: PipeBuyerColors.orange,
+                size: 20,
+              ),
             ),
-            child: Icon(
-              _accountType == 'business'
-                  ? Icons.business_center_outlined
-                  : Icons.person_outline,
-              color: PipeBuyerColors.orange,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
+            const SizedBox(width: 10),
+            Expanded(
               child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(
-                    _accountType == 'business'
-                        ? 'Business account'
-                        : 'Personal account',
-                    style: const TextStyle(fontWeight: FontWeight.w900)),
-                Text(_accountEmail.isEmpty ? 'Account email' : _accountEmail,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  Text(
+                    _accountEmail.isEmpty ? 'Account email' : _accountEmail,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 11, color: PipeBuyerColors.muted)),
-              ])),
-          TextButton(
-              onPressed: _saving
-                  ? null
-                  : () => _confirmAccountTypeChange(
-                      _accountType == 'business' ? 'personal' : 'business'),
-              child: const Text('Change')),
-        ]),
-      );
+                        fontSize: 11, color: PipeBuyerColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              key: const Key('profile-change-account-button'),
+              onPressed: _saving ? null : _openAccountAndRoleSwitcher,
+              child: const Text('Change'),
+            ),
+          ]),
+          if (hasExtraBadges) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (_businessProfiles.length > 1)
+                  _accountBannerPill(
+                    icon: Icons.business_outlined,
+                    label: '${_businessProfiles.length} Businesses',
+                    color: PipeBuyerColors.industrialBlue,
+                  ),
+                ..._websiteRoles.map(
+                  (role) => _accountBannerPill(
+                    icon: role.icon,
+                    label: role.authorized
+                        ? '${role.title} • Live'
+                        : '${role.title} • 2FA Needed',
+                    color: role.authorized
+                        ? Colors.purple.shade800
+                        : Colors.deepOrange.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
-  Future<void> _confirmAccountTypeChange(String requested) async {
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Change account type?'),
-            content: Text(
-                '${_accountEmail.isEmpty ? 'Your email' : _accountEmail} signed up under a ${_accountType == 'business' ? 'Business' : 'Personal'} account. Would you like to change to a ${requested == 'business' ? 'Business' : 'Personal'} account?'),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('No')),
-              FilledButton(
-                  onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('Yes, change account')),
+  Widget _accountBannerPill({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) =>
+      InkWell(
+        onTap: _saving ? null : _openAccountAndRoleSwitcher,
+        borderRadius: BorderRadius.circular(99),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: color.withValues(alpha: .35)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 13, color: color),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
             ],
           ),
-        ) ??
-        false;
-    if (!confirmed) return;
+        ),
+      );
+
+  Future<void> _openAccountAndRoleSwitcher() async {
+    final selection = await MarketplaceAccountRoleSwitcherDialog.show(
+      context,
+      activeAccountType: _accountType,
+      activeBusinessProfileId: _activeBusinessProfileId,
+      accountEmail: _accountEmail,
+      personalDisplayName: _displayName.text.trim(),
+      personalCommunity: _community.text.trim(),
+      businessProfiles: _businessProfiles,
+      websiteRoles: _websiteRoles,
+    );
+    if (selection == null || !mounted) return;
+
+    if (selection.kind == MarketplaceAccountSwitcherActionKind.openRole) {
+      final role = selection.role;
+      if (role == null) return;
+      if (!role.authorized) {
+        PipeFeedback.show(
+          context,
+          message:
+              '${role.title} is assigned to your account. Verify your phone and enable 2-step SMS in Verification & Security, then sign in with SMS to unlock it.',
+          tone: PipeStatusTone.warning,
+        );
+        MarketplaceNavigation.openVerificationAndSecurity(context);
+        return;
+      }
+      switch (role.target) {
+        case MarketplaceWebsiteRoleTarget.adminPortal:
+          MarketplaceNavigation.openAdminPortalTab(context);
+        case MarketplaceWebsiteRoleTarget.shopAdmin:
+          MarketplaceNavigation.openShopAdmin(context);
+        case MarketplaceWebsiteRoleTarget.directoryAdmin:
+          MarketplaceNavigation.openYellowPagesAdmin(context);
+      }
+      return;
+    }
+
     setState(() => _saving = true);
     try {
-      await _repo.changeAccountType(requested);
-      if (!mounted) return;
-      setState(() => _accountType = requested);
-      PipeFeedback.show(
-        context,
-        message:
-            'Account changed to ${requested == 'business' ? 'Business' : 'Personal'}. Complete the active profile.',
-        tone: PipeStatusTone.success,
-      );
+      switch (selection.kind) {
+        case MarketplaceAccountSwitcherActionKind.switchPersonal:
+          await _repo.changeAccountType('personal');
+          if (!mounted) return;
+          setState(() => _accountType = 'personal');
+          PipeFeedback.show(
+            context,
+            message: 'Switched to your Personal account.',
+            tone: PipeStatusTone.success,
+          );
+        case MarketplaceAccountSwitcherActionKind.switchBusiness:
+          final targetId = selection.businessProfileId.trim().isEmpty
+              ? 'primary'
+              : selection.businessProfileId.trim();
+          final existing = _businessProfiles
+              .where((item) => item.id == targetId)
+              .firstOrNull;
+          final entry =
+              existing ?? MarketplaceBusinessProfileEntry(id: targetId);
+          await _repo.activateBusinessProfile(entry);
+          if (!mounted) return;
+          setState(() {
+            _accountType = 'business';
+            _activeBusinessProfileId = entry.id;
+            _applyBusinessEntryToForm(entry);
+          });
+          PipeFeedback.show(
+            context,
+            message: 'Switched to ${entry.displayTitle}.',
+            tone: PipeStatusTone.success,
+          );
+        case MarketplaceAccountSwitcherActionKind.createBusiness:
+          final newId = 'biz_${DateTime.now().millisecondsSinceEpoch}';
+          final entry = MarketplaceBusinessProfileEntry(
+            id: newId,
+            publicName: selection.newBusinessName.trim(),
+          );
+          await _repo.activateBusinessProfile(entry);
+          if (!mounted) return;
+          setState(() {
+            _accountType = 'business';
+            _activeBusinessProfileId = entry.id;
+            _businessProfiles = <MarketplaceBusinessProfileEntry>[
+              ..._businessProfiles,
+              entry,
+            ];
+            _applyBusinessEntryToForm(entry);
+          });
+          PipeFeedback.show(
+            context,
+            message:
+                'Created ${entry.displayTitle}. Complete the company details below and save.',
+            tone: PipeStatusTone.success,
+          );
+        case MarketplaceAccountSwitcherActionKind.openRole:
+          break;
+      }
     } catch (error) {
       if (mounted) {
         PipeFeedback.show(
@@ -1309,7 +1509,7 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
           message: profileOperationErrorMessage(
             error,
             fallback:
-                'The account type could not be changed right now. Please try again.',
+                'The account selection could not be switched right now. Please try again.',
           ),
           tone: PipeStatusTone.error,
         );
@@ -1849,27 +2049,44 @@ class _MarketplaceProfilePageState extends State<MarketplaceProfilePage> {
 
   Future<void> _saveBusiness() async {
     if (!await _validateProfile(_businessKey)) return;
-    await _save(() => _repo.saveBusiness({
-          'publicName': _businessName.text.trim(),
-          'legalName': _legalBusinessName.text.trim(),
-          'publicPhone': _businessPhone.text.trim(),
-          'publicEmail': _businessEmail.text.trim(),
-          'website': _website.text.trim(),
-          'serviceArea': _serviceAreaSelection?.toMap(),
-          'serviceAreaLabel': _serviceArea.text.trim(),
-          'serviceCountryCodes':
-              _serviceAreaSelection?.countryCodes ?? const <String>[],
-          'serviceRegionKeys':
-              _serviceAreaSelection?.regionKeys ?? const <String>[],
-          'servicePlaceKeys':
-              _serviceAreaSelection?.placeKeys ?? const <String>[],
-          'privateAddress': _businessAddress.text.trim(),
-          'yardLocation': _businessYardLocation
-              ?.privateData(FirebaseAuth.instance.currentUser!.uid),
-          'description': _businessBio.text.trim(),
-          'businessProfileComplete': true,
-          'profileCompletion': _profileCompletion,
-        }));
+    final cleanId = _activeBusinessProfileId.trim().isEmpty
+        ? 'primary'
+        : _activeBusinessProfileId.trim();
+    final values = <String, dynamic>{
+      'publicName': _businessName.text.trim(),
+      'legalName': _legalBusinessName.text.trim(),
+      'publicPhone': _businessPhone.text.trim(),
+      'publicEmail': _businessEmail.text.trim(),
+      'website': _website.text.trim(),
+      'serviceArea': _serviceAreaSelection?.toMap(),
+      'serviceAreaLabel': _serviceArea.text.trim(),
+      'serviceCountryCodes':
+          _serviceAreaSelection?.countryCodes ?? const <String>[],
+      'serviceRegionKeys':
+          _serviceAreaSelection?.regionKeys ?? const <String>[],
+      'servicePlaceKeys': _serviceAreaSelection?.placeKeys ?? const <String>[],
+      'privateAddress': _businessAddress.text.trim(),
+      'yardLocation': _businessYardLocation
+          ?.privateData(FirebaseAuth.instance.currentUser!.uid),
+      'description': _businessBio.text.trim(),
+      'businessProfileComplete': true,
+      'profileCompletion': _profileCompletion,
+    };
+    await _save(() async {
+      await _repo.saveBusiness(values, businessProfileId: cleanId);
+      final updated = MarketplaceBusinessProfileEntry.fromMap(cleanId, values);
+      final next = <MarketplaceBusinessProfileEntry>[
+        for (final item in _businessProfiles)
+          if (item.id == cleanId) updated else item,
+        if (_businessProfiles.every((item) => item.id != cleanId)) updated,
+      ];
+      if (mounted) {
+        setState(() {
+          _activeBusinessProfileId = cleanId;
+          _businessProfiles = next;
+        });
+      }
+    });
   }
 
   Future<void> _save(Future<void> Function() action) async {

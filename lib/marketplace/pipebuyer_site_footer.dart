@@ -142,6 +142,14 @@ class PipeBuyerSiteFooter extends StatelessWidget {
                         onTap: () => MarketplaceNavigation.goToBrowse(context),
                       ),
                       _FooterLinkItem(
+                        key: const Key('footer-link-shop-store'),
+                        label: 'Shop Tools & Gear',
+                        icon: Icons.shopping_bag_outlined,
+                        highlight: true,
+                        onTap: () =>
+                            MarketplaceNavigation.openShopStore(context),
+                      ),
+                      _FooterLinkItem(
                         label: 'Oilfield Directory',
                         icon: Icons.manage_search_rounded,
                         onTap: () =>
@@ -203,6 +211,13 @@ class PipeBuyerSiteFooter extends StatelessWidget {
                           context,
                           section: PartnerPageSection.apply,
                         ),
+                      ),
+                      _FooterLinkItem(
+                        key: const Key('footer-link-shop-vendor-apply'),
+                        label: 'Store Vendor & Brand Portal',
+                        icon: Icons.store_mall_directory_outlined,
+                        onTap: () =>
+                            MarketplaceNavigation.openShopVendorApply(context),
                       ),
                       _FooterLinkItem(
                         key: const Key('footer-link-insurance-carrier-apply'),

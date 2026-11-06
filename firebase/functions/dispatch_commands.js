@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {
   AccountSecurityError,
+  assertNotRestrictedFor,
   requireAuthenticatedIdentity,
 } = require("./account_security");
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
@@ -46,7 +47,9 @@ function requiredId(data, fieldName) {
 }
 
 function requireAuth(request) {
-  return requireAuthenticatedIdentity(request).uid;
+  const identity = requireAuthenticatedIdentity(request);
+  assertNotRestrictedFor(request, "restrict_dispatch");
+  return identity.uid;
 }
 
 function command(handler) {

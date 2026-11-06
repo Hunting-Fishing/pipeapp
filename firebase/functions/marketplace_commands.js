@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {
   AccountSecurityError,
+  assertNotRestrictedFor,
   requireAuthenticatedIdentity,
 } = require("./account_security");
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
@@ -440,6 +441,7 @@ function createMarketplaceCommands(
       "marketplace",
       async (request, flags) => {
     const uid = requireAuth(request);
+    assertNotRestrictedFor(request, "restrict_marketplace_selling");
     const listingId = requiredId(request.data, "listingId");
     const rawListing = request.data && request.data.listing || {};
     const requestedTransaction = String(
@@ -621,6 +623,7 @@ function createMarketplaceCommands(
       "marketplace",
       async (request, flags) => {
     const uid = requireAuth(request);
+    assertNotRestrictedFor(request, "restrict_marketplace_selling");
     const requestId = requiredId(request.data, "requestId");
     const listingId = requiredId(request.data, "listingId");
     const draftRef = db.collection("marketplace_listing_drafts").doc(listingId);
@@ -747,6 +750,7 @@ function createMarketplaceCommands(
       "marketplace",
       async (request, flags) => {
     const uid = requireAuth(request);
+    assertNotRestrictedFor(request, "restrict_marketplace_selling");
     const listingId = requiredId(request.data, "listingId");
     const rawListing = request.data && request.data.listing || {};
     const requestedTransaction = String(
