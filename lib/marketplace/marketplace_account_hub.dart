@@ -36,6 +36,7 @@ import 'marketplace_deep_links.dart';
 import 'marketplace_actions_repository.dart';
 import 'marketplace_payout_settings.dart';
 import 'marketplace_admin_dashboard.dart';
+import 'marketplace_scoped_staff_dashboard.dart';
 import 'marketplace_about_page.dart';
 import 'marketplace_exp_realty.dart';
 
@@ -70,10 +71,17 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
   late TabController _tabs;
   MarketplaceAdministratorState _adminState =
       MarketplaceAdministratorState.signedOut;
+  MarketplaceStaffPermissionsState _staffState =
+      const MarketplaceStaffPermissionsState.none();
   StreamSubscription<User?>? _adminTokenSubscription;
+  StreamSubscription<MarketplaceStaffPermissionsState>? _staffSubscription;
 
   bool get _isAdminUser =>
       _adminState == MarketplaceAdministratorState.authorized &&
+      !marketplaceAdminViewAsUserMode.value;
+  bool get _isScopedStaffUser =>
+      !_isAdminUser &&
+      _staffState.hasScopedStaffAccess &&
       !marketplaceAdminViewAsUserMode.value;
   int _adminCheckGeneration = 0;
 
@@ -91,6 +99,10 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     marketplaceAdminViewAsUserMode.addListener(_handleViewModeChanged);
     _adminTokenSubscription =
         FirebaseAuth.instance.idTokenChanges().listen((_) => _checkAdmin());
+    _staffSubscription = watchMarketplaceStaffPermissions().listen((next) {
+      if (!mounted) return;
+      _rebuildTabsForAdminVisibility(_adminState, nextStaff: next);
+    });
     _checkAdmin(forceRefresh: true);
   }
 
@@ -99,19 +111,30 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     _rebuildTabsForAdminVisibility(_adminState);
   }
 
-  void _rebuildTabsForAdminVisibility(MarketplaceAdministratorState nextState) {
+  void _rebuildTabsForAdminVisibility(
+    MarketplaceAdministratorState nextState, {
+    MarketplaceStaffPermissionsState? nextStaff,
+  }) {
+    final effectiveStaff = nextStaff ?? _staffState;
     final shouldShowAdmin =
         nextState == MarketplaceAdministratorState.authorized &&
             !marketplaceAdminViewAsUserMode.value;
-    final nextLength = shouldShowAdmin ? 8 : 7;
+    final shouldShowScopedStaff = !shouldShowAdmin &&
+        effectiveStaff.hasScopedStaffAccess &&
+        !marketplaceAdminViewAsUserMode.value;
+    final nextLength = (shouldShowAdmin || shouldShowScopedStaff) ? 8 : 7;
     if (_tabs.length == nextLength) {
-      setState(() => _adminState = nextState);
+      setState(() {
+        _adminState = nextState;
+        _staffState = effectiveStaff;
+      });
       return;
     }
     final nextIndex = _tabs.index.clamp(0, nextLength - 1);
     final oldTabs = _tabs;
     setState(() {
       _adminState = nextState;
+      _staffState = effectiveStaff;
       _tabs = TabController(
         length: nextLength,
         initialIndex: nextIndex,
@@ -134,12 +157,16 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     final state = await marketplaceAdministratorState(
       forceRefresh: forceRefresh,
     );
-    if (!mounted ||
-        generation != _adminCheckGeneration ||
-        state == _adminState) {
+    final staff = await resolveMarketplaceStaffPermissions(
+      forceRefresh: forceRefresh,
+    );
+    if (!mounted || generation != _adminCheckGeneration) {
       return;
     }
-    _rebuildTabsForAdminVisibility(state);
+    if (state == _adminState && staff == _staffState) {
+      return;
+    }
+    _rebuildTabsForAdminVisibility(state, nextStaff: staff);
   }
 
   @override
@@ -148,6 +175,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
         .removeListener(_handleAccountSubTabRequest);
     marketplaceAdminViewAsUserMode.removeListener(_handleViewModeChanged);
     _adminTokenSubscription?.cancel();
+    _staffSubscription?.cancel();
     _tabs.dispose();
     super.dispose();
   }
@@ -190,7 +218,12 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
               Tab(
                   icon: Icon(Icons.admin_panel_settings,
                       color: Colors.purple.shade700, size: 20),
-                  text: '👑 ADMIN PORTAL'),
+                  text: '👑 ADMIN PORTAL')
+            else if (_isScopedStaffUser)
+              const Tab(
+                  icon: Icon(Icons.dashboard_customize_outlined,
+                      color: Color(0xFF9A3412), size: 20),
+                  text: '🛍️ MY ADMIN PORTAL'),
           ],
         ),
       ),
@@ -199,6 +232,8 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
         _Overview(
           onOpen: _tabs.animateTo,
           showAdminPortal: _isAdminUser,
+          showScopedStaffPortal: _isScopedStaffUser,
+          staffState: _staffState,
           adminState: _adminState,
           onRefreshAdmin: () => _checkAdmin(forceRefresh: true),
         ),
@@ -216,7 +251,10 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
           onRefreshAdmin: () => _checkAdmin(forceRefresh: true),
           onOpenTab: _tabs.animateTo,
         ),
-        if (_isAdminUser) const MarketplaceAdminDashboard(),
+        if (_isAdminUser)
+          const MarketplaceAdminDashboard()
+        else if (_isScopedStaffUser)
+          const MarketplaceScopedStaffDashboard(embedded: true),
       ]))
     ]);
   }
@@ -226,11 +264,15 @@ class _Overview extends StatelessWidget {
   const _Overview({
     required this.onOpen,
     required this.showAdminPortal,
+    this.showScopedStaffPortal = false,
+    this.staffState = const MarketplaceStaffPermissionsState.none(),
     required this.adminState,
     required this.onRefreshAdmin,
   });
   final ValueChanged<int> onOpen;
   final bool showAdminPortal;
+  final bool showScopedStaffPortal;
+  final MarketplaceStaffPermissionsState staffState;
   final MarketplaceAdministratorState adminState;
   final Future<void> Function() onRefreshAdmin;
 
@@ -417,11 +459,12 @@ class _Overview extends StatelessWidget {
             ],
             if (!showAdminPortal &&
                 data['restricted'] != true &&
-                const <String>{
-                  'affiliate_contributor',
-                  'catalog_editor',
-                  'store_manager',
-                }.contains(data['shopRole']?.toString().trim())) ...[
+                (showScopedStaffPortal ||
+                    const <String>{
+                      'affiliate_contributor',
+                      'catalog_editor',
+                      'store_manager',
+                    }.contains(data['shopRole']?.toString().trim()))) ...[
               Card(
                 color: const Color(0xFFFFF7ED),
                 shape: RoundedRectangleBorder(
@@ -433,18 +476,20 @@ class _Overview extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(
-                            Icons.shopping_bag_outlined,
+                          const Icon(
+                            Icons.dashboard_customize_outlined,
                             color: Color(0xFFD9480F),
                             size: 28,
                           ),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Store & Affiliate Product Contributor Active',
-                              style: TextStyle(
+                              staffState.roleBadgeLabel.isNotEmpty
+                                  ? 'My Role-Scoped Admin Workspace (${staffState.roleBadgeLabel})'
+                                  : 'Store & Affiliate Product Contributor Active',
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 15,
                               ),
@@ -454,7 +499,7 @@ class _Overview extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Your account has permission to publish affiliate products from Amazon, AliExpress, Lazada, Shopee, Involve Asia, eBay, VEVOR & global partner programs.',
+                        'Your account has scoped staff permissions to manage Store & Affiliate products across Amazon, AliExpress, Lazada, Shopee, Involve Asia, eBay, VEVOR & 25+ passive-income programs.',
                         style: TextStyle(fontSize: 12.5, height: 1.35),
                       ),
                       const SizedBox(height: 12),
@@ -462,11 +507,22 @@ class _Overview extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          FilledButton.icon(
+                          if (showScopedStaffPortal)
+                            FilledButton.icon(
+                              onPressed: () => onOpen(
+                                MarketplaceAccountHub.adminPortalTabIndex,
+                              ),
+                              icon: const Icon(Icons.launch_rounded, size: 17),
+                              label: const Text('Open My Admin Portal'),
+                            ),
+                          FilledButton.tonalIcon(
                             onPressed: () =>
-                                MarketplaceNavigation.openShopAdmin(context),
+                                MarketplaceNavigation.openShopAdmin(
+                              context,
+                              initialTabIndex: 1,
+                            ),
                             icon: const Icon(Icons.add_link_rounded, size: 17),
-                            label: const Text('Add / Manage Store Products'),
+                            label: const Text('Add / Manage Affiliate Links'),
                           ),
                           OutlinedButton.icon(
                             onPressed: () =>

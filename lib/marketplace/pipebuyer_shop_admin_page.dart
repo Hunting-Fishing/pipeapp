@@ -20,11 +20,15 @@ class PipeBuyerShopAdminPage extends StatefulWidget {
     this.client,
     this.adminAccessOverride,
     this.sessionOverride,
+    this.embedded = false,
+    this.initialTabIndex = 0,
   });
 
   final PipeBuyerShopClient? client;
   final Future<bool> Function()? adminAccessOverride;
   final Future<PipeBuyerShopRoleSession> Function()? sessionOverride;
+  final bool embedded;
+  final int initialTabIndex;
 
   @override
   State<PipeBuyerShopAdminPage> createState() => _PipeBuyerShopAdminPageState();
@@ -84,7 +88,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
 
   int get _expectedTabCount {
     if (_session.canManageSettingsAndRoles) return 6;
-    if (_session.canReviewVendors) return 5;
+    if (_session.canReviewVendors) return 4;
     return 3;
   }
 
@@ -104,7 +108,11 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
   void initState() {
     super.initState();
     _client = widget.client ?? PipeBuyerShopClient();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(
+      length: 6,
+      initialIndex: widget.initialTabIndex.clamp(0, 5),
+      vsync: this,
+    );
     _checkAdminAndLoad();
   }
 
@@ -585,6 +593,9 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
   @override
   Widget build(BuildContext context) {
     if (_checkingAccess) {
+      if (widget.embedded) {
+        return const Center(child: CircularProgressIndicator());
+      }
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
@@ -596,6 +607,146 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
     final catalogItems = _allManageableProducts;
     final canSettingsAndRoles = _session.canManageSettingsAndRoles;
     final canVendors = _session.canReviewVendors;
+
+    final tabs = <Widget>[
+      const Tab(
+        icon: Icon(Icons.insights_rounded, size: 18),
+        text: 'Overview & Clicks',
+      ),
+      Tab(
+        icon: const Icon(Icons.inventory_2_outlined, size: 18),
+        text: 'Affiliate Links (${catalogItems.length})',
+      ),
+      const Tab(
+        icon: Icon(Icons.public_rounded, size: 18),
+        text: 'Passive Income Platforms (25+)',
+      ),
+      if (canSettingsAndRoles)
+        const Tab(
+          icon: Icon(Icons.link_rounded, size: 18),
+          text: 'Amazon & Affiliate Tags',
+        ),
+      if (canVendors)
+        Tab(
+          icon: const Icon(Icons.handshake_outlined, size: 18),
+          text: 'Vendor Applications (${_applications.length})',
+        ),
+      if (canSettingsAndRoles)
+        const Tab(
+          icon: Icon(Icons.verified_user_outlined, size: 18),
+          text: 'Roles & Access',
+        ),
+    ];
+
+    final bodyContent = _loading
+        ? const Center(child: CircularProgressIndicator())
+        : _loadError != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _loadError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: PipeBuyerColors.danger),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: _reloadDashboard,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildOverviewTab(),
+                  _buildCatalogTab(catalogItems),
+                  _buildAffiliatePlatformsDirectoryTab(),
+                  if (canSettingsAndRoles) _buildSettingsTab(),
+                  if (canVendors) _buildApplicationsTab(),
+                  if (canSettingsAndRoles) _buildRolesTab(),
+                ],
+              );
+
+    if (widget.embedded) {
+      return ColoredBox(
+        color: PipeBuyerColors.canvas,
+        child: Column(
+          children: [
+            Material(
+              color: PipeBuyerColors.ink,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 12, 4),
+                    child: Wrap(
+                      spacing: 10,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.shopping_bag_outlined,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Store & Affiliate Workspace',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Refresh Store Admin',
+                              onPressed: _loading ? null : _reloadDashboard,
+                              icon: const Icon(
+                                Icons.refresh_rounded,
+                                color: Colors.white,
+                              ),
+                            ),
+                            FilledButton.icon(
+                              onPressed: () => _openProductEditor(),
+                              icon:
+                                  const Icon(Icons.add_link_rounded, size: 18),
+                              label: const Text('Add Affiliate Link'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    indicatorColor: PipeBuyerColors.orange,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.white70,
+                    tabs: tabs,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: bodyContent),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: PipeBuyerColors.canvas,
@@ -624,71 +775,10 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
           indicatorColor: PipeBuyerColors.orange,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          tabs: [
-            const Tab(
-              icon: Icon(Icons.insights_rounded, size: 18),
-              text: 'Overview & Clicks',
-            ),
-            Tab(
-              icon: const Icon(Icons.inventory_2_outlined, size: 18),
-              text: 'Affiliate Links (${catalogItems.length})',
-            ),
-            const Tab(
-              icon: Icon(Icons.public_rounded, size: 18),
-              text: 'Passive Income Platforms (25+)',
-            ),
-            if (canSettingsAndRoles)
-              const Tab(
-                icon: Icon(Icons.link_rounded, size: 18),
-                text: 'Amazon & Affiliate Tags',
-              ),
-            if (canVendors)
-              Tab(
-                icon: const Icon(Icons.handshake_outlined, size: 18),
-                text: 'Vendor Applications (${_applications.length})',
-              ),
-            if (canVendors)
-              const Tab(
-                icon: Icon(Icons.verified_user_outlined, size: 18),
-                text: 'Roles & Access',
-              ),
-          ],
+          tabs: tabs,
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _loadError!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: PipeBuyerColors.danger),
-                        ),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                          onPressed: _reloadDashboard,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildOverviewTab(),
-                    _buildCatalogTab(catalogItems),
-                    _buildAffiliatePlatformsDirectoryTab(),
-                    if (canSettingsAndRoles) _buildSettingsTab(),
-                    if (canVendors) _buildApplicationsTab(),
-                    if (canVendors) _buildRolesTab(),
-                  ],
-                ),
+      body: bodyContent,
     );
   }
 

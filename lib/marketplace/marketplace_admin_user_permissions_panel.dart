@@ -462,6 +462,7 @@ class _MarketplaceAdminUserPermissionsPanelState
       builder: (_) => AdminUserPermissionsDialog(
         repository: _repository,
         existingUser: existing,
+        availableUsers: _users,
       ),
     );
     if (saved == true && mounted) {
@@ -771,14 +772,26 @@ class _MarketplaceAdminUserPermissionsPanelState
                                 bg: Color(0xFFE0F2FE),
                                 fg: Color(0xFF0369A1),
                               ),
-                            if (user.hasStoreAccess)
+                            if (user.hasStoreAccess) ...[
+                              if (!user.isAdmin)
+                                _RoleBadge(
+                                  label:
+                                      'STORE: ${user.shopRole.toUpperCase()}',
+                                  bg: const Color(0xFFFFEDD5),
+                                  fg: const Color(0xFF9A3412),
+                                ),
                               _RoleBadge(
-                                label: user.isAdmin
+                                label: (user.isAdmin ||
+                                        user.allowedAffiliatePlatforms
+                                            .isEmpty ||
+                                        user.allowedAffiliatePlatforms
+                                            .contains('all'))
                                     ? 'ALL AFFILIATE PLATFORMS'
-                                    : 'STORE: ${user.shopRole.toUpperCase()}',
+                                    : '${user.allowedAffiliatePlatforms.length} AFFILIATE PLATFORMS',
                                 bg: const Color(0xFFFFEDD5),
                                 fg: const Color(0xFF9A3412),
                               ),
+                            ],
                             if (user.accountVerified)
                               const _RoleBadge(
                                 label: 'VERIFIED SELLER',
@@ -876,10 +889,12 @@ class AdminUserPermissionsDialog extends StatefulWidget {
     super.key,
     required this.repository,
     this.existingUser,
+    this.availableUsers = const <AdminManagedUserRecord>[],
   });
 
   final AdminPermissionsRepository repository;
   final AdminManagedUserRecord? existingUser;
+  final List<AdminManagedUserRecord> availableUsers;
 
   @override
   State<AdminUserPermissionsDialog> createState() =>
@@ -913,6 +928,8 @@ class _AdminUserPermissionsDialogState
 
   late final TextEditingController _emailController;
   late final TextEditingController _reasonController;
+  AdminManagedUserRecord? _selectedCandidate;
+  bool _showUserPickerList = false;
 
   late String _shopRole;
   late bool _allAffiliatePlatforms;
@@ -931,6 +948,7 @@ class _AdminUserPermissionsDialogState
   void initState() {
     super.initState();
     final u = widget.existingUser;
+    _selectedCandidate = u;
     _emailController = TextEditingController(text: u?.email ?? '');
     _reasonController = TextEditingController(text: u?.restrictionReason ?? '');
     _shopRole = u?.shopRole ?? 'catalog_editor';
@@ -951,6 +969,84 @@ class _AdminUserPermissionsDialogState
     _selectedRestrictions = (u?.restrictions ?? const <String>[]).toSet();
   }
 
+  void _applySelectedUser(AdminManagedUserRecord candidate) {
+    final existingPlatforms = candidate.allowedAffiliatePlatforms;
+    final allPlats =
+        existingPlatforms.isEmpty || existingPlatforms.contains('all');
+    setState(() {
+      _selectedCandidate = candidate;
+      _showUserPickerList = false;
+      _emailController.text = candidate.email;
+      _emailController.selection = TextSelection.collapsed(
+        offset: candidate.email.length,
+      );
+      _reasonController.text = candidate.restrictionReason;
+      _shopRole =
+          candidate.shopRole == 'none' ? 'catalog_editor' : candidate.shopRole;
+      _allAffiliatePlatforms = allPlats;
+      _selectedPlatforms = allPlats
+          ? _platformOptions.map((e) => e.$1).toSet()
+          : existingPlatforms.toSet();
+      _accountType = candidate.accountType;
+      _yellowPagesRole = candidate.yellowPagesRole;
+      _verifiedSeller = candidate.accountVerified;
+      _canGrantPermissions = candidate.canGrantPermissions;
+      _grantAdmin = candidate.isAdmin;
+      _restricted = candidate.restricted;
+      _loginDisabled = candidate.loginDisabled;
+      _selectedRestrictions = candidate.restrictions.toSet();
+    });
+  }
+
+  void _onEmailTyped(String raw) {
+    final trimmed = raw.trim().toLowerCase();
+    AdminManagedUserRecord? exactMatch;
+    if (trimmed.isNotEmpty) {
+      for (final item in widget.availableUsers) {
+        if (item.email.trim().toLowerCase() == trimmed) {
+          exactMatch = item;
+          break;
+        }
+      }
+    }
+    setState(() {
+      _selectedCandidate = exactMatch;
+      _showUserPickerList = trimmed.isNotEmpty && exactMatch == null;
+    });
+  }
+
+  List<AdminManagedUserRecord> _predictiveCandidates() {
+    final users = widget.availableUsers
+        .where(
+            (u) => u.email.trim().isNotEmpty || u.displayName.trim().isNotEmpty)
+        .toList();
+    final q = _emailController.text.trim().toLowerCase();
+    if (q.isEmpty) {
+      return users.take(12).toList(growable: false);
+    }
+
+    int score(AdminManagedUserRecord u) {
+      final email = u.email.trim().toLowerCase();
+      final name = u.displayName.trim().toLowerCase();
+      if (email == q) return 0;
+      if (email.startsWith(q)) return 1;
+      if (name.startsWith(q)) return 2;
+      if (email.contains(q)) return 3;
+      if (name.contains(q)) return 4;
+      if (u.uid.toLowerCase().contains(q)) return 5;
+      return 99;
+    }
+
+    final matched = users.where((u) => score(u) < 99).toList();
+    matched.sort((a, b) {
+      final sa = score(a);
+      final sb = score(b);
+      if (sa != sb) return sa.compareTo(sb);
+      return a.email.toLowerCase().compareTo(b.email.toLowerCase());
+    });
+    return matched.take(10).toList(growable: false);
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -959,12 +1055,12 @@ class _AdminUserPermissionsDialogState
   }
 
   Future<void> _save() async {
-    final existing = widget.existingUser;
+    final existing = widget.existingUser ?? _selectedCandidate;
     final email = _emailController.text.trim().toLowerCase();
     if (existing == null && (email.isEmpty || !email.contains('@'))) {
       PipeFeedback.show(
         context,
-        message: 'Enter a valid user email address.',
+        message: 'Select a registered user or enter a valid email address.',
         tone: PipeStatusTone.error,
       );
       return;
@@ -1020,10 +1116,302 @@ class _AdminUserPermissionsDialogState
     }
   }
 
+  Widget _buildPredictiveEmailAndUserPicker() {
+    final candidates = _predictiveCandidates();
+    final matched = _selectedCandidate;
+    final typed = _emailController.text.trim();
+    final showSuggestions = _showUserPickerList && candidates.isNotEmpty;
+
+    String resolvedUserName(AdminManagedUserRecord u) {
+      final dn = u.displayName.trim();
+      if (dn.isNotEmpty) return dn;
+      if (u.email.contains('@')) return u.email.split('@').first;
+      return 'Unnamed User';
+    }
+
+    Widget buildBesideUserNameBadge() {
+      if (matched != null) {
+        return Container(
+          key: const Key('admin_matched_user_name_box'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0FDF4),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF86EFAC)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.verified_rounded,
+                size: 18,
+                color: Color(0xFF15803D),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      resolvedUserName(matched),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13.5,
+                        color: Color(0xFF14532D),
+                      ),
+                    ),
+                    Text(
+                      matched.isGoogleSignIn
+                          ? 'Google Sign-in • ${matched.email}'
+                          : matched.email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF166534),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      if (widget.availableUsers.isNotEmpty) {
+        return OutlinedButton.icon(
+          key: const Key('admin_select_registered_user_button'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          ),
+          onPressed: () =>
+              setState(() => _showUserPickerList = !_showUserPickerList),
+          icon: Icon(
+            _showUserPickerList
+                ? Icons.expand_less_rounded
+                : Icons.person_search_rounded,
+            size: 18,
+          ),
+          label: Text(
+            typed.isNotEmpty && candidates.isNotEmpty
+                ? '${candidates.length} Matching User(s)'
+                : 'Select User (${widget.availableUsers.length})',
+          ),
+        );
+      }
+
+      return const SizedBox.shrink();
+    }
+
+    final emailField = TextField(
+      key: const Key('admin_grant_email_input'),
+      controller: _emailController,
+      keyboardType: TextInputType.emailAddress,
+      onChanged: _onEmailTyped,
+      onTap: () {
+        if (widget.availableUsers.isNotEmpty && _selectedCandidate == null) {
+          setState(() => _showUserPickerList = true);
+        }
+      },
+      decoration: InputDecoration(
+        labelText: 'User Account Email (Select User or Type to Auto-Fill) *',
+        hintText: 'Start typing email or user name, or click Select User…',
+        prefixIcon: const Icon(Icons.email_outlined),
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (typed.isNotEmpty)
+              IconButton(
+                tooltip: 'Clear email',
+                onPressed: () {
+                  _emailController.clear();
+                  setState(() {
+                    _selectedCandidate = null;
+                    _showUserPickerList = widget.availableUsers.isNotEmpty;
+                  });
+                },
+                icon: const Icon(Icons.clear_rounded, size: 18),
+              ),
+            if (widget.availableUsers.isNotEmpty)
+              IconButton(
+                key: const Key('admin_toggle_user_picker_button'),
+                tooltip: 'Select from registered users',
+                onPressed: () =>
+                    setState(() => _showUserPickerList = !_showUserPickerList),
+                icon: Icon(
+                  _showUserPickerList
+                      ? Icons.arrow_drop_up_rounded
+                      : Icons.arrow_drop_down_circle_outlined,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final badge = buildBesideUserNameBadge();
+            if (constraints.maxWidth >= 460 &&
+                (matched != null || widget.availableUsers.isNotEmpty)) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(flex: 3, child: emailField),
+                  const SizedBox(width: 10),
+                  Flexible(flex: 2, child: badge),
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                emailField,
+                if (matched != null || widget.availableUsers.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  badge,
+                ],
+              ],
+            );
+          },
+        ),
+        if (matched != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Selected User: ${resolvedUserName(matched)} (${matched.email}) • UID: ${matched.uid}',
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF15803D),
+            ),
+          ),
+        ],
+        if (showSuggestions) ...[
+          const SizedBox(height: 8),
+          Container(
+            key: const Key('admin_predictive_user_suggestions'),
+            constraints: const BoxConstraints(maxHeight: 220),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.purple.shade200),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: candidates.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final candidate = candidates[index];
+                final uName = resolvedUserName(candidate);
+                return InkWell(
+                  key: Key('predictive_user_${candidate.uid}'),
+                  onTap: () => _applySelectedUser(candidate),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 9,
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 15,
+                          backgroundColor: Colors.purple.shade50,
+                          foregroundColor: Colors.purple.shade900,
+                          child: Text(
+                            uName.substring(0, 1).toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 2,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                candidate.email.isNotEmpty
+                                    ? candidate.email
+                                    : candidate.uid,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  uName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 11.5,
+                                    color: PipeBuyerColors.ink,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (candidate.isGoogleSignIn)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 6),
+                            child: _RoleBadge(
+                              label: 'GOOGLE',
+                              bg: Color(0xFFE0F2FE),
+                              fg: Color(0xFF0369A1),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ] else if (typed.isNotEmpty &&
+            matched == null &&
+            widget.availableUsers.isNotEmpty &&
+            candidates.isEmpty) ...[
+          const SizedBox(height: 6),
+          const Text(
+            'No matching user in current list — you can still type any registered Pipe Buyer email address.',
+            style: TextStyle(fontSize: 11.5, color: PipeBuyerColors.muted),
+          ),
+        ],
+        const SizedBox(height: 14),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final existing = widget.existingUser;
-    final isPrimary = existing?.isPrimaryAdmin == true;
+    final effectiveTarget = existing ?? _selectedCandidate;
+    final isPrimary = effectiveTarget?.isPrimaryAdmin == true;
 
     return AlertDialog(
       title: Text(
@@ -1032,30 +1420,21 @@ class _AdminUserPermissionsDialogState
             : 'Permissions & Restrictions — ${existing.titleLabel}',
       ),
       content: SizedBox(
-        width: 640,
+        width: 660,
         child: SingleChildScrollView(
+          padding: const EdgeInsets.only(top: 8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (existing == null) ...[
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'User Account Email (Google Sign-in or Email) *',
-                    hintText: 'e.g., user@gmail.com',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                ),
-                const SizedBox(height: 14),
-              ],
+              if (existing == null) _buildPredictiveEmailAndUserPicker(),
               const Text(
                 '1. Store & Multi-Platform Affiliate Product Permissions',
                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
+                key: ValueKey<String>('shop_role_$_shopRole'),
                 isExpanded: true,
                 initialValue: _shopRole,
                 decoration: const InputDecoration(
@@ -1136,6 +1515,7 @@ class _AdminUserPermissionsDialogState
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
+                      key: ValueKey<String>('acct_type_$_accountType'),
                       isExpanded: true,
                       initialValue: _accountType,
                       decoration: const InputDecoration(
@@ -1163,6 +1543,7 @@ class _AdminUserPermissionsDialogState
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<String>(
+                      key: ValueKey<String>('yp_role_$_yellowPagesRole'),
                       isExpanded: true,
                       initialValue: _yellowPagesRole,
                       decoration: const InputDecoration(
