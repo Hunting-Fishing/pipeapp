@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_admin_access.dart';
 
@@ -16,6 +17,10 @@ class MarketplaceAccountMenuButton extends StatefulWidget {
     required this.onSupport,
     this.onAdminSettings,
     required this.onSignOut,
+    this.signedInOverride,
+    this.displayNameOverride,
+    this.emailOverride,
+    this.adminAccessOverride,
   });
 
   final bool extended;
@@ -25,6 +30,10 @@ class MarketplaceAccountMenuButton extends StatefulWidget {
   final VoidCallback onSupport;
   final VoidCallback? onAdminSettings;
   final VoidCallback onSignOut;
+  final bool? signedInOverride;
+  final String? displayNameOverride;
+  final String? emailOverride;
+  final Future<bool> Function({bool forceRefresh})? adminAccessOverride;
 
   @override
   State<MarketplaceAccountMenuButton> createState() =>
@@ -39,20 +48,29 @@ class _MarketplaceAccountMenuButtonState
   @override
   void initState() {
     super.initState();
-    _tokenSubscription =
-        FirebaseAuth.instance.idTokenChanges().listen((_) => _refreshAdmin());
+    marketplaceAdminViewAsUserMode.addListener(_onViewModeChanged);
+    if (widget.adminAccessOverride == null && widget.signedInOverride == null) {
+      _tokenSubscription =
+          FirebaseAuth.instance.idTokenChanges().listen((_) => _refreshAdmin());
+    }
     _refreshAdmin(forceRefresh: true);
   }
 
   @override
   void dispose() {
+    marketplaceAdminViewAsUserMode.removeListener(_onViewModeChanged);
     _tokenSubscription?.cancel();
     super.dispose();
   }
 
+  void _onViewModeChanged() {
+    if (mounted) setState(() {});
+  }
+
   Future<void> _refreshAdmin({bool forceRefresh = false}) async {
-    final authorized =
-        await marketplaceAdministratorAccess(forceRefresh: forceRefresh);
+    final authorized = widget.adminAccessOverride != null
+        ? await widget.adminAccessOverride!(forceRefresh: forceRefresh)
+        : await marketplaceAdministratorAccess(forceRefresh: forceRefresh);
     if (mounted && authorized != _isAdmin) {
       setState(() => _isAdmin = authorized);
     }
@@ -60,13 +78,33 @@ class _MarketplaceAccountMenuButtonState
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const SizedBox.shrink();
-    final name = (user.displayName?.trim().isNotEmpty ?? false)
-        ? user.displayName!.trim()
-        : (user.email?.split('@').first ?? 'Account');
-    final email = user.email ?? '';
+    final bool signedIn;
+    final String rawName;
+    final String email;
+    if (widget.signedInOverride != null) {
+      signedIn = widget.signedInOverride!;
+      email = widget.emailOverride ?? '';
+      final overrideName = widget.displayNameOverride?.trim() ?? '';
+      rawName = overrideName.isNotEmpty
+          ? overrideName
+          : (email.isNotEmpty ? email.split('@').first : 'Account');
+    } else {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return const SizedBox.shrink();
+      signedIn = true;
+      email = widget.emailOverride ?? user.email ?? '';
+      final display = (widget.displayNameOverride ?? user.displayName)?.trim();
+      rawName = (display != null && display.isNotEmpty)
+          ? display
+          : (email.isNotEmpty ? email.split('@').first : 'Account');
+    }
+    if (!signedIn) return const SizedBox.shrink();
+
+    final name = rawName;
     final initial = name.isEmpty ? 'P' : name.substring(0, 1).toUpperCase();
+    final isViewingAsRegularUser =
+        _isAdmin && marketplaceAdminViewAsUserMode.value;
+    final showAdminChrome = _isAdmin && !isViewingAsRegularUser;
 
     return PopupMenuButton<_AccountMenuAction>(
       tooltip: 'Open account menu',
@@ -86,7 +124,19 @@ class _MarketplaceAccountMenuButtonState
             widget.onSupport();
             return;
           case _AccountMenuAction.adminSettings:
+            setMarketplaceAdminViewAsUserMode(false);
             widget.onAdminSettings?.call();
+            return;
+          case _AccountMenuAction.toggleViewAsRegularUser:
+            final enterUserView = !marketplaceAdminViewAsUserMode.value;
+            setMarketplaceAdminViewAsUserMode(enterUserView);
+            PipeFeedback.show(
+              context,
+              message: enterUserView
+                  ? 'Viewing what everyone else sees. Open your account menu anytime to switch back to Admin.'
+                  : 'Admin view restored.',
+              tone: PipeStatusTone.info,
+            );
             return;
           case _AccountMenuAction.signOut:
             widget.onSignOut();
@@ -125,7 +175,7 @@ class _MarketplaceAccountMenuButtonState
                                   const TextStyle(fontWeight: FontWeight.w900),
                             ),
                           ),
-                          if (_isAdmin) ...[
+                          if (showAdminChrome) ...[
                             const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -199,14 +249,35 @@ class _MarketplaceAccountMenuButtonState
             subtitle: 'Help, safety and account assistance',
           ),
         ),
-        if (_isAdmin && widget.onAdminSettings != null) ...[
+        if (showAdminChrome) ...[
+          const PopupMenuDivider(),
+          if (widget.onAdminSettings != null)
+            PopupMenuItem(
+              value: _AccountMenuAction.adminSettings,
+              child: _MenuRow(
+                icon: Icons.admin_panel_settings_outlined,
+                title: 'Admin settings',
+                subtitle:
+                    'All admin portals, directory, insurance, eXp Realty & roles',
+                accent: Colors.purple.shade800,
+              ),
+            ),
+          const PopupMenuItem(
+            value: _AccountMenuAction.toggleViewAsRegularUser,
+            child: _MenuRow(
+              icon: Icons.visibility_outlined,
+              title: 'View what everyone else sees',
+              subtitle: 'Preview regular customer mode (hides admin UI)',
+            ),
+          ),
+        ] else if (isViewingAsRegularUser) ...[
           const PopupMenuDivider(),
           PopupMenuItem(
-            value: _AccountMenuAction.adminSettings,
+            value: _AccountMenuAction.toggleViewAsRegularUser,
             child: _MenuRow(
               icon: Icons.admin_panel_settings_outlined,
-              title: 'Admin settings',
-              subtitle: 'Platform controls, eXp Realty, billing & roles',
+              title: 'Switch back to Admin view',
+              subtitle: 'Currently viewing what everyone else sees',
               accent: Colors.purple.shade800,
             ),
           ),
@@ -261,16 +332,17 @@ class _MarketplaceAccountMenuButtonState
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
                         Text(
-                          _isAdmin
+                          showAdminChrome
                               ? 'Administrator • Full access'
                               : 'Account & membership',
                           style: TextStyle(
-                            color: _isAdmin
+                            color: showAdminChrome
                                 ? Colors.purple.shade700
                                 : PipeBuyerColors.muted,
                             fontSize: 10,
-                            fontWeight:
-                                _isAdmin ? FontWeight.w700 : FontWeight.normal,
+                            fontWeight: showAdminChrome
+                                ? FontWeight.w700
+                                : FontWeight.normal,
                           ),
                         ),
                       ],
@@ -302,6 +374,7 @@ enum _AccountMenuAction {
   memberships,
   support,
   adminSettings,
+  toggleViewAsRegularUser,
   signOut,
 }
 

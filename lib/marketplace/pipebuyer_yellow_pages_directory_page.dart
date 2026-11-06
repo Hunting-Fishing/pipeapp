@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_request_service_page.dart';
 import 'pipebuyer_business_logo_widgets.dart';
-import 'pipebuyer_contact_center_dashboard.dart';
 import 'pipebuyer_country_flag_icon.dart';
 import 'pipebuyer_list_services_page.dart';
 import 'pipebuyer_site_footer.dart';
@@ -69,7 +68,6 @@ class _PipeBuyerYellowPagesDirectoryPageState
 
   // Results & live database facet counts state
   bool _loading = false;
-  bool _canAccessContactCenter = false;
   String? _error;
   int _totalMatched = 0;
   String? _nextCursor;
@@ -119,7 +117,6 @@ class _PipeBuyerYellowPagesDirectoryPageState
     _countryCode = widget.initialCountryCode;
     _load(reset: true);
     _loadDirectoryCounts();
-    _refreshStaffAccess();
   }
 
   Future<void> _loadDirectoryCounts() async {
@@ -131,18 +128,6 @@ class _PipeBuyerYellowPagesDirectoryPageState
       });
     } catch (_) {
       // Directory still functions with static hub fallback if counts are unavailable.
-    }
-  }
-
-  Future<void> _refreshStaffAccess() async {
-    try {
-      final access = await _client.getAccess();
-      if (!mounted) return;
-      setState(() {
-        _canAccessContactCenter = access.authorized || access.isAgent;
-      });
-    } catch (_) {
-      // Public visitors do not have Contact Center access.
     }
   }
 
@@ -287,14 +272,6 @@ class _PipeBuyerYellowPagesDirectoryPageState
       _load(reset: true);
       _loadDirectoryCounts();
     }
-  }
-
-  void _openContactCenter() {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const PipeBuyerContactCenterDashboard(),
-      ),
-    );
   }
 
   void _openDispatchRequest() {
@@ -542,12 +519,6 @@ class _PipeBuyerYellowPagesDirectoryPageState
               ),
             ),
           ),
-          if (_canAccessContactCenter)
-            IconButton(
-              tooltip: 'Directory Admin & Contact Center',
-              onPressed: _openContactCenter,
-              icon: const Icon(Icons.admin_panel_settings_outlined),
-            ),
           IconButton(
             tooltip: 'Refresh directory',
             onPressed: _loading ? null : () => _load(reset: true),

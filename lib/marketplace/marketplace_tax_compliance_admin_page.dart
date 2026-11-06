@@ -2,6 +2,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
+import 'marketplace_admin_access.dart';
 import 'marketplace_command_client.dart';
 
 class MarketplaceTaxComplianceAdminPage extends StatefulWidget {
@@ -64,6 +65,17 @@ class _MarketplaceTaxComplianceAdminPageState
       });
     }
     try {
+      final authorized = await marketplaceAdministratorAccess(
+        forceRefresh: true,
+      );
+      if (!authorized) {
+        if (!mounted) return;
+        setState(() {
+          _error = 'Administrator Privileges Required';
+          _loading = false;
+        });
+        return;
+      }
       final values = await Future.wait([
         _commands.execute('getMarketplaceTaxComplianceAdmin', const {}),
         _commands.execute('getMarketplaceTaxRegistrationAdmin', const {}),
@@ -475,7 +487,8 @@ class _MarketplaceTaxComplianceAdminPageState
       if (mounted) {
         PipeFeedback.show(
           context,
-          message: 'Tax recovery case resolved and eligible holds re-evaluated.',
+          message:
+              'Tax recovery case resolved and eligible holds re-evaluated.',
           tone: PipeStatusTone.success,
         );
         await _load();
@@ -722,8 +735,7 @@ class _MarketplaceTaxComplianceAdminPageState
                   Align(
                     alignment: Alignment.centerRight,
                     child: FilledButton.icon(
-                      onPressed:
-                          _creatingRecovery ? null : _createRecoveryCase,
+                      onPressed: _creatingRecovery ? null : _createRecoveryCase,
                       icon: const Icon(Icons.lock_clock_outlined),
                       label: Text(
                         _creatingRecovery

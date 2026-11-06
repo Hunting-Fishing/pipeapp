@@ -1,4 +1,20 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+
+/// Reactive toggle allowing an authorized administrator to preview the exact
+/// customer-facing UI ("View what everyone else sees" mode) without signing out.
+///
+/// Enabling this mode only suppresses admin UI chrome in the client so an
+/// administrator can inspect the exact regular-user experience; it never grants
+/// privileges to non-admin accounts.
+final ValueNotifier<bool> marketplaceAdminViewAsUserMode =
+    ValueNotifier<bool>(false);
+
+void setMarketplaceAdminViewAsUserMode(bool enabled) {
+  if (marketplaceAdminViewAsUserMode.value != enabled) {
+    marketplaceAdminViewAsUserMode.value = enabled;
+  }
+}
 
 enum MarketplaceAdministratorState {
   signedOut,
@@ -45,7 +61,10 @@ Future<MarketplaceAdministratorState> marketplaceAdministratorState({
   bool forceRefresh = false,
 }) async {
   final user = (auth ?? FirebaseAuth.instance).currentUser;
-  if (user == null) return MarketplaceAdministratorState.signedOut;
+  if (user == null) {
+    setMarketplaceAdminViewAsUserMode(false);
+    return MarketplaceAdministratorState.signedOut;
+  }
 
   try {
     final result = await user.getIdTokenResult(forceRefresh);
@@ -68,3 +87,16 @@ Future<bool> marketplaceAdministratorAccess({
       forceRefresh: forceRefresh,
     ) ==
     MarketplaceAdministratorState.authorized;
+
+/// Returns true when the current user is an authorized administrator AND is
+/// not currently previewing the app in "View what everyone else sees" mode.
+Future<bool> marketplaceEffectiveAdminUiAccess({
+  FirebaseAuth? auth,
+  bool forceRefresh = false,
+}) async {
+  if (marketplaceAdminViewAsUserMode.value) return false;
+  return marketplaceAdministratorAccess(
+    auth: auth,
+    forceRefresh: forceRefresh,
+  );
+}

@@ -1068,7 +1068,6 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
   bool _authResolved = false;
   bool _authGateScheduled = false;
   bool _authRouteOpen = false;
-  bool _isAdminUser = false;
   bool _reconcilingVerification = false;
   final Set<String> _syncedVerificationKeys = {};
 
@@ -1458,7 +1457,6 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
           marketplaceEnabled: _features.marketplace,
           auctionsEnabled: _features.auctions,
           dispatchEnabled: _features.dispatch,
-          isAdmin: _isAdminUser,
           onDestinationSelected: (target) {
             if (target == 2) {
               _openCreate();
@@ -1474,14 +1472,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
           onSearchServices: () =>
               MarketplaceNavigation.openSearchServices(context),
           onListServices: () => MarketplaceNavigation.openListServices(context),
-          onYellowPagesAdmin: () =>
-              MarketplaceNavigation.openYellowPagesAdmin(context),
           onPartnerWithUs: () =>
               MarketplaceNavigation.openPartnerWithUs(context),
-          onPartnerAdmin: () => MarketplaceNavigation.openPartnerAdmin(context),
           onInsuranceHub: () => MarketplaceNavigation.openInsuranceHub(context),
-          onInsuranceAdmin: () =>
-              MarketplaceNavigation.openInsuranceAdmin(context),
         ),
         railLeading: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
@@ -1681,36 +1674,6 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                         MarketplaceNavigation.openPartnerWithUs(context);
                       },
                     ),
-                    if (_isAdminUser)
-                      _DrawerDestination(
-                        icon: Icons.contact_phone_outlined,
-                        label: 'Directory Admin',
-                        selected: false,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          MarketplaceNavigation.openYellowPagesAdmin(context);
-                        },
-                      ),
-                    if (_isAdminUser)
-                      _DrawerDestination(
-                        icon: Icons.admin_panel_settings_outlined,
-                        label: 'Insurance Admin',
-                        selected: false,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          MarketplaceNavigation.openInsuranceAdmin(context);
-                        },
-                      ),
-                    if (_isAdminUser)
-                      _DrawerDestination(
-                        icon: Icons.handshake_outlined,
-                        label: 'Partner Admin',
-                        selected: false,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          MarketplaceNavigation.openPartnerAdmin(context);
-                        },
-                      ),
                     if (_features.auctions)
                       _DrawerDestination(
                         icon: Icons.gavel_outlined,
@@ -1744,11 +1707,45 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                 onTap: () => _selectTab(5),
               ),
               if (FirebaseAuth.instance.currentUser != null)
-                _DrawerDestination(
-                  icon: Icons.logout,
-                  label: 'Sign out',
-                  selected: false,
-                  onTap: _signOut,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                  child: MarketplaceAccountMenuButton(
+                    extended: true,
+                    onAccount: () => _selectTab(5),
+                    onTrust: () {
+                      Navigator.of(context).pop();
+                      MarketplaceNavigation.openVerificationAndSecurity(
+                        context,
+                      );
+                    },
+                    onMemberships: () {
+                      Navigator.of(context).pop();
+                      showDialog<void>(
+                        context: context,
+                        builder: (_) =>
+                            const MarketplaceSubscriptionPlansDialog(),
+                      );
+                    },
+                    onSupport: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MarketplaceSupportPage(),
+                        ),
+                      );
+                    },
+                    onAdminSettings: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MarketplaceAdminDashboard(
+                            initialTabIndex: 7,
+                          ),
+                        ),
+                      );
+                    },
+                    onSignOut: _signOut,
+                  ),
                 )
               else
                 _DrawerDestination(
@@ -1833,17 +1830,14 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
       _saved.clear();
       _savedLoadError = null;
       _savedLoading = user != null;
-      if (user == null) {
-        _isAdminUser = false;
-      }
     });
     if (user == null) {
+      setMarketplaceAdminViewAsUserMode(false);
       _syncedVerificationKeys.clear();
       _scheduleAuthGate();
       return;
     }
     unawaited(_registerCurrentDevice(user));
-    unawaited(_refreshAdminAccess(user.uid));
     unawaited(_reconcileAccountVerification(user));
     final userUid = user.uid;
     _savedSubscription = _actions.watchSavedListingIds(userUid).listen(
@@ -1876,20 +1870,6 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
         });
       },
     );
-  }
-
-  Future<void> _refreshAdminAccess(String userUid) async {
-    try {
-      final isAdmin = await marketplaceAdministratorAccess();
-      if (!mounted || FirebaseAuth.instance.currentUser?.uid != userUid) {
-        return;
-      }
-      if (_isAdminUser != isAdmin) {
-        setState(() => _isAdminUser = isAdmin);
-      }
-    } catch (_) {
-      // Ignore admin access check failures in non-admin sessions.
-    }
   }
 
   Future<void> _registerCurrentDevice(User user) async {
@@ -2036,6 +2016,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
         false;
     if (!confirmed) return;
     try {
+      setMarketplaceAdminViewAsUserMode(false);
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
       setState(() => _tab = 0);
@@ -8055,7 +8036,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
       if (!mounted) return;
       final score = (data['userScore'] as num?)?.toInt() ?? 70;
       final completion = (data['profileCompletion'] as num?)?.toInt() ?? 0;
-      final isAdmin = await marketplaceAdministratorAccess();
+      final isAdmin = await marketplaceEffectiveAdminUiAccess();
       if (!mounted) return;
       if (!isAdmin &&
           (score < 80 ||

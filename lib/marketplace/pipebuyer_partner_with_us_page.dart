@@ -3,8 +3,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
-import 'marketplace_admin_access.dart';
-import 'marketplace_navigation.dart';
 import 'pipebuyer_business_logo_uploader.dart';
 import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_partner_client.dart';
@@ -74,7 +72,6 @@ class _PipeBuyerPartnerWithUsPageState
 
   List<PartnerShowcaseDeal> _liveShowcases = const <PartnerShowcaseDeal>[];
   bool _loadingShowcases = true;
-  bool _isAdmin = false;
   bool _submittingInquiry = false;
   String? _submittedInquiryId;
   String? _submittedCompanyName;
@@ -85,7 +82,6 @@ class _PipeBuyerPartnerWithUsPageState
     _client = widget.client ?? PipeBuyerPartnerClient();
     _showcaseCategoryFilter = widget.initialCategoryFilter;
     _prefillSignedInContact();
-    _checkAdmin();
     _loadShowcases();
 
     if (widget.initialSection != PartnerPageSection.overview) {
@@ -104,15 +100,6 @@ class _PipeBuyerPartnerWithUsPageState
     } catch (_) {
       // Safe no-op in isolated widget test environments without Firebase init.
     }
-  }
-
-  Future<void> _checkAdmin() async {
-    try {
-      final allowed = await marketplaceAdministratorAccess();
-      if (mounted && allowed) {
-        setState(() => _isAdmin = true);
-      }
-    } catch (_) {}
   }
 
   Future<void> _loadShowcases() async {
@@ -287,18 +274,6 @@ class _PipeBuyerPartnerWithUsPageState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Partner With Us'),
-        actions: [
-          if (_isAdmin)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilledButton.tonalIcon(
-                onPressed: () =>
-                    MarketplaceNavigation.openPartnerAdmin(context),
-                icon: const Icon(Icons.admin_panel_settings_outlined, size: 18),
-                label: const Text('Partner Admin'),
-              ),
-            ),
-        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

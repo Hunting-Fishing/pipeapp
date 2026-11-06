@@ -13,13 +13,9 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
     required this.onWanted,
     this.onSearchServices,
     this.onListServices,
-    this.onYellowPagesAdmin,
     this.onPartnerWithUs,
-    this.onPartnerAdmin,
     this.onInsuranceHub,
     this.onInsuranceProviderApply,
-    this.onInsuranceAdmin,
-    this.isAdmin = false,
   });
 
   final int selectedPageIndex;
@@ -30,13 +26,9 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
   final VoidCallback onWanted;
   final VoidCallback? onSearchServices;
   final VoidCallback? onListServices;
-  final VoidCallback? onYellowPagesAdmin;
   final VoidCallback? onPartnerWithUs;
-  final VoidCallback? onPartnerAdmin;
   final VoidCallback? onInsuranceHub;
   final VoidCallback? onInsuranceProviderApply;
-  final VoidCallback? onInsuranceAdmin;
-  final bool isAdmin;
 
   @override
   Widget build(BuildContext context) => ListView(
@@ -108,22 +100,6 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
                 selected: false,
                 onTap: onInsuranceHub!,
               ),
-            if (isAdmin && onYellowPagesAdmin != null)
-              _NavItem(
-                icon: Icons.contact_phone_outlined,
-                selectedIcon: Icons.contact_phone_rounded,
-                label: 'Directory Admin',
-                selected: false,
-                onTap: onYellowPagesAdmin!,
-              ),
-            if (isAdmin && onInsuranceAdmin != null)
-              _NavItem(
-                icon: Icons.admin_panel_settings_outlined,
-                selectedIcon: Icons.admin_panel_settings_rounded,
-                label: 'Insurance Admin',
-                selected: false,
-                onTap: onInsuranceAdmin!,
-              ),
           ],
           const _SectionLabel('DEALS'),
           _NavItem(
@@ -160,14 +136,6 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
               selected: false,
               onTap: onPartnerWithUs!,
             ),
-            if (isAdmin && onPartnerAdmin != null)
-              _NavItem(
-                icon: Icons.admin_panel_settings_outlined,
-                selectedIcon: Icons.admin_panel_settings_rounded,
-                label: 'Partner Admin',
-                selected: false,
-                onTap: onPartnerAdmin!,
-              ),
           ],
         ],
       );
