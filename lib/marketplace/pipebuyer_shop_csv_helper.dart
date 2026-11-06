@@ -35,13 +35,15 @@ abstract final class PipeBuyerShopCsvHelper {
     'badge_text',
     'description',
     'highlights',
+    'eligible_countries',
   ];
 
   static String exportProductsToCsv(List<PipeBuyerShopProduct> products) {
     final buffer = StringBuffer();
     buffer.writeln(csvHeaders.join(','));
     for (final item in products) {
-      final searchQuery = Uri.encodeQueryComponent('${item.brand} ${item.title}');
+      final searchQuery =
+          Uri.encodeQueryComponent('${item.brand} ${item.title}');
       final helperUrl = 'https://www.amazon.com/s?k=$searchQuery';
       final row = <String>[
         item.id,
@@ -60,6 +62,7 @@ abstract final class PipeBuyerShopCsvHelper {
         item.badgeText,
         item.description,
         item.highlights.join(' | '),
+        item.effectiveEligibleCountries.join(' | '),
       ];
       buffer.writeln(row.map(_escapeCsvCell).join(','));
     }
@@ -83,8 +86,7 @@ abstract final class PipeBuyerShopCsvHelper {
     final firstNewline = trimmed.indexOf('\n');
     final firstLine =
         firstNewline >= 0 ? trimmed.substring(0, firstNewline) : trimmed;
-    final delimiter =
-        '\t'.allMatches(firstLine).length >= 3 ? '\t' : ',';
+    final delimiter = '\t'.allMatches(firstLine).length >= 3 ? '\t' : ',';
 
     final rows = _parseDelimited(trimmed, delimiter);
     if (rows.length < 2) {
@@ -170,9 +172,8 @@ abstract final class PipeBuyerShopCsvHelper {
         'item_name',
         'name',
       ]);
-      final effectiveTitle = rawTitle.isNotEmpty
-          ? rawTitle
-          : parsedLink.suggestedTitle;
+      final effectiveTitle =
+          rawTitle.isNotEmpty ? rawTitle : parsedLink.suggestedTitle;
       if (effectiveTitle.trim().length < 3) {
         if (invalid.length < 25) {
           invalid.add('Row ${r + 1}: Product title is missing or too short.');
@@ -252,6 +253,20 @@ abstract final class PipeBuyerShopCsvHelper {
           .take(6)
           .toList(growable: false);
 
+      final countriesRaw = cell(row, const <String>[
+        'eligible_countries',
+        'ships_to',
+        'countries',
+        'country',
+        'region',
+      ]);
+      final eligibleCountries = countriesRaw.isNotEmpty
+          ? PipeBuyerShopUrlBuilder.normalizeEligibleCountries(
+              countriesRaw.split(RegExp(r'[,;|/\s]+')),
+              fallback: parsedLink.eligibleCountries,
+            )
+          : parsedLink.eligibleCountries;
+
       ready.add(<String, Object?>{
         if (rawId.isNotEmpty) 'id': rawId,
         'rawAffiliateInput':
@@ -260,7 +275,9 @@ abstract final class PipeBuyerShopCsvHelper {
         'brand': effectiveBrand.isEmpty ? 'Industrial Select' : effectiveBrand,
         'vendorName': sourceType == PipeBuyerShopSourceType.amazonAffiliate
             ? 'Amazon'
-            : (effectiveBrand.isEmpty ? 'Partner' : effectiveBrand),
+            : (parsedLink.suggestedVendorName.isNotEmpty
+                ? parsedLink.suggestedVendorName
+                : (effectiveBrand.isEmpty ? 'Partner' : effectiveBrand)),
         'sourceType': sourceType.code,
         'status': 'active',
         'categoryCode': categoryCode,
@@ -271,6 +288,7 @@ abstract final class PipeBuyerShopCsvHelper {
         'badgeText': badgeText,
         'description': description,
         'highlights': highlights,
+        'eligibleCountries': eligibleCountries,
         'featured': featured,
         'priorityRank': priorityRank,
       });

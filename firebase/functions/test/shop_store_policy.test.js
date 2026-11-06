@@ -7,7 +7,10 @@ const {
   SHOP_CATEGORIES,
   buildMonetizedDestinationUrl,
   buildPublicShopProduct,
+  doesProductShipToCountry,
   extractAmazonAsin,
+  extractHtmlProductMetadata,
+  inferEligibleCountries,
   normalizeStoreSettings,
   parseAmazonAffiliateSubmission,
   parseSafeHttpsUrl,
@@ -730,4 +733,214 @@ test("SHOP_CATEGORIES defines 8 categories and 48 trade subcategories", () => {
   const allSubs = SHOP_CATEGORIES.flatMap((c) => c.subcategories || []);
   assert.equal(allSubs.length, 48);
   assert.equal(new Set(allSubs).size, 48);
+});
+
+test("inferEligibleCountries, doesProductShipToCountry, and extractHtmlProductMetadata work across global affiliate platforms", () => {
+  assert.deepEqual(inferEligibleCountries("www.lazada.com.ph", "lazada_affiliate"), ["PH"]);
+  assert.deepEqual(inferEligibleCountries("s.shopee.sg", "shopee_affiliate"), ["SG"]);
+  assert.deepEqual(inferEligibleCountries("shopee.com.my", "shopee_affiliate"), ["MY"]);
+  assert.deepEqual(inferEligibleCountries("s.click.aliexpress.com", "aliexpress_affiliate"), ["GLOBAL"]);
+  assert.deepEqual(inferEligibleCountries("www.amazon.com", "amazon_affiliate", "B077H7JP1D"), ["US", "CA"]);
+  assert.deepEqual(inferEligibleCountries("www.tractorsupply.com", "hardware_pro_retail"), ["US"]);
+  assert.deepEqual(inferEligibleCountries("www.canadiantire.ca", "hardware_pro_retail"), ["CA"]);
+
+  assert.equal(doesProductShipToCountry(["PH"], "PH"), true);
+  assert.equal(doesProductShipToCountry(["PH"], "US"), false);
+  assert.equal(doesProductShipToCountry(["PH"], "ALL"), true);
+  assert.equal(doesProductShipToCountry(["GLOBAL"], "CA"), true);
+  assert.equal(doesProductShipToCountry(["US", "CA"], "CA"), true);
+  assert.equal(doesProductShipToCountry(["US", "CA"], "PH"), false);
+
+  const meta = extractHtmlProductMetadata(
+      `<html><head>
+        <meta property="og:image" content="https://ph-live.slatic.net/p/ingco-wrench.jpg" />
+        <meta property="product:price:amount" content="1499.00" />
+        <meta property="product:price:currency" content="PHP" />
+        <title>Ingco 24-Inch Heavy Duty Pipe Wrench | Lazada PH</title>
+      </head><body></body></html>`,
+      "https://www.lazada.com.ph/products/ingco-24-inch-pipe-wrench.html",
+  );
+  assert.equal(meta.title, "Ingco 24-Inch Heavy Duty Pipe Wrench");
+  assert.equal(meta.imageUrl, "https://ph-live.slatic.net/p/ingco-wrench.jpg");
+  assert.equal(meta.brand, "Ingco");
+  assert.equal(meta.priceDisplay, "₱1499.00");
+});
+
+test("parseShopAffiliateLink unfurls shortlinks safely, extracts photos/countries, and store_manager can batch-hide demo templates", async () => {
+  const store = new Map();
+  const makeDocRef = (col, id) => {
+    const key = `${col}/${id}`;
+    return {
+      id,
+      async get() {
+        const exists = store.has(key);
+        return {id, exists, data: () => (exists ? {...store.get(key)} : undefined)};
+      },
+      async set(data, opts) {
+        const prev = opts && opts.merge && store.has(key) ? store.get(key) : {};
+        store.set(key, {...prev, ...data});
+      },
+      async update(data) {
+        store.set(key, {...(store.get(key) || {}), ...data});
+      },
+      async delete() {
+        store.delete(key);
+      },
+    };
+  };
+  const makeCollection = (col) => {
+    const prefix = `${col}/`;
+    const queryApi = (pred = () => true) => ({
+      where: (f, op, exp) => queryApi((d) => pred(d) && (op === "==" ? d[f] === exp : true)),
+      orderBy: () => queryApi(pred),
+      limit: () => queryApi(pred),
+      async get() {
+        const docs = [];
+        for (const [k, v] of store.entries()) {
+          if (k.startsWith(prefix) && !k.slice(prefix.length).includes("/") && pred(v)) {
+            docs.push({id: k.slice(prefix.length), data: () => ({...v})});
+          }
+        }
+        return {empty: docs.length === 0, size: docs.length, docs};
+      },
+    });
+    let n = 0;
+    return {
+      ...queryApi(),
+      doc: (id) => makeDocRef(col, id || `id_${++n}`),
+      add: async (data) => {
+        const r = makeDocRef(col, `id_${++n}`);
+        await r.set(data);
+        return r;
+      },
+    };
+  };
+
+  const mockAdmin = {
+    firestore: Object.assign(
+        () => ({
+          collection: (col) => makeCollection(col),
+          batch() {
+            const ops = [];
+            return {
+              set: (r, d, o) => ops.push(() => r.set(d, o)),
+              update: (r, d) => ops.push(() => r.update(d)),
+              delete: (r) => ops.push(() => r.delete()),
+              commit: async () => {
+                for (const op of ops) await op();
+              },
+            };
+          },
+        }),
+        {FieldValue: {serverTimestamp: () => "TS", increment: (x) => x}},
+    ),
+  };
+
+  const fakeFetch = async (url) => {
+    if (url === "https://shope.ee/9zPipeTool") {
+      return {
+        status: 302,
+        headers: {get: (h) => (h.toLowerCase() === "location" ? "https://shopee.ph/Total-Tools-Pipe-Wrench-i.100.200" : null)},
+      };
+    }
+    if (url === "https://shopee.ph/Total-Tools-Pipe-Wrench-i.100.200") {
+      return {
+        status: 200,
+        headers: {get: (h) => (h.toLowerCase() === "content-type" ? "text/html" : null)},
+        text: async () => `<html><head>
+          <meta property="og:title" content="Total Tools Heavy Duty 24-Inch Pipe Wrench | Shopee Philippines" />
+          <meta property="og:image" content="https://down-ph.img.susercontent.com/file/ph-pipe-wrench.jpg" />
+          <meta property="product:price:amount" content="895" />
+          <meta property="product:price:currency" content="PHP" />
+        </head></html>`,
+      };
+    }
+    if (url === "https://invol.co/clEvilRedirect") {
+      return {
+        status: 302,
+        headers: {get: (h) => (h.toLowerCase() === "location" ? "http://127.0.0.1:8080/internal" : null)},
+      };
+    }
+    return {status: 404, headers: {get: () => null}, text: async () => ""};
+  };
+
+  const commands = createShopStoreCommands(mockAdmin, {fetchImpl: fakeFetch});
+  store.set("shop_staff/joan_uid", {
+    role: "store_manager",
+    active: true,
+    allowedPlatforms: ["all"],
+  });
+  const joanReq = {
+    auth: {
+      uid: "joan_uid",
+      token: {
+        email: "joan@example.com",
+        email_verified: true,
+        shopRole: "store_manager",
+      },
+    },
+  };
+
+  const preview = await commands.parseShopAffiliateLink({
+    ...joanReq,
+    data: {rawInput: "https://shope.ee/9zPipeTool", fetchMetadata: true},
+  });
+  assert.equal(preview.destinationUrl, "https://shope.ee/9zPipeTool");
+  assert.deepEqual(preview.eligibleCountries, ["PH"]);
+  assert.equal(preview.imageUrl, "https://down-ph.img.susercontent.com/file/ph-pipe-wrench.jpg");
+  assert.equal(preview.suggestedTitle, "Total Tools Heavy Duty 24-Inch Pipe Wrench");
+  assert.equal(preview.suggestedPriceDisplay, "₱895");
+
+  // SSRF hop to 127.0.0.1 is safely aborted without throwing
+  const ssrfAttempt = await commands.parseShopAffiliateLink({
+    ...joanReq,
+    data: {rawInput: "https://invol.co/clEvilRedirect", fetchMetadata: true},
+  });
+  assert.equal(ssrfAttempt.metadataFetched, false);
+  assert.equal(ssrfAttempt.imageUrl, "");
+
+  // Add PH-only Shopee product and US-only product, verify countryCode filter in listShopStoreCatalog
+  await commands.upsertShopProduct({
+    ...joanReq,
+    data: {
+      id: "ph-shopee-wrench",
+      title: preview.suggestedTitle,
+      brand: "Total Tools",
+      sourceType: "shopee_affiliate",
+      categoryCode: "pipe_welding_fab",
+      destinationUrl: preview.destinationUrl,
+      imageUrl: preview.imageUrl,
+      eligibleCountries: preview.eligibleCountries,
+    },
+  });
+  await commands.upsertShopProduct({
+    ...joanReq,
+    data: {
+      id: "us-tractor-chain",
+      title: "Grade 70 Transport Chain",
+      brand: "Vulcan",
+      sourceType: "hardware_pro_retail",
+      categoryCode: "rigging_hauling_cargo",
+      destinationUrl: "https://www.tractorsupply.com/tsc/product/grade-70-chain",
+    },
+  });
+
+  const phCatalog = await commands.listShopStoreCatalog({data: {countryCode: "PH"}});
+  assert.equal(phCatalog.products.length, 1);
+  assert.equal(phCatalog.products[0].id, "ph-shopee-wrench");
+
+  const usCatalog = await commands.listShopStoreCatalog({data: {countryCode: "US"}});
+  assert.equal(usCatalog.products.length, 1);
+  assert.equal(usCatalog.products[0].id, "us-tractor-chain");
+
+  // Store manager can batch-hide built-in demo starter templates in 1 click
+  const hideRes = await commands.restoreStarterShopProducts({
+    ...joanReq,
+    data: {
+      mode: "hide",
+      productIds: ["ridgid-36-aluminum-pipe-wrench", "ridgid-460-tristand-chain-vise"],
+    },
+  });
+  assert.equal(hideRes.hiddenCount, 2);
+  assert.ok(hideRes.hiddenStarterIds.includes("ridgid-36-aluminum-pipe-wrench"));
 });

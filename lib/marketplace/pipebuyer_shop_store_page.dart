@@ -38,8 +38,9 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
   late final TextEditingController _searchController;
 
   PipeBuyerShopSettings _settings = const PipeBuyerShopSettings();
-  List<PipeBuyerShopProduct> _products = PipeBuyerShopClient
-      .mergeWithStarterCatalog(const <PipeBuyerShopProduct>[]);
+  List<PipeBuyerShopProduct> _products =
+      PipeBuyerShopClient.mergeWithStarterCatalog(
+          const <PipeBuyerShopProduct>[]);
   List<Map<String, dynamic>> _approvedVendors = const <Map<String, dynamic>>[];
   Set<String> _savedIds = <String>{};
 
@@ -283,12 +284,12 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
     });
   }
 
-  List<PipeBuyerShopProduct> get _filteredProducts {
+  List<PipeBuyerShopProduct> get _productsMatchingNonCountryFilters {
     final query = _searchController.text.trim().toLowerCase();
     final terms =
         query.isEmpty ? const <String>[] : query.split(RegExp(r'\s+'));
 
-    final matched = _products.where((item) {
+    return _products.where((item) {
       if (item.status != 'active') return false;
       if (_savedOnly && !_savedIds.contains(item.id)) return false;
       if (_selectedCategoryCode.isNotEmpty &&
@@ -321,7 +322,13 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
         if (!terms.every(haystack.contains)) return false;
       }
       return true;
-    }).toList();
+    }).toList(growable: false);
+  }
+
+  List<PipeBuyerShopProduct> get _filteredProducts {
+    final matched = _productsMatchingNonCountryFilters
+        .where((item) => item.shipsToCountry(_regionCode))
+        .toList();
 
     switch (_sortBy) {
       case 'popular':
@@ -349,10 +356,17 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
     return matched;
   }
 
+  int get _hiddenByCountryCount {
+    final withoutCountry = _productsMatchingNonCountryFilters;
+    return withoutCountry
+        .where((item) => !item.shipsToCountry(_regionCode))
+        .length;
+  }
+
   List<String> get _availableBrands {
     final counts = <String, int>{};
     for (final p in _products) {
-      if (p.status != 'active') continue;
+      if (p.status != 'active' || !p.shipsToCountry(_regionCode)) continue;
       if (_selectedCategoryCode.isNotEmpty &&
           p.categoryCode != _selectedCategoryCode) {
         continue;
@@ -661,7 +675,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  '${_roleSession.roleDisplayLabel}: Paste any Amazon SiteStripe / Share link to add, or edit/remove links below.',
+                  '${_roleSession.roleDisplayLabel}: Paste any Amazon, AliExpress, Lazada, Shopee or partner link to publish, or edit/remove below.',
                   style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w800,
@@ -703,6 +717,12 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
   }
 
   Widget _buildStoreHero(BuildContext context) {
+    final activeCountry =
+        PipeBuyerShopTaxonomy.countryOptionByCode(_regionCode);
+    final countryLabel = activeCountry != null
+        ? '${activeCountry.flag} ${activeCountry.code == 'ALL' ? 'All Regions' : activeCountry.shortLabel}'
+        : '🌍 $_regionCode';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -745,6 +765,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   _RegionChip(
                     label: 'US Store (.com)',
@@ -755,6 +776,81 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
                     label: 'Canada (.ca)',
                     selected: _regionCode == 'CA',
                     onTap: () => _setRegion('CA'),
+                  ),
+                  PopupMenuButton<String>(
+                    key: const Key('shop_country_picker_button'),
+                    tooltip: 'Select your delivery country',
+                    onSelected: _setRegion,
+                    itemBuilder: (context) =>
+                        PipeBuyerShopTaxonomy.countryOptions
+                            .map(
+                              (opt) => PopupMenuItem<String>(
+                                value: opt.code,
+                                child: Row(
+                                  children: [
+                                    Text(opt.flag),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        opt.label,
+                                        style: TextStyle(
+                                          fontWeight: _regionCode == opt.code
+                                              ? FontWeight.w900
+                                              : FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    if (_regionCode == opt.code)
+                                      const Icon(
+                                        Icons.check_rounded,
+                                        size: 16,
+                                        color: PipeBuyerColors.orangePressed,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            )
+                            .toList(growable: false),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (_regionCode != 'US' && _regionCode != 'CA')
+                            ? PipeBuyerColors.orange
+                            : Colors.white.withValues(alpha: .10),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: (_regionCode != 'US' && _regionCode != 'CA')
+                              ? PipeBuyerColors.orange
+                              : Colors.white.withValues(alpha: .22),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'Deliver to: $countryLabel',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          const Icon(
+                            Icons.arrow_drop_down_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                   _RegionChip(
                     label: 'Saved (${_savedIds.length})',
@@ -984,7 +1080,8 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
                         : Colors.white,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isSelected ? spot.accentColor : PipeBuyerColors.line,
+                      color:
+                          isSelected ? spot.accentColor : PipeBuyerColors.line,
                       width: isSelected ? 1.8 : 1,
                     ),
                   ),
@@ -1064,8 +1161,10 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
 
   Widget _buildCategorySelector(BuildContext context) {
     final countsByCat = <String, int>{};
+    var totalCountryEligible = 0;
     for (final p in _products) {
-      if (p.status == 'active') {
+      if (p.status == 'active' && p.shipsToCountry(_regionCode)) {
+        totalCountryEligible += 1;
         countsByCat[p.categoryCode] = (countsByCat[p.categoryCode] ?? 0) + 1;
       }
     }
@@ -1089,7 +1188,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
           children: [
             _CategoryFilterPill(
               label: 'All Categories',
-              count: _products.where((p) => p.status == 'active').length,
+              count: totalCountryEligible,
               icon: Icons.apps_rounded,
               selected: _selectedCategoryCode.isEmpty,
               onTap: () => setState(() {
@@ -1121,7 +1220,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
   Widget _buildSubcategorySelector(BuildContext context) {
     final countsBySub = <String, int>{};
     for (final p in _products) {
-      if (p.status != 'active') continue;
+      if (p.status != 'active' || !p.shipsToCountry(_regionCode)) continue;
       if (_selectedCategoryCode.isNotEmpty &&
           p.categoryCode != _selectedCategoryCode) {
         continue;
@@ -1219,6 +1318,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
     required bool hasActiveFilters,
   }) {
     final brands = _availableBrands;
+    final hiddenByCountry = _hiddenByCountryCount;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1247,6 +1347,28 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
                       fontSize: 13.5,
                     ),
                   ),
+                  if (hiddenByCountry > 0)
+                    TextButton(
+                      onPressed: () => _setRegion('ALL'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.public_rounded, size: 15),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              '$hiddenByCountry regional item${hiddenByCountry == 1 ? '' : 's'} hidden for $_regionCode • Show All Regions',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   if (hasActiveFilters)
                     TextButton.icon(
                       onPressed: _clearAllFilters,
@@ -1330,6 +1452,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
   }
 
   Widget _buildEmptyResultsCard(BuildContext context) {
+    final hiddenByCountry = _hiddenByCountryCount;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(28),
@@ -1341,15 +1464,20 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
               color: PipeBuyerColors.muted,
             ),
             const SizedBox(height: 10),
-            const Text(
-              'No Store items match those filters',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+            Text(
+              hiddenByCountry > 0
+                  ? 'No items ship to $_regionCode for those filters'
+                  : 'No Store items match those filters',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Clear filters to browse all categories, or search directly on Amazon with Pipe Buyer support.',
+            Text(
+              hiddenByCountry > 0
+                  ? '$hiddenByCountry item${hiddenByCountry == 1 ? '' : 's'} are available in other regional stores. Switch delivery country or show all regions below.'
+                  : 'Clear filters to browse all categories, or search directly on Amazon with Pipe Buyer support.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: PipeBuyerColors.muted),
+              style: const TextStyle(color: PipeBuyerColors.muted),
             ),
             const SizedBox(height: 14),
             Wrap(
@@ -1357,6 +1485,12 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
               runSpacing: 8,
               alignment: WrapAlignment.center,
               children: [
+                if (hiddenByCountry > 0)
+                  FilledButton.tonalIcon(
+                    onPressed: () => _setRegion('ALL'),
+                    icon: const Icon(Icons.public_rounded, size: 17),
+                    label: const Text('Show All Regions'),
+                  ),
                 OutlinedButton(
                   onPressed: _clearAllFilters,
                   child: const Text('Show All Store Items'),
@@ -2086,8 +2220,8 @@ class _ShopProductCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   product.sourceType == PipeBuyerShopSourceType.amazonAffiliate
-                      ? '#ad • Amazon Associate link (opens Amazon)'
-                      : '#ad • Partner link (external checkout)',
+                      ? '#ad • Amazon Associate link • ${product.shippingSummaryLabel}'
+                      : '#ad • ${product.vendorName.isNotEmpty ? product.vendorName : 'Partner'} • ${product.shippingSummaryLabel}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(

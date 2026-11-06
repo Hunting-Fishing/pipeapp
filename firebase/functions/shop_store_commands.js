@@ -21,9 +21,20 @@ const {
   VENDOR_APPLICATION_STATUSES,
   buildPublicShopProduct,
   cleanText,
+  detectAffiliatePlatform,
+  doesProductShipToCountry,
+  extractAmazonAsin,
+  extractHtmlProductMetadata,
+  extractTitleFromAmazonSlug,
+  extractTitleFromGenericSlug,
+  inferBrandFromText,
+  inferCategoryCodeFromText,
+  inferEligibleCountries,
+  isAmazonFullHostname,
   normalizeHiddenStarterIds,
   normalizeStoreSettings,
   parseAmazonAffiliateSubmission,
+  parseSafeHttpsUrl,
   validateShopProductInput,
   validateVendorApplicationInput,
 } = require("./shop_store_policy");
@@ -96,11 +107,186 @@ function sanitizeDocId(rawId) {
   return cleaned.slice(0, 80);
 }
 
-function createShopStoreCommands(admin, {notifyAdministrators} = {}) {
+async function readBodyUpToBytes(response, maxBytes = 262144) {
+  if (!response) return "";
+  if (response.body && typeof response.body.getReader === "function") {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8", {fatal: false});
+    let total = 0;
+    let out = "";
+    try {
+      while (total < maxBytes) {
+        const {done, value} = await reader.read();
+        if (done || !value) break;
+        const slice = total + value.byteLength > maxBytes ?
+          value.subarray(0, maxBytes - total) :
+          value;
+        total += slice.byteLength;
+        out += decoder.decode(slice, {stream: true});
+      }
+      out += decoder.decode();
+    } finally {
+      try {
+        await reader.cancel();
+      } catch {
+        // Ignore stream cancel errors
+      }
+    }
+    return out;
+  }
+  if (typeof response.text === "function") {
+    const full = await response.text();
+    return String(full || "").slice(0, maxBytes);
+  }
+  return "";
+}
+
+async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn) {
+  if (!parsed || !parsed.destinationUrl || typeof fetchFn !== "function") {
+    return parsed;
+  }
+  const result = {...parsed};
+  let currentUrl = parseSafeHttpsUrl(parsed.destinationUrl, "Affiliate link");
+  let finalResponse = null;
+
+  try {
+    for (let hop = 0; hop < 6; hop++) {
+      const res = await fetchFn(currentUrl.toString(), {
+        method: "GET",
+        redirect: "manual",
+        signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ?
+          AbortSignal.timeout(6500) :
+          undefined,
+        headers: {
+          "user-agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+          "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "accept-language": "en-US,en;q=0.9",
+        },
+      });
+      if (res && res.status >= 300 && res.status < 400) {
+        const rawLoc = res.headers && typeof res.headers.get === "function" ?
+          res.headers.get("location") :
+          "";
+        if (!rawLoc) {
+          finalResponse = res;
+          break;
+        }
+        const resolvedCandidate = new URL(rawLoc, currentUrl.toString()).toString()
+            .replace(/^http:\/\//i, "https://");
+        currentUrl = parseSafeHttpsUrl(resolvedCandidate, "Redirect target URL");
+        continue;
+      }
+      finalResponse = res;
+      break;
+    }
+
+    const resolvedUrlStr = currentUrl.toString();
+    const resolvedHost = currentUrl.hostname.toLowerCase();
+    result.resolvedUrl = resolvedUrlStr;
+    result.resolvedHost = resolvedHost;
+
+    const resolvedAsin = result.asin || extractAmazonAsin(resolvedUrlStr);
+    if (resolvedAsin && !result.asin) {
+      result.asin = resolvedAsin;
+    }
+
+    const resolvedDetected = detectAffiliatePlatform(resolvedHost);
+    const resolvedCountries = inferEligibleCountries(
+        resolvedHost,
+        resolvedDetected.sourceType,
+        resolvedAsin,
+    );
+    if (result.isShortLink && resolvedHost) {
+      result.eligibleCountries = resolvedCountries;
+      if (
+        result.sourceType === "affiliate_network" &&
+        resolvedDetected.vendorName &&
+        resolvedDetected.vendorName !== "Amazon"
+      ) {
+        result.suggestedVendorName = resolvedDetected.vendorName;
+      }
+    }
+
+    let htmlMeta = {title: "", imageUrl: "", brand: "", priceDisplay: ""};
+    if (finalResponse && finalResponse.status >= 200 && finalResponse.status < 400) {
+      const contentType = finalResponse.headers && typeof finalResponse.headers.get === "function" ?
+        String(finalResponse.headers.get("content-type") || "").toLowerCase() :
+        "text/html";
+      if (!contentType || contentType.includes("html") || contentType.includes("xml")) {
+        const html = await readBodyUpToBytes(finalResponse, 262144);
+        htmlMeta = extractHtmlProductMetadata(html, resolvedUrlStr);
+      }
+    }
+
+    const resolvedSlugTitle = isAmazonFullHostname(resolvedHost) ?
+      extractTitleFromAmazonSlug(currentUrl) :
+      extractTitleFromGenericSlug(currentUrl);
+    const searchQueryTitle = cleanText(
+        currentUrl.searchParams.get("k") || currentUrl.searchParams.get("q") || "",
+        160,
+    );
+
+    if (!result.imageUrl && htmlMeta.imageUrl) {
+      result.imageUrl = htmlMeta.imageUrl;
+    }
+    if (!result.suggestedTitle) {
+      result.suggestedTitle = htmlMeta.title || resolvedSlugTitle || searchQueryTitle;
+    }
+    if (!result.suggestedBrand) {
+      result.suggestedBrand =
+        htmlMeta.brand || inferBrandFromText(`${result.suggestedTitle} ${resolvedUrlStr}`);
+    }
+    if (result.suggestedTitle) {
+      result.suggestedCategoryCode = inferCategoryCodeFromText(
+          `${result.suggestedTitle} ${result.suggestedBrand}`,
+      );
+    }
+    if (htmlMeta.priceDisplay) {
+      result.suggestedPriceDisplay = htmlMeta.priceDisplay;
+    }
+    result.metadataFetched = Boolean(result.imageUrl || htmlMeta.title);
+  } catch {
+    result.metadataFetched = false;
+  }
+
+  // Amazon CDN ASIN image fallback when HTML is bot-gated or shortlink resolved an ASIN
+  if (!result.imageUrl && result.asin && typeof fetchFn === "function") {
+    const cdnImgUrl = `https://m.media-amazon.com/images/P/${result.asin}.01._SCLZZZZZZZ_SX500_.jpg`;
+    try {
+      const imgRes = await fetchFn(cdnImgUrl, {
+        method: "GET",
+        signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ?
+          AbortSignal.timeout(4000) :
+          undefined,
+      });
+      if (imgRes && imgRes.status === 200) {
+        const cType = imgRes.headers && typeof imgRes.headers.get === "function" ?
+          String(imgRes.headers.get("content-type") || "").toLowerCase() :
+          "";
+        const buf = typeof imgRes.arrayBuffer === "function" ?
+          await imgRes.arrayBuffer() :
+          null;
+        const size = buf ? buf.byteLength : 0;
+        if (cType.includes("jpeg") && size > 800) {
+          result.imageUrl = cdnImgUrl;
+          result.metadataFetched = true;
+        }
+      }
+    } catch {
+      // Ignore optional CDN image fallback failure
+    }
+  }
+
+  return result;
+}
+
+function createShopStoreCommands(admin, {notifyAdministrators, fetchImpl} = {}) {
   const db = () => admin.firestore();
   const auth = () => admin.auth();
   const serverTimestamp = () => admin.firestore.FieldValue.serverTimestamp();
   const increment = (n) => admin.firestore.FieldValue.increment(n);
+  const effectiveFetch = fetchImpl || (typeof globalThis.fetch === "function" ? globalThis.fetch.bind(globalThis) : null);
 
   async function resolveShopActor(request) {
     if (!request || !request.auth || !request.auth.uid) {
@@ -333,8 +519,16 @@ function createShopStoreCommands(admin, {notifyAdministrators} = {}) {
         ["affiliate_contributor", "catalog_editor", "store_manager", "administrator"],
     );
     const settings = await loadEffectiveSettings();
-    const rawInput = (request && request.data && request.data.rawInput) || "";
-    return parseAmazonAffiliateSubmission(rawInput, settings);
+    const data = (request && request.data) || {};
+    const rawInput = data.rawInput || "";
+    const parsed = parseAmazonAffiliateSubmission(rawInput, settings);
+    if (data.fetchMetadata === true && effectiveFetch) {
+      if (typeof db().runTransaction === "function") {
+        await enforceUserRateLimit({db: db(), admin, request, scope: "search"});
+      }
+      return enrichParsedAffiliateWithLiveMetadata(parsed, effectiveFetch);
+    }
+    return parsed;
   });
 
   const listShopStoreCatalog = wrapCommand(async (request) => {
@@ -343,6 +537,7 @@ function createShopStoreCommands(admin, {notifyAdministrators} = {}) {
     const subcategoryFilter = cleanText(data.subcategory, 120).toLowerCase();
     const sourceFilter = cleanText(data.sourceType, 40);
     const brandFilter = cleanText(data.brand, 80).toLowerCase();
+    const countryFilter = cleanText(data.countryCode, 24).toUpperCase();
     const queryText = cleanText(data.query, 120).toLowerCase();
 
     const [publicConfigSnap, productsSnap, allProductsSnap, vendorsSnap] = await Promise.all([
@@ -371,6 +566,11 @@ function createShopStoreCommands(admin, {notifyAdministrators} = {}) {
         }))
         .filter((item) => !suppressedSet.has(item.id));
 
+    if (countryFilter && countryFilter !== "ALL") {
+      products = products.filter((item) =>
+        doesProductShipToCountry(item.eligibleCountries, countryFilter),
+      );
+    }
     if (categoryFilter) {
       products = products.filter((item) => item.categoryCode === categoryFilter);
     }
@@ -1151,9 +1351,27 @@ function createShopStoreCommands(admin, {notifyAdministrators} = {}) {
         ["catalog_editor", "store_manager", "administrator"],
     );
     const payload = (request && request.data) || {};
-    const singleId = sanitizeDocId(payload.productId);
+    const mode = cleanText(payload.mode, 24).toLowerCase() || "restore";
     const settings = await loadEffectiveSettings();
     const currentHidden = settings.hiddenStarterIds || [];
+
+    if (mode === "hide") {
+      const rawIds = Array.isArray(payload.productIds) ? payload.productIds : [];
+      const sanitizedIds = rawIds.map((id) => sanitizeDocId(id)).filter(Boolean);
+      const mergedHidden = await persistHiddenStarterIds(
+          [...currentHidden, ...sanitizedIds],
+          actor.uid,
+      );
+      await recordAudit(actor, "hide_starter_products", "batch", {
+        hiddenCount: mergedHidden.length,
+      });
+      return {
+        hiddenStarterIds: mergedHidden,
+        hiddenCount: mergedHidden.length,
+      };
+    }
+
+    const singleId = sanitizeDocId(payload.productId);
     const nextHidden = singleId ?
       currentHidden.filter((id) => id !== singleId) :
       [];

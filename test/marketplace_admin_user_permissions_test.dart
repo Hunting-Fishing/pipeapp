@@ -300,7 +300,7 @@ void main() {
     await tester.enterText(
       find.widgetWithText(
         TextField,
-        'Paste Amazon SiteStripe Link, amzn.to, Share Text, HTML, or ASIN',
+        'Paste Affiliate Link, Shortlink, Share Text, or ASIN',
       ),
       'Check out Bosch Heavy Duty Angle Grinder https://shope.ee/9pShopeeTool',
     );
@@ -314,6 +314,7 @@ void main() {
     expect(client.upserted, hasLength(1));
     expect(client.upserted.first['sourceType'], 'shopee_affiliate');
     expect(client.upserted.first['vendorName'], 'Shopee');
+    expect(client.upserted.first['eligibleCountries'], isA<List<Object?>>());
   });
 
   testWidgets(

@@ -1,6 +1,10 @@
+import 'dart:async';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
@@ -49,13 +53,16 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
   List<PipeBuyerShopProduct> _firestoreProducts =
       const <PipeBuyerShopProduct>[];
   List<Map<String, dynamic>> _applications = const <Map<String, dynamic>>[];
-  List<Map<String, dynamic>> _vendors = const <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _staff = const <Map<String, dynamic>>[];
   Map<String, dynamic> _analytics = const <String, dynamic>{};
 
   String _catalogQuery = '';
   String _catalogCategory = '';
   String _catalogSubcategory = '';
+  String _catalogPlatformGroup = 'all';
+  String _catalogOriginFilter = 'all';
+  String _catalogCountryFilter = 'ALL';
+  bool _hidingStarters = false;
 
   // Settings form controllers
   final _usTagController = TextEditingController();
@@ -215,7 +222,6 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
         _settings = snap.settings;
         _firestoreProducts = snap.products;
         _applications = snap.applications;
-        _vendors = snap.vendors;
         _staff = snap.staff;
         _analytics = snap.analytics;
         _loading = false;
@@ -335,13 +341,32 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
     }
   }
 
-  Future<void> _openProductEditor({PipeBuyerShopProduct? existing}) async {
+  List<PipeBuyerShopProduct> get _visibleBuiltInStarterProducts {
+    final liveIds = _firestoreProducts.map((p) => p.id.toLowerCase()).toSet();
+    final hiddenIds =
+        _settings.hiddenStarterIds.map((id) => id.toLowerCase()).toSet();
+    return PipeBuyerShopTaxonomy.starterCatalog
+        .where(
+          (item) =>
+              !liveIds.contains(item.id.toLowerCase()) &&
+              !hiddenIds.contains(item.id.toLowerCase()),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> _openProductEditor({
+    PipeBuyerShopProduct? existing,
+    PipeBuyerShopSourceType? initialSourceType,
+    String? initialVendorName,
+  }) async {
     final result = await showDialog<String>(
       context: context,
       builder: (_) => PipeBuyerAffiliateLinkEditorDialog(
         client: _client,
         settings: _settings,
         existing: existing,
+        initialSourceType: initialSourceType,
+        initialVendorName: initialVendorName,
       ),
     );
     if (!mounted) return;
@@ -361,6 +386,54 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
         tone: PipeStatusTone.info,
       );
       await _reloadDashboard();
+    }
+  }
+
+  Future<void> _testOpenAffiliateLink(PipeBuyerShopProduct item) async {
+    final opened = await _client.openProductAffiliateLink(
+      product: item,
+      settings: _settings,
+      regionCode: 'US',
+      placement: 'admin_test',
+    );
+    if (!mounted) return;
+    if (!opened) {
+      PipeFeedback.show(
+        context,
+        message:
+            'Could not open buy link (${item.destinationUrl}). Click Edit to verify the HTTPS URL.',
+        tone: PipeStatusTone.warning,
+      );
+    }
+  }
+
+  Future<void> _hideAllStarterItems() async {
+    final visibleStarters = _visibleBuiltInStarterProducts;
+    if (visibleStarters.isEmpty || _hidingStarters) return;
+    setState(() => _hidingStarters = true);
+    try {
+      await _client.hideStarterProducts(
+        PipeBuyerShopTaxonomy.starterCatalog
+            .map((item) => item.id)
+            .toList(growable: false),
+      );
+      if (!mounted) return;
+      setState(() => _hidingStarters = false);
+      PipeFeedback.show(
+        context,
+        message:
+            'Hidden ${visibleStarters.length} built-in demo starter templates. Only your real affiliate products are now shown.',
+        tone: PipeStatusTone.success,
+      );
+      await _reloadDashboard();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _hidingStarters = false);
+      PipeFeedback.show(
+        context,
+        message: error.toString().replaceFirst('Bad state: ', ''),
+        tone: PipeStatusTone.error,
+      );
     }
   }
 
@@ -885,15 +958,182 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
     );
   }
 
+  static bool _matchesPlatformGroup(
+    PipeBuyerShopSourceType sourceType,
+    String group,
+  ) {
+    return switch (group) {
+      'amazon' => sourceType == PipeBuyerShopSourceType.amazonAffiliate,
+      'aliexpress' => sourceType == PipeBuyerShopSourceType.aliexpressAffiliate,
+      'lazada' => sourceType == PipeBuyerShopSourceType.lazadaAffiliate,
+      'shopee' => sourceType == PipeBuyerShopSourceType.shopeeAffiliate,
+      'network' => sourceType == PipeBuyerShopSourceType.affiliateNetwork,
+      'ebay' => sourceType == PipeBuyerShopSourceType.ebayPartner ||
+          sourceType == PipeBuyerShopSourceType.walmartAffiliate,
+      'retail' => sourceType == PipeBuyerShopSourceType.hardwareProRetail ||
+          sourceType == PipeBuyerShopSourceType.brandPartner ||
+          sourceType == PipeBuyerShopSourceType.distributorAffiliate ||
+          sourceType == PipeBuyerShopSourceType.vendorCatalog,
+      'temu_tiktok' => sourceType == PipeBuyerShopSourceType.temuAffiliate ||
+          sourceType == PipeBuyerShopSourceType.tiktokShopAffiliate,
+      'alibaba' => sourceType == PipeBuyerShopSourceType.alibabaB2b,
+      _ => true,
+    };
+  }
+
+  Widget _buildDemoStarterNoticeBanner({bool compact = false}) {
+    final visibleStarters = _visibleBuiltInStarterProducts;
+    if (visibleStarters.isEmpty) {
+      if (_settings.hiddenStarterIds.isEmpty) return const SizedBox.shrink();
+      return Container(
+        margin: EdgeInsets.only(bottom: compact ? 8 : 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: PipeBuyerColors.success.withValues(alpha: .35),
+          ),
+        ),
+        child: Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.check_circle_outline_rounded,
+                  size: 18,
+                  color: PipeBuyerColors.success,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'Built-in demo templates are hidden (${_settings.hiddenStarterIds.length} hidden) — shoppers only see your real uploaded affiliate products.',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: PipeBuyerColors.ink,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            TextButton.icon(
+              onPressed: _restoreHiddenStarterItems,
+              icon: const Icon(Icons.restore_rounded, size: 16),
+              label: const Text('Restore Demo Templates'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      margin: EdgeInsets.only(bottom: compact ? 8 : 14),
+      padding: EdgeInsets.all(compact ? 12 : 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: PipeBuyerColors.warning.withValues(alpha: .45),
+        ),
+      ),
+      child: Wrap(
+        spacing: 14,
+        runSpacing: 10,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 740),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(
+                    Icons.info_outline_rounded,
+                    size: 20,
+                    color: PipeBuyerColors.warning,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${visibleStarters.length} Built-In Demo Starter Templates Visible (${_firestoreProducts.length} Live Team Upload${_firestoreProducts.length == 1 ? '' : 's'})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13.5,
+                          color: PipeBuyerColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        compact
+                            ? 'Items badged "DEMO TEMPLATE" are built-in starter placeholders without product photos. Hide all ${visibleStarters.length} demo items in 1 click so only your real affiliate links show, or click "Test Buy Link" on any card to open it.'
+                            : 'Why are ${visibleStarters.length} items already here without photos? Those are built-in starter placeholders (Amazon search links with no photos). Click "Hide All Demo Templates" to start with a clean Store showing only your real uploads, or edit/test any card in the Affiliate Links tab.',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: PipeBuyerColors.slate,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonalIcon(
+                onPressed: _hidingStarters ? null : _hideAllStarterItems,
+                style: FilledButton.styleFrom(
+                  backgroundColor:
+                      PipeBuyerColors.warning.withValues(alpha: .18),
+                  foregroundColor: PipeBuyerColors.ink,
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.visibility_off_outlined, size: 17),
+                label: Text(
+                  _hidingStarters
+                      ? 'Hiding...'
+                      : 'Hide All Demo Templates (${visibleStarters.length})',
+                ),
+              ),
+              if (!compact)
+                OutlinedButton.icon(
+                  onPressed: () => _tabController.animateTo(1),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.inventory_2_outlined, size: 16),
+                  label: const Text('Review Catalog'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildOverviewTab() {
     final totalClicks =
         (_analytics['totalRecordedClicks'] as num?)?.toInt() ?? 0;
     final activeProducts =
         _allManageableProducts.where((p) => p.status == 'active').length;
+    final liveUploadCount = _firestoreProducts.length;
     final pendingApps =
         (_analytics['pendingApplicationCount'] as num?)?.toInt() ?? 0;
-    final approvedVendors =
-        (_analytics['approvedVendorCount'] as num?)?.toInt() ?? _vendors.length;
 
     final bySource = _analytics['clicksBySource'] is Map
         ? Map<String, dynamic>.from(_analytics['clicksBySource'] as Map)
@@ -902,50 +1142,187 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
         ? Map<String, dynamic>.from(_analytics['clicksByPlacement'] as Map)
         : const <String, dynamic>{};
 
+    const quickLaunchPlatforms = <_AffiliateQuickLaunchSpec>[
+      _AffiliateQuickLaunchSpec(
+        title: 'Amazon Associates',
+        regions: 'US • CA • UK • AU • SG',
+        subtitle: 'Paste SiteStripe shortlink (amzn.to), product URL, or ASIN',
+        icon: Icons.shopping_cart_checkout_rounded,
+        accent: Color(0xFFD97706),
+        sourceType: PipeBuyerShopSourceType.amazonAffiliate,
+        vendorName: 'Amazon',
+      ),
+      _AffiliateQuickLaunchSpec(
+        title: 'AliExpress Portals',
+        regions: 'Worldwide Delivery',
+        subtitle: 'Global industrial tools, gauges, welding & electronics',
+        icon: Icons.public_rounded,
+        accent: Color(0xFFDC2626),
+        sourceType: PipeBuyerShopSourceType.aliexpressAffiliate,
+        vendorName: 'AliExpress',
+      ),
+      _AffiliateQuickLaunchSpec(
+        title: 'Lazada LazAffiliate',
+        regions: 'PH • SG • MY • TH • ID • VN',
+        subtitle: 'Auto-detects country store so only local buyers see it',
+        icon: Icons.local_mall_outlined,
+        accent: Color(0xFF2563EB),
+        sourceType: PipeBuyerShopSourceType.lazadaAffiliate,
+        vendorName: 'Lazada',
+      ),
+      _AffiliateQuickLaunchSpec(
+        title: 'Shopee Affiliate',
+        regions: 'PH • SG • MY • TH • ID • VN • BR',
+        subtitle: 'Paste shope.ee or Shopee product URL with auto geo-tag',
+        icon: Icons.storefront_outlined,
+        accent: Color(0xFFEA580C),
+        sourceType: PipeBuyerShopSourceType.shopeeAffiliate,
+        vendorName: 'Shopee',
+      ),
+      _AffiliateQuickLaunchSpec(
+        title: 'Involve Asia / Impact / CJ',
+        regions: 'SEA & Global Networks',
+        subtitle: 'Paste invol.co or partner deep-link for 500+ brands',
+        icon: Icons.hub_outlined,
+        accent: Color(0xFF7C3AED),
+        sourceType: PipeBuyerShopSourceType.affiliateNetwork,
+        vendorName: 'Involve Asia Partner',
+      ),
+      _AffiliateQuickLaunchSpec(
+        title: 'eBay Partner Network',
+        regions: 'US • CA • UK • AU • Global',
+        subtitle: 'Surplus pipe tools, RIDGID/Miller gear & MRO parts',
+        icon: Icons.gavel_rounded,
+        accent: Color(0xFF0284C7),
+        sourceType: PipeBuyerShopSourceType.ebayPartner,
+        vendorName: 'eBay',
+      ),
+      _AffiliateQuickLaunchSpec(
+        title: 'VEVOR & Pro Hardware',
+        regions: 'US • CA • Global Retail',
+        subtitle: 'VEVOR, Home Depot, Tractor Supply, Northern Tool',
+        icon: Icons.handyman_outlined,
+        accent: Color(0xFF059669),
+        sourceType: PipeBuyerShopSourceType.hardwareProRetail,
+        vendorName: 'VEVOR',
+      ),
+      _AffiliateQuickLaunchSpec(
+        title: 'Temu, TikTok & Alibaba',
+        regions: 'Global & Bulk B2B',
+        subtitle: 'Workshop deals, viral tools & bulk pipe/valve sourcing',
+        icon: Icons.precision_manufacturing_outlined,
+        accent: Color(0xFF0F766E),
+        sourceType: PipeBuyerShopSourceType.temuAffiliate,
+        vendorName: 'Temu',
+      ),
+    ];
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: PipeBuyerColors.line),
+            gradient: const LinearGradient(
+              colors: <Color>[PipeBuyerColors.ink, Color(0xFF1E293B)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: PipeBuyerColors.orange.withValues(alpha: .35),
+            ),
           ),
           child: Wrap(
-            spacing: 12,
-            runSpacing: 8,
+            spacing: 16,
+            runSpacing: 10,
             alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.verified_user_outlined,
-                    size: 18,
-                    color: PipeBuyerColors.success,
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'Active Role: ${_session.roleDisplayLabel} • Full Add & Remove Affiliate Link Access',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12.5,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 680),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: PipeBuyerColors.orange.withValues(alpha: .18),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '${_session.roleDisplayLabel.toUpperCase()} • MULTI-PLATFORM AFFILIATE STUDIO',
+                        style: const TextStyle(
+                          color: PipeBuyerColors.orange,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.9,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              FilledButton.icon(
-                onPressed: () => _openProductEditor(),
-                style: FilledButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Publish Products Across Amazon, AliExpress, Lazada, Shopee & 25+ Programs',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        height: 1.22,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Paste any affiliate link to auto-fill the product photo, title, brand, and orderable countries — shoppers automatically see only items that ship to their country.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: .82),
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                 ),
-                icon: const Icon(Icons.add_link_rounded, size: 17),
-                label: const Text('Quick-Add Amazon / Partner Link'),
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _openProductEditor(),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: PipeBuyerColors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.add_link_rounded, size: 18),
+                    label: const Text('Add Affiliate Product'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _tabController.animateTo(1),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: .35),
+                      ),
+                    ),
+                    icon: const Icon(Icons.grid_view_rounded, size: 17),
+                    label: const Text('Manage Visual Catalog'),
+                  ),
+                  if (_session.role != 'affiliate_contributor')
+                    OutlinedButton.icon(
+                      onPressed: _openBulkSpreadsheetImporter,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: .35),
+                        ),
+                      ),
+                      icon: const Icon(Icons.upload_file_rounded, size: 17),
+                      label: const Text('Import Spreadsheet (.CSV)'),
+                    ),
+                ],
               ),
             ],
           ),
@@ -961,10 +1338,16 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
               color: PipeBuyerColors.orange,
             ),
             _MetricCard(
+              label: 'Your Live Team Uploads',
+              value: '$liveUploadCount',
+              icon: Icons.cloud_done_outlined,
+              color: PipeBuyerColors.industrialBlue,
+            ),
+            _MetricCard(
               label: 'Active Store Links',
               value: '$activeProducts',
               icon: Icons.shopping_bag_outlined,
-              color: PipeBuyerColors.industrialBlue,
+              color: PipeBuyerColors.success,
             ),
             _MetricCard(
               label: 'Pending Partner Apps',
@@ -972,17 +1355,149 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
               icon: Icons.pending_actions_rounded,
               color: PipeBuyerColors.warning,
             ),
-            _MetricCard(
-              label: 'Approved Store Vendors',
-              value: '$approvedVendors',
-              icon: Icons.verified_outlined,
-              color: PipeBuyerColors.success,
-            ),
           ],
+        ),
+        const SizedBox(height: 14),
+        _buildDemoStarterNoticeBanner(),
+        const SizedBox(height: 6),
+        const Text(
+          '1-CLICK ADD BY AFFILIATE PROGRAM',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.0,
+            color: PipeBuyerColors.slate,
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Choose a platform below to open the visual product studio pre-set for that affiliate network (or paste any link directly).',
+          style: TextStyle(fontSize: 12, color: PipeBuyerColors.muted),
+        ),
+        const SizedBox(height: 10),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final cols = width >= 1080
+                ? 4
+                : width >= 680
+                    ? 2
+                    : 1;
+            const gap = 10.0;
+            final cardW = (width - (gap * (cols - 1))) / cols;
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: quickLaunchPlatforms.map((spec) {
+                return SizedBox(
+                  width: cardW,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => _openProductEditor(
+                      initialSourceType: spec.sourceType,
+                      initialVendorName: spec.vendorName,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: PipeBuyerColors.line),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: spec.accent.withValues(alpha: .12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  spec.icon,
+                                  size: 18,
+                                  color: spec.accent,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: PipeBuyerColors.surfaceMuted,
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      spec.regions,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: PipeBuyerColors.slate,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            spec.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            spec.subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: PipeBuyerColors.muted,
+                              height: 1.3,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Text(
+                                'Add Link',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: spec.accent,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 14,
+                                color: spec.accent,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(growable: false),
+            );
+          },
         ),
         const SizedBox(height: 16),
         Card(
-          color: const Color(0xFFFFF7ED),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Wrap(
@@ -992,21 +1507,25 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 620),
-                  child: Column(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Amazon SiteStripe, 1,000-Item Spreadsheet & Starter Controls',
+                      Text(
+                        'Bulk Spreadsheet (.CSV) Import & Catalog Backup Tools',
                         style: TextStyle(
                           fontWeight: FontWeight.w900,
-                          fontSize: 15,
+                          fontSize: 14.5,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4),
                       Text(
-                        'Add links one-by-one from Amazon SiteStripe, or bulk-import up to 1,000 categorized items from Excel / Google Sheets (.CSV). Blank link rows are skipped automatically so you can upload incrementally anytime. Includes ${PipeBuyerShopTaxonomy.starterCatalog.length} built-in starter items.',
-                        style: const TextStyle(fontSize: 12.5, height: 1.35),
+                        'Optional power tools: import multi-platform affiliate links in bulk from Excel or Google Sheets (supports eligible_countries, image_url, price & all affiliate networks), or export your catalog to CSV.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: PipeBuyerColors.muted,
+                          height: 1.35,
+                        ),
                       ),
                     ],
                   ),
@@ -1015,7 +1534,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    FilledButton.icon(
+                    OutlinedButton.icon(
                       onPressed: _openBulkSpreadsheetImporter,
                       icon: const Icon(Icons.upload_file_rounded, size: 18),
                       label: const Text('Import Spreadsheet (.CSV)'),
@@ -1025,21 +1544,14 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                       icon: const Icon(Icons.download_rounded, size: 18),
                       label: const Text('Export CSV'),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: _seedingStarter ? null : _seedStarterCatalog,
-                      icon: const Icon(Icons.cloud_upload_outlined),
-                      label: Text(
-                        _seedingStarter
-                            ? 'Syncing...'
-                            : 'Sync Starter Items to Firestore',
-                      ),
-                    ),
-                    if (_settings.hiddenStarterIds.isNotEmpty)
-                      OutlinedButton.icon(
-                        onPressed: _restoreHiddenStarterItems,
-                        icon: const Icon(Icons.restore_rounded),
+                    if (_session.canManageSettingsAndRoles)
+                      TextButton.icon(
+                        onPressed: _seedingStarter ? null : _seedStarterCatalog,
+                        icon: const Icon(Icons.cloud_upload_outlined, size: 17),
                         label: Text(
-                          'Restore ${_settings.hiddenStarterIds.length} Removed Starter Item(s)',
+                          _seedingStarter
+                              ? 'Syncing...'
+                              : 'Sync Starter Items to Firestore',
                         ),
                       ),
                   ],
@@ -1062,7 +1574,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                 const SizedBox(height: 10),
                 if (bySource.isEmpty && byPlacement.isEmpty)
                   const Text(
-                    'Click telemetry will populate automatically as users click Amazon Affiliate, Brand Partner, and Distributor links across the Store, Home Showcase, and Listing Detail cards.',
+                    'Click telemetry populates automatically as shoppers open your Amazon, AliExpress, Lazada, Shopee, eBay, and partner links across the Store and contextual cards.',
                     style: TextStyle(color: PipeBuyerColors.muted),
                   )
                 else
@@ -1093,6 +1605,8 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
   }
 
   Widget _buildCatalogTab(List<PipeBuyerShopProduct> allProducts) {
+    final liveIds = _firestoreProducts.map((p) => p.id.toLowerCase()).toSet();
+    final visibleStarterCount = _visibleBuiltInStarterProducts.length;
     final subcatOptions = _catalogCategory.isNotEmpty
         ? PipeBuyerShopTaxonomy.subcategoriesForCategory(_catalogCategory)
         : allProducts
@@ -1104,6 +1618,25 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
         subcatOptions.contains(_catalogSubcategory) ? _catalogSubcategory : '';
 
     final filtered = allProducts.where((p) {
+      final isLiveCustom = liveIds.contains(p.id.toLowerCase());
+      if (_catalogPlatformGroup != 'all' &&
+          !_matchesPlatformGroup(p.sourceType, _catalogPlatformGroup)) {
+        return false;
+      }
+      if (_catalogOriginFilter == 'live' && !isLiveCustom) return false;
+      if (_catalogOriginFilter == 'demo' && isLiveCustom) return false;
+      if (_catalogOriginFilter == 'featured' && !p.featured) return false;
+      if (_catalogOriginFilter == 'missing_photo' &&
+          p.imageUrl.trim().isNotEmpty) {
+        return false;
+      }
+      if (_catalogCountryFilter != 'ALL') {
+        if (_catalogCountryFilter == 'GLOBAL') {
+          if (!p.effectiveEligibleCountries.contains('GLOBAL')) return false;
+        } else if (!p.shipsToCountry(_catalogCountryFilter)) {
+          return false;
+        }
+      }
       if (_catalogCategory.isNotEmpty && p.categoryCode != _catalogCategory) {
         return false;
       }
@@ -1114,6 +1647,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
         final q = _catalogQuery.trim().toLowerCase();
         return p.title.toLowerCase().contains(q) ||
             p.brand.toLowerCase().contains(q) ||
+            p.vendorName.toLowerCase().contains(q) ||
             p.subcategory.toLowerCase().contains(q) ||
             p.asin.toLowerCase().contains(q) ||
             p.destinationUrl.toLowerCase().contains(q);
@@ -1121,112 +1655,246 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
       return true;
     }).toList(growable: false);
 
+    const platformChips = <(String, String)>[
+      ('all', 'All Platforms'),
+      ('amazon', 'Amazon'),
+      ('aliexpress', 'AliExpress'),
+      ('lazada', 'Lazada'),
+      ('shopee', 'Shopee'),
+      ('network', 'Involve Asia / Networks'),
+      ('ebay', 'eBay / Walmart'),
+      ('retail', 'VEVOR & Pro Retail'),
+      ('temu_tiktok', 'Temu / TikTok'),
+      ('alibaba', 'Alibaba B2B'),
+    ];
+
+    final originChips = <(String, String)>[
+      ('all', 'All (${allProducts.length})'),
+      ('live', 'Your Live Links (${_firestoreProducts.length})'),
+      ('featured', 'Featured'),
+      ('missing_photo', 'Needs Photo'),
+      if (visibleStarterCount > 0)
+        ('demo', 'Demo Templates ($visibleStarterCount)'),
+    ];
+
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-          child: Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(bottom: BorderSide(color: PipeBuyerColors.line)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 240, maxWidth: 460),
-                child: TextField(
-                  decoration: const InputDecoration(
-                    hintText:
-                        'Search affiliate links by title, brand, subcategory, ASIN...',
-                    prefixIcon: Icon(Icons.search_rounded),
-                  ),
-                  onChanged: (v) => setState(() => _catalogQuery = v),
-                ),
-              ),
-              DropdownButton<String>(
-                value: _catalogCategory,
-                items: [
-                  const DropdownMenuItem(
-                    value: '',
-                    child: Text('All Categories'),
-                  ),
-                  ...PipeBuyerShopTaxonomy.categories.map(
-                    (c) => DropdownMenuItem(
-                      value: c.code,
-                      child: Text(c.shortLabel),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ConstrainedBox(
+                    constraints:
+                        const BoxConstraints(minWidth: 240, maxWidth: 420),
+                    child: TextField(
+                      decoration: const InputDecoration(
+                        hintText:
+                            'Search affiliate links by title, brand, subcategory, ASIN...',
+                        prefixIcon: Icon(Icons.search_rounded),
+                        isDense: true,
+                      ),
+                      onChanged: (v) => setState(() => _catalogQuery = v),
                     ),
                   ),
-                ],
-                onChanged: (v) => setState(() {
-                  _catalogCategory = v ?? '';
-                  _catalogSubcategory = '';
-                }),
-              ),
-              if (subcatOptions.isNotEmpty)
-                SizedBox(
-                  width: 230,
-                  child: DropdownButton<String>(
-                    isExpanded: true,
-                    value: effectiveSubcat,
+                  DropdownButton<String>(
+                    value: _catalogCategory,
                     items: [
                       const DropdownMenuItem(
                         value: '',
-                        child: Text(
-                          'All Subcategories',
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        child: Text('All Categories'),
                       ),
-                      ...subcatOptions.map(
-                        (sub) => DropdownMenuItem(
-                          value: sub,
-                          child: Text(
-                            sub,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                      ...PipeBuyerShopTaxonomy.categories.map(
+                        (c) => DropdownMenuItem(
+                          value: c.code,
+                          child: Text(c.shortLabel),
                         ),
                       ),
                     ],
+                    onChanged: (v) => setState(() {
+                      _catalogCategory = v ?? '';
+                      _catalogSubcategory = '';
+                    }),
+                  ),
+                  if (subcatOptions.isNotEmpty)
+                    SizedBox(
+                      width: 210,
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: effectiveSubcat,
+                        items: [
+                          const DropdownMenuItem(
+                            value: '',
+                            child: Text(
+                              'All Subcategories',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          ...subcatOptions.map(
+                            (sub) => DropdownMenuItem(
+                              value: sub,
+                              child: Text(
+                                sub,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (v) =>
+                            setState(() => _catalogSubcategory = v ?? ''),
+                      ),
+                    ),
+                  DropdownButton<String>(
+                    value: _catalogCountryFilter,
+                    items: [
+                      const DropdownMenuItem(
+                        value: 'ALL',
+                        child: Text('All Countries'),
+                      ),
+                      const DropdownMenuItem(
+                        value: 'GLOBAL',
+                        child: Text('🌍 Worldwide Only'),
+                      ),
+                      ...PipeBuyerShopTaxonomy.countryOptions
+                          .where((c) => c.code != 'ALL')
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c.code,
+                              child: Text('${c.flag} Ships to ${c.shortLabel}'),
+                            ),
+                          ),
+                    ],
                     onChanged: (v) =>
-                        setState(() => _catalogSubcategory = v ?? ''),
+                        setState(() => _catalogCountryFilter = v ?? 'ALL'),
                   ),
-                ),
-              FilledButton.icon(
-                onPressed: () => _openProductEditor(),
-                icon: const Icon(Icons.add_link_rounded, size: 18),
-                label: const Text('Add Affiliate Link'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _openBulkSpreadsheetImporter,
-                icon: const Icon(Icons.upload_file_rounded, size: 18),
-                label: const Text('Import Spreadsheet (.CSV)'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _exportCatalogCsv,
-                icon: const Icon(Icons.download_rounded, size: 18),
-                label: const Text('Export CSV'),
-              ),
-              if (_settings.hiddenStarterIds.isNotEmpty)
-                OutlinedButton.icon(
-                  onPressed: _restoreHiddenStarterItems,
-                  icon: const Icon(Icons.restore_rounded, size: 18),
-                  label: Text(
-                    'Restore Removed (${_settings.hiddenStarterIds.length})',
+                  FilledButton.icon(
+                    onPressed: () => _openProductEditor(),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: PipeBuyerColors.orange,
+                    ),
+                    icon: const Icon(Icons.add_link_rounded, size: 18),
+                    label: const Text('Add Affiliate Link'),
                   ),
+                  OutlinedButton.icon(
+                    onPressed: _openBulkSpreadsheetImporter,
+                    icon: const Icon(Icons.upload_file_rounded, size: 17),
+                    label: const Text('Import Spreadsheet (.CSV)'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _exportCatalogCsv,
+                    icon: const Icon(Icons.download_rounded, size: 17),
+                    label: const Text('Export CSV'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ...platformChips.map((entry) {
+                      final selected = _catalogPlatformGroup == entry.$1;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(
+                            entry.$2,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight:
+                                  selected ? FontWeight.w800 : FontWeight.w600,
+                            ),
+                          ),
+                          selected: selected,
+                          selectedColor: PipeBuyerColors.orangeSoft,
+                          visualDensity: VisualDensity.compact,
+                          onSelected: (_) => setState(
+                            () => _catalogPlatformGroup = entry.$1,
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(width: 8),
+                    ...originChips.map((entry) {
+                      final selected = _catalogOriginFilter == entry.$1;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: FilterChip(
+                          label: Text(
+                            entry.$2,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight:
+                                  selected ? FontWeight.w800 : FontWeight.w600,
+                            ),
+                          ),
+                          selected: selected,
+                          selectedColor: PipeBuyerColors.industrialBlue
+                              .withValues(alpha: .14),
+                          visualDensity: VisualDensity.compact,
+                          onSelected: (_) => setState(
+                            () => _catalogOriginFilter =
+                                selected && entry.$1 != 'all'
+                                    ? 'all'
+                                    : entry.$1,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
         Expanded(
-          child: filtered.isEmpty
-              ? Center(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildDemoStarterNoticeBanner(compact: true),
+              if (filtered.isEmpty)
+                Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.symmetric(vertical: 42),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'No affiliate links match this filter.',
-                          style: TextStyle(fontWeight: FontWeight.w800),
+                        const Icon(
+                          Icons.inventory_2_outlined,
+                          size: 42,
+                          color: PipeBuyerColors.muted,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
+                        Text(
+                          allProducts.isEmpty
+                              ? 'Your Store catalog is clean and ready for your first real product!'
+                              : 'No affiliate links match this filter.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Paste any Amazon, AliExpress, Lazada, Shopee, Involve Asia, or partner link to auto-fill its photo, title & country.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: PipeBuyerColors.muted,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         FilledButton.icon(
                           onPressed: () => _openProductEditor(),
                           icon: const Icon(Icons.add_link_rounded),
@@ -1236,112 +1904,30 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                     ),
                   ),
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final item = filtered[index];
-                    final active = item.status == 'active';
-                    final isLiveCustom =
-                        _firestoreProducts.any((p) => p.id == item.id);
-                    return Card(
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                item.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isLiveCustom
-                                    ? PipeBuyerColors.industrialBlue
-                                        .withValues(alpha: .10)
-                                    : PipeBuyerColors.surfaceMuted,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                isLiveCustom ? 'Custom / Synced' : 'Starter',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: isLiveCustom
-                                      ? PipeBuyerColors.industrialBlue
-                                      : PipeBuyerColors.muted,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            '${item.brand} • ${item.sourceType.label} • ${item.category.shortLabel}${item.subcategory.isNotEmpty ? ' › ${item.subcategory}' : ''} • Clicks: ${item.clickCount}${item.asin.isNotEmpty ? ' • ASIN: ${item.asin}' : ''}',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                        trailing: Wrap(
-                          spacing: 4,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            IconButton(
-                              tooltip: item.featured
-                                  ? 'Featured on Home & Top of Store'
-                                  : 'Mark as Featured',
-                              onPressed: () => _toggleProductStatus(
-                                item,
-                                nextFeatured: !item.featured,
-                              ),
-                              icon: Icon(
-                                item.featured
-                                    ? Icons.star_rounded
-                                    : Icons.star_border_rounded,
-                                color: item.featured
-                                    ? PipeBuyerColors.orange
-                                    : PipeBuyerColors.muted,
-                              ),
-                            ),
-                            Switch(
-                              value: active,
-                              activeThumbColor: PipeBuyerColors.success,
-                              onChanged: (val) => _toggleProductStatus(
-                                item,
-                                nextStatus: val ? 'active' : 'paused',
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: 'Edit Affiliate Link',
-                              onPressed: () =>
-                                  _openProductEditor(existing: item),
-                              icon: const Icon(Icons.edit_outlined),
-                            ),
-                            IconButton(
-                              tooltip: 'Remove Affiliate Link',
-                              onPressed: () => _confirmAndDeleteProduct(item),
-                              icon: const Icon(
-                                Icons.delete_outline_rounded,
-                                color: PipeBuyerColors.danger,
-                              ),
-                            ),
-                          ],
-                        ),
+              else
+                ...filtered.map((item) {
+                  final isLiveCustom = liveIds.contains(item.id.toLowerCase());
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _AdminCatalogProductCard(
+                      item: item,
+                      isLiveCustom: isLiveCustom,
+                      onTestLink: () => _testOpenAffiliateLink(item),
+                      onToggleFeatured: () => _toggleProductStatus(
+                        item,
+                        nextFeatured: !item.featured,
                       ),
-                    );
-                  },
-                ),
+                      onToggleActive: (val) => _toggleProductStatus(
+                        item,
+                        nextStatus: val ? 'active' : 'paused',
+                      ),
+                      onEdit: () => _openProductEditor(existing: item),
+                      onDelete: () => _confirmAndDeleteProduct(item),
+                    ),
+                  );
+                }),
+            ],
+          ),
         ),
       ],
     );
@@ -1364,7 +1950,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Every platform below is built into Pipe Buyer\'s Smart Quick-Paste parser and automatic attribution engine. Sign up for any program, paste shortlinks or product URLs into "Add Affiliate Link", and earn passive commissions on every qualifying click.',
+                  'Every platform below is built into Pipe Buyer\'s Smart Quick-Paste parser, automatic photo/title fetcher, and smart country geo-filter. Sign up for any program, paste shortlinks or product URLs into "Add Affiliate Link", and earn passive commissions on every qualifying click.',
                   style: TextStyle(fontSize: 12.5, height: 1.4),
                 ),
                 const SizedBox(height: 12),
@@ -1476,7 +2062,10 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                         label: const Text('Join / Open Partner Portal'),
                       ),
                       FilledButton.tonalIcon(
-                        onPressed: () => _openProductEditor(),
+                        onPressed: () => _openProductEditor(
+                          initialSourceType: platform.sourceType,
+                          initialVendorName: platform.name,
+                        ),
                         icon: const Icon(Icons.add_link_rounded, size: 16),
                         label: const Text('Paste Product Link'),
                       ),
@@ -2239,17 +2828,356 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
+class _AffiliateQuickLaunchSpec {
+  const _AffiliateQuickLaunchSpec({
+    required this.title,
+    required this.regions,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+    required this.sourceType,
+    required this.vendorName,
+  });
+
+  final String title;
+  final String regions;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+  final PipeBuyerShopSourceType sourceType;
+  final String vendorName;
+}
+
+class _AdminCatalogProductCard extends StatelessWidget {
+  const _AdminCatalogProductCard({
+    required this.item,
+    required this.isLiveCustom,
+    required this.onTestLink,
+    required this.onToggleFeatured,
+    required this.onToggleActive,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final PipeBuyerShopProduct item;
+  final bool isLiveCustom;
+  final VoidCallback onTestLink;
+  final VoidCallback onToggleFeatured;
+  final ValueChanged<bool> onToggleActive;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = item.status == 'active';
+    final hasPhoto = item.imageUrl.trim().isNotEmpty;
+    final isSearchUrl = item.destinationUrl.toLowerCase().contains('/s?k=');
+    final countries = item.effectiveEligibleCountries;
+    final isRestrictedNonNorthAmerica = !countries.contains('GLOBAL') &&
+        !countries.contains('US') &&
+        !countries.contains('CA');
+
+    final fallbackThumb = Stack(
+      fit: StackFit.expand,
+      children: [
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 22),
+            child: SvgPicture.asset(
+              item.effectiveIconAsset,
+              fit: BoxFit.contain,
+              placeholderBuilder: (_) => Icon(
+                item.category.icon,
+                size: 32,
+                color: item.category.accentColor,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 4,
+          right: 4,
+          bottom: 4,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            decoration: BoxDecoration(
+              color: PipeBuyerColors.ink.withValues(alpha: .78),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Text(
+              'NO PHOTO',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 8.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: active ? Colors.white : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isLiveCustom
+              ? PipeBuyerColors.industrialBlue.withValues(alpha: .32)
+              : PipeBuyerColors.line,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Wrap(
+          spacing: 14,
+          runSpacing: 12,
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InkWell(
+                    onTap: onTestLink,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      width: 84,
+                      height: 84,
+                      decoration: BoxDecoration(
+                        color: PipeBuyerColors.surfaceMuted,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: PipeBuyerColors.line),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: hasPhoto
+                          ? CachedNetworkImage(
+                              imageUrl: item.imageUrl.trim(),
+                              fit: BoxFit.contain,
+                              placeholder: (_, __) => fallbackThumb,
+                              errorWidget: (_, __, ___) => fallbackThumb,
+                            )
+                          : fallbackThumb,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            _SmallStatusPill(
+                              label: active ? 'LIVE' : 'PAUSED',
+                              bg: active
+                                  ? const Color(0xFFDCFCE7)
+                                  : PipeBuyerColors.surfaceMuted,
+                              fg: active
+                                  ? const Color(0xFF166534)
+                                  : PipeBuyerColors.muted,
+                            ),
+                            _SmallStatusPill(
+                              label: isLiveCustom
+                                  ? 'YOUR LIVE LINK'
+                                  : 'DEMO TEMPLATE',
+                              bg: isLiveCustom
+                                  ? PipeBuyerColors.industrialBlue
+                                      .withValues(alpha: .12)
+                                  : const Color(0xFFFEF3C7),
+                              fg: isLiveCustom
+                                  ? PipeBuyerColors.industrialBlue
+                                  : const Color(0xFF92400E),
+                            ),
+                            _SmallStatusPill(
+                              label: item.sourceType.label,
+                              bg: PipeBuyerColors.orangeSoft,
+                              fg: PipeBuyerColors.orangePressed,
+                            ),
+                            _SmallStatusPill(
+                              label: item.shippingSummaryLabel,
+                              bg: isRestrictedNonNorthAmerica
+                                  ? const Color(0xFFFEF3C7)
+                                  : const Color(0xFFE0F2FE),
+                              fg: isRestrictedNonNorthAmerica
+                                  ? const Color(0xFF92400E)
+                                  : const Color(0xFF0369A1),
+                            ),
+                            if (isSearchUrl)
+                              const _SmallStatusPill(
+                                label: 'Search URL (Not Direct SKU)',
+                                bg: Color(0xFFF1F5F9),
+                                fg: PipeBuyerColors.slate,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: onTestLink,
+                          child: Text(
+                            item.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14.5,
+                              height: 1.25,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${item.brand} • ${item.category.shortLabel}${item.subcategory.isNotEmpty ? ' › ${item.subcategory}' : ''}${item.priceDisplay.isNotEmpty ? ' • ${item.priceDisplay}' : ''} • Clicks: ${item.clickCount}${item.asin.isNotEmpty ? ' • ASIN: ${item.asin}' : ''}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: PipeBuyerColors.slate,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: onTestLink,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.open_in_new_rounded,
+                                size: 13,
+                                color: PipeBuyerColors.industrialBlue,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  item.destinationHost.isNotEmpty
+                                      ? '${item.destinationHost} — ${item.destinationUrl}'
+                                      : item.destinationUrl,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: PipeBuyerColors.industrialBlue,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: onTestLink,
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                  label: const Text(
+                    'Test Buy Link',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: item.featured
+                      ? 'Featured on Home & Top of Store'
+                      : 'Mark as Featured',
+                  onPressed: onToggleFeatured,
+                  icon: Icon(
+                    item.featured
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
+                    color: item.featured
+                        ? PipeBuyerColors.orange
+                        : PipeBuyerColors.muted,
+                  ),
+                ),
+                Switch(
+                  value: active,
+                  activeThumbColor: PipeBuyerColors.success,
+                  onChanged: onToggleActive,
+                ),
+                IconButton(
+                  tooltip: 'Edit Affiliate Link',
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Remove Affiliate Link',
+                  onPressed: onDelete,
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: PipeBuyerColors.danger,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SmallStatusPill extends StatelessWidget {
+  const _SmallStatusPill({
+    required this.label,
+    required this.bg,
+    required this.fg,
+  });
+
+  final String label;
+  final Color bg;
+  final Color fg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          color: fg,
+        ),
+      ),
+    );
+  }
+}
+
 class PipeBuyerAffiliateLinkEditorDialog extends StatefulWidget {
   const PipeBuyerAffiliateLinkEditorDialog({
     super.key,
     required this.client,
     required this.settings,
     this.existing,
+    this.initialSourceType,
+    this.initialVendorName,
   });
 
   final PipeBuyerShopClient client;
   final PipeBuyerShopSettings settings;
   final PipeBuyerShopProduct? existing;
+  final PipeBuyerShopSourceType? initialSourceType;
+  final String? initialVendorName;
 
   @override
   State<PipeBuyerAffiliateLinkEditorDialog> createState() =>
@@ -2274,25 +3202,120 @@ class _PipeBuyerAffiliateLinkEditorDialogState
   late String _categoryCode;
   late String _subcategory;
   late PipeBuyerShopSourceType _sourceType;
+  late List<String> _eligibleCountries;
   late bool _featured;
   bool _saving = false;
+  bool _fetchingMetadata = false;
+  Timer? _metadataDebounce;
   PipeBuyerParsedAffiliateSubmission? _parsedPreview;
+
+  static const List<(PipeBuyerShopSourceType, String, String)>
+      _platformPresets = <(PipeBuyerShopSourceType, String, String)>[
+    (
+      PipeBuyerShopSourceType.amazonAffiliate,
+      'Amazon',
+      'Paste Amazon SiteStripe link (amzn.to / link.amazon), product URL (/dp/...), share text, or 10-char ASIN.',
+    ),
+    (
+      PipeBuyerShopSourceType.aliexpressAffiliate,
+      'AliExpress',
+      'Paste AliExpress Portals shortlink (s.click.aliexpress.com) or aliexpress.com/item/... URL (ships worldwide).',
+    ),
+    (
+      PipeBuyerShopSourceType.lazadaAffiliate,
+      'Lazada',
+      'Paste Lazada LazAffiliate link (s.lazada.com.ph / .sg / .com.my) or Lazada item URL — country auto-detects.',
+    ),
+    (
+      PipeBuyerShopSourceType.shopeeAffiliate,
+      'Shopee',
+      'Paste Shopee Affiliate link (shope.ee / s.shopee.ph) or Shopee item URL — orderable country auto-detects.',
+    ),
+    (
+      PipeBuyerShopSourceType.affiliateNetwork,
+      'Involve Asia',
+      'Paste Involve Asia (invol.co), Impact, CJ, ShareASale, Awin, or Rakuten tracking link.',
+    ),
+    (
+      PipeBuyerShopSourceType.ebayPartner,
+      'eBay',
+      'Paste eBay Partner Network shortlink (ebay.us) or ebay.com/itm/... product URL.',
+    ),
+    (
+      PipeBuyerShopSourceType.hardwareProRetail,
+      'VEVOR / Retail',
+      'Paste VEVOR, Home Depot, Tractor Supply, Northern Tool, Harbor Freight, or Grainger affiliate link.',
+    ),
+    (
+      PipeBuyerShopSourceType.temuAffiliate,
+      'Temu',
+      'Paste Temu Affiliate link (temu.to or temu.com) — global workshop & tool deals.',
+    ),
+    (
+      PipeBuyerShopSourceType.tiktokShopAffiliate,
+      'TikTok Shop',
+      'Paste TikTok Shop product or showcase link (vt.tiktok.com / tiktok.com).',
+    ),
+    (
+      PipeBuyerShopSourceType.alibabaB2b,
+      'Alibaba B2B',
+      'Paste Alibaba or DHgate wholesale pipe, valve, flange, or machinery affiliate link.',
+    ),
+  ];
 
   String _defaultSubcategoryFor(String categoryCode) {
     final subs = PipeBuyerShopTaxonomy.subcategoriesForCategory(categoryCode);
     return subs.isNotEmpty ? subs.first : '';
   }
 
+  String _defaultVendorForSource(PipeBuyerShopSourceType source) {
+    return switch (source) {
+      PipeBuyerShopSourceType.amazonAffiliate => 'Amazon',
+      PipeBuyerShopSourceType.aliexpressAffiliate => 'AliExpress',
+      PipeBuyerShopSourceType.lazadaAffiliate => 'Lazada',
+      PipeBuyerShopSourceType.shopeeAffiliate => 'Shopee',
+      PipeBuyerShopSourceType.ebayPartner => 'eBay',
+      PipeBuyerShopSourceType.walmartAffiliate => 'Walmart',
+      PipeBuyerShopSourceType.temuAffiliate => 'Temu',
+      PipeBuyerShopSourceType.tiktokShopAffiliate => 'TikTok Shop',
+      PipeBuyerShopSourceType.alibabaB2b => 'Alibaba',
+      PipeBuyerShopSourceType.hardwareProRetail => 'VEVOR',
+      PipeBuyerShopSourceType.affiliateNetwork => 'Involve Asia Partner',
+      _ => 'Partner Store',
+    };
+  }
+
+  List<String> _defaultCountriesForSource(PipeBuyerShopSourceType source) {
+    return PipeBuyerShopUrlBuilder.inferEligibleCountries(
+      '',
+      sourceType: source,
+    );
+  }
+
+  String get _activePlatformHelperText {
+    for (final preset in _platformPresets) {
+      if (preset.$1 == _sourceType) return preset.$3;
+    }
+    return 'Paste any HTTPS affiliate link or partner product URL — photo, title, and orderable countries auto-fill.';
+  }
+
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
+    final initialSource = e?.sourceType ??
+        widget.initialSourceType ??
+        PipeBuyerShopSourceType.amazonAffiliate;
+    final initialVendor = e?.vendorName ??
+        widget.initialVendorName ??
+        _defaultVendorForSource(initialSource);
+
     _quickPasteController = TextEditingController(
       text: e?.destinationUrl ?? '',
     );
     _titleController = TextEditingController(text: e?.title ?? '');
     _brandController = TextEditingController(text: e?.brand ?? '');
-    _vendorController = TextEditingController(text: e?.vendorName ?? 'Amazon');
+    _vendorController = TextEditingController(text: initialVendor);
     _asinController = TextEditingController(text: e?.asin ?? '');
     _urlController = TextEditingController(text: e?.destinationUrl ?? '');
     _imageUrlController = TextEditingController(text: e?.imageUrl ?? '');
@@ -2305,7 +3328,10 @@ class _PipeBuyerAffiliateLinkEditorDialogState
     _subcategory = (e?.subcategory.trim().isNotEmpty ?? false)
         ? e!.subcategory.trim()
         : _defaultSubcategoryFor(_categoryCode);
-    _sourceType = e?.sourceType ?? PipeBuyerShopSourceType.amazonAffiliate;
+    _sourceType = initialSource;
+    _eligibleCountries = e != null
+        ? List<String>.from(e.effectiveEligibleCountries)
+        : List<String>.from(_defaultCountriesForSource(initialSource));
     _featured = e?.featured ?? false;
     if (_urlController.text.isNotEmpty) {
       _parsedPreview = PipeBuyerShopUrlBuilder.parseAffiliateSubmission(
@@ -2317,6 +3343,7 @@ class _PipeBuyerAffiliateLinkEditorDialogState
 
   @override
   void dispose() {
+    _metadataDebounce?.cancel();
     _quickPasteController.dispose();
     _titleController.dispose();
     _brandController.dispose();
@@ -2329,6 +3356,39 @@ class _PipeBuyerAffiliateLinkEditorDialogState
     _descriptionController.dispose();
     _highlightsController.dispose();
     super.dispose();
+  }
+
+  void _selectPlatformPreset(
+    PipeBuyerShopSourceType source,
+    String vendorLabel,
+  ) {
+    setState(() {
+      _sourceType = source;
+      if (_urlController.text.trim().isEmpty) {
+        _vendorController.text = _defaultVendorForSource(source);
+        _eligibleCountries = List<String>.from(
+          _defaultCountriesForSource(source),
+        );
+      }
+    });
+  }
+
+  void _toggleEligibleCountry(String code) {
+    final upper = code.trim().toUpperCase();
+    setState(() {
+      if (upper == 'GLOBAL') {
+        _eligibleCountries = <String>['GLOBAL'];
+        return;
+      }
+      final next = _eligibleCountries.where((c) => c != 'GLOBAL').toSet();
+      if (next.contains(upper)) {
+        next.remove(upper);
+      } else {
+        next.add(upper);
+      }
+      _eligibleCountries =
+          next.isEmpty ? <String>['GLOBAL'] : next.toList(growable: false);
+    });
   }
 
   void _applySmartPaste(String raw) {
@@ -2345,6 +3405,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
       _vendorController.text = parsed.suggestedVendorName.isNotEmpty
           ? parsed.suggestedVendorName
           : (parsed.isAmazonLink ? 'Amazon' : parsed.suggestedBrand);
+      if (parsed.eligibleCountries.isNotEmpty) {
+        _eligibleCountries = List<String>.from(parsed.eligibleCountries);
+      }
 
       if (parsed.asin.isNotEmpty) {
         _asinController.text = parsed.asin;
@@ -2376,6 +3439,79 @@ class _PipeBuyerAffiliateLinkEditorDialogState
             'Field-proven ${cat?.shortLabel.toLowerCase() ?? "industrial"} gear selected for Pipe Buyer contractors, fabricators, and field crews.';
       }
     });
+
+    if (parsed != null) {
+      _scheduleRemoteMetadataFetch(raw);
+    }
+  }
+
+  void _scheduleRemoteMetadataFetch(String raw) {
+    _metadataDebounce?.cancel();
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return;
+    _metadataDebounce = Timer(const Duration(milliseconds: 380), () {
+      _fetchLiveMetadata(trimmed);
+    });
+  }
+
+  Future<void> _fetchLiveMetadata([String? rawOverride]) async {
+    final target = (rawOverride ??
+            (_quickPasteController.text.trim().isNotEmpty
+                ? _quickPasteController.text.trim()
+                : _urlController.text.trim()))
+        .trim();
+    if (target.isEmpty || !mounted) return;
+    setState(() => _fetchingMetadata = true);
+    final remote = await widget.client.fetchRemoteAffiliatePreview(target);
+    if (!mounted) return;
+    setState(() {
+      _fetchingMetadata = false;
+      if (remote == null) return;
+      _parsedPreview = remote;
+
+      if (remote.destinationUrl.isNotEmpty &&
+          _urlController.text.trim().isEmpty) {
+        _urlController.text = remote.destinationUrl;
+      }
+      _sourceType = remote.sourceType;
+      if (remote.suggestedVendorName.isNotEmpty) {
+        _vendorController.text = remote.suggestedVendorName;
+      }
+      if (remote.asin.isNotEmpty) {
+        _asinController.text = remote.asin;
+      }
+      if (remote.imageUrl.isNotEmpty &&
+          _imageUrlController.text.trim().isEmpty) {
+        _imageUrlController.text = remote.imageUrl;
+      }
+      final currentTitle = _titleController.text.trim();
+      final looksPlaceholderTitle = currentTitle.isEmpty ||
+          currentTitle.contains('Product Selection') ||
+          currentTitle.startsWith('Amazon Item ');
+      if (remote.suggestedTitle.isNotEmpty && looksPlaceholderTitle) {
+        _titleController.text = remote.suggestedTitle;
+      }
+      final currentBrand = _brandController.text.trim();
+      if (remote.suggestedBrand.isNotEmpty &&
+          (currentBrand.isEmpty ||
+              currentBrand == 'Industrial Select' ||
+              currentBrand == 'Partner Brand')) {
+        _brandController.text = remote.suggestedBrand;
+      }
+      if (remote.suggestedPriceDisplay.isNotEmpty &&
+          _priceController.text.trim().isEmpty) {
+        _priceController.text = remote.suggestedPriceDisplay;
+      }
+      if (remote.eligibleCountries.isNotEmpty) {
+        _eligibleCountries = List<String>.from(remote.eligibleCountries);
+      }
+      if (_descriptionController.text.trim().isEmpty &&
+          _titleController.text.trim().isNotEmpty) {
+        final cat = PipeBuyerShopTaxonomy.categoryByCode(_categoryCode);
+        _descriptionController.text =
+            'Field-proven ${cat?.shortLabel.toLowerCase() ?? "industrial"} gear selected for Pipe Buyer contractors, fabricators, and field crews.';
+      }
+    });
   }
 
   Future<void> _pasteFromClipboard() async {
@@ -2384,6 +3520,60 @@ class _PipeBuyerAffiliateLinkEditorDialogState
     if (text.isEmpty) return;
     _quickPasteController.text = text;
     _applySmartPaste(text);
+  }
+
+  Future<void> _pasteImageFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim() ?? '';
+    if (text.isEmpty) return;
+    setState(() {
+      _imageUrlController.text = text;
+    });
+  }
+
+  Future<void> _testDraftLink() async {
+    final url = _urlController.text.trim().isNotEmpty
+        ? _urlController.text.trim()
+        : (_asinController.text.trim().length == 10
+            ? 'https://www.amazon.com/dp/${_asinController.text.trim()}'
+            : '');
+    if (url.isEmpty) {
+      PipeFeedback.show(
+        context,
+        message: 'Paste an affiliate link first to test it.',
+        tone: PipeStatusTone.warning,
+      );
+      return;
+    }
+    final draft = PipeBuyerShopProduct(
+      id: widget.existing?.id ?? 'draft_preview',
+      title: _titleController.text.trim().isEmpty
+          ? 'Preview Item'
+          : _titleController.text.trim(),
+      brand: _brandController.text.trim().isEmpty
+          ? 'Industrial Select'
+          : _brandController.text.trim(),
+      vendorName: _vendorController.text.trim(),
+      sourceType: _sourceType,
+      categoryCode: _categoryCode,
+      destinationUrl: url,
+      asin: _asinController.text.trim(),
+      eligibleCountries: _eligibleCountries,
+    );
+    final opened = await widget.client.openProductAffiliateLink(
+      product: draft,
+      settings: widget.settings,
+      regionCode: 'US',
+      placement: 'editor_test',
+    );
+    if (!mounted) return;
+    if (!opened) {
+      PipeFeedback.show(
+        context,
+        message: 'Could not open preview URL ($url).',
+        tone: PipeStatusTone.warning,
+      );
+    }
   }
 
   Future<void> _save() async {
@@ -2419,6 +3609,7 @@ class _PipeBuyerAffiliateLinkEditorDialogState
         'badgeText': _badgeController.text.trim(),
         'description': _descriptionController.text.trim(),
         'highlights': highlights,
+        'eligibleCountries': _eligibleCountries,
         'featured': _featured,
       });
       if (!mounted) return;
@@ -2459,15 +3650,21 @@ class _PipeBuyerAffiliateLinkEditorDialogState
   @override
   Widget build(BuildContext context) {
     final preview = _parsedPreview;
+    final imagePreviewUrl = _imageUrlController.text.trim();
+    final isWorldwide =
+        _eligibleCountries.isEmpty || _eligibleCountries.contains('GLOBAL');
+    final isNonNorthAmericaOnly = !isWorldwide &&
+        !_eligibleCountries.contains('US') &&
+        !_eligibleCountries.contains('CA');
 
     return AlertDialog(
       title: Text(
         widget.existing == null
-            ? 'Add Amazon / Partner Affiliate Link'
-            : 'Edit Store Affiliate Link',
+            ? 'Add Multi-Platform Affiliate Product'
+            : 'Edit Store Affiliate Product',
       ),
       content: SizedBox(
-        width: 620,
+        width: 700,
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -2475,11 +3672,12 @@ class _PipeBuyerAffiliateLinkEditorDialogState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // STEP 1: Platform Quick Selector & 1-Step Link Paste
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF7ED),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: PipeBuyerColors.orange.withValues(alpha: .35),
                     ),
@@ -2487,41 +3685,108 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          const Icon(
-                            Icons.bolt_rounded,
-                            color: PipeBuyerColors.orangePressed,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 6),
-                          const Expanded(
-                            child: Text(
-                              '1-Step Amazon SiteStripe / Share Quick-Paste',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 13,
+                          const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.bolt_rounded,
+                                color: PipeBuyerColors.orangePressed,
+                                size: 18,
                               ),
-                            ),
+                              SizedBox(width: 6),
+                              Text(
+                                '1. Choose Platform & Paste Affiliate Link',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13.5,
+                                ),
+                              ),
+                            ],
                           ),
-                          TextButton.icon(
-                            onPressed: _pasteFromClipboard,
-                            style: TextButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            icon: const Icon(Icons.content_paste_rounded,
-                                size: 15),
-                            label: const Text(
-                              'Paste Clipboard',
-                              style: TextStyle(fontSize: 11.5),
-                            ),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              TextButton.icon(
+                                onPressed: _pasteFromClipboard,
+                                style: TextButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                icon: const Icon(
+                                  Icons.content_paste_rounded,
+                                  size: 15,
+                                ),
+                                label: const Text(
+                                  'Paste Clipboard',
+                                  style: TextStyle(fontSize: 11.5),
+                                ),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: _fetchingMetadata
+                                    ? null
+                                    : () => _fetchLiveMetadata(),
+                                style: OutlinedButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  backgroundColor: Colors.white,
+                                ),
+                                icon: _fetchingMetadata
+                                    ? const SizedBox(
+                                        width: 13,
+                                        height: 13,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.auto_fix_high_rounded,
+                                        size: 15,
+                                      ),
+                                label: Text(
+                                  _fetchingMetadata
+                                      ? 'Fetching Photo...'
+                                      : 'Auto-Fill Photo & Info',
+                                  style: const TextStyle(fontSize: 11.5),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Paste any affiliate link or share text from Amazon SiteStripe (amzn.to / full URL / ASIN), AliExpress (s.click.aliexpress.com), Shopee (shope.ee), Lazada (s.lazada.*), Involve Asia (invol.co), eBay, VEVOR, Home Depot, Temu, TikTok Shop, or Alibaba — platform & product details auto-fill below.',
-                        style: TextStyle(
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: _platformPresets.map((preset) {
+                          final selected = _sourceType == preset.$1;
+                          return ChoiceChip(
+                            label: Text(
+                              preset.$2,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: selected
+                                    ? FontWeight.w900
+                                    : FontWeight.w600,
+                              ),
+                            ),
+                            selected: selected,
+                            selectedColor: PipeBuyerColors.orangeSoft,
+                            backgroundColor: Colors.white,
+                            visualDensity: VisualDensity.compact,
+                            onSelected: (_) =>
+                                _selectPlatformPreset(preset.$1, preset.$2),
+                          );
+                        }).toList(growable: false),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _activePlatformHelperText,
+                        style: const TextStyle(
                           fontSize: 11.5,
                           color: PipeBuyerColors.slate,
                           height: 1.35,
@@ -2529,12 +3794,13 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                       ),
                       const SizedBox(height: 8),
                       TextField(
+                        key: const Key('affiliate_quick_paste_field'),
                         controller: _quickPasteController,
                         decoration: const InputDecoration(
                           labelText:
-                              'Paste Amazon SiteStripe Link, amzn.to, Share Text, HTML, or ASIN',
+                              'Paste Affiliate Link, Shortlink, Share Text, or ASIN',
                           hintText:
-                              'https://amzn.to/... or https://www.amazon.com/.../dp/B077H7JP1D',
+                              'https://amzn.to/... • https://s.click.aliexpress.com/... • https://shope.ee/... • https://s.lazada...',
                           prefixIcon: Icon(Icons.add_link_rounded),
                           fillColor: Colors.white,
                         ),
@@ -2561,9 +3827,11 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                                 ok: true,
                                 label: 'ASIN: ${preview.asin}',
                               ),
-                            const _ComplianceBadge(
-                              ok: true,
-                              label: 'Pre-Click Disclosure & External Launch',
+                            _ComplianceBadge(
+                              ok: !isNonNorthAmericaOnly,
+                              label: isWorldwide
+                                  ? 'Ships: Worldwide'
+                                  : 'Ships: ${_eligibleCountries.join(", ")}',
                             ),
                           ],
                         ),
@@ -2571,94 +3839,96 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<PipeBuyerShopSourceType>(
-                  isExpanded: true,
-                  initialValue: _sourceType,
-                  decoration:
-                      const InputDecoration(labelText: 'Partner Channel'),
-                  items: PipeBuyerShopSourceType.values
-                      .map(
-                        (s) => DropdownMenuItem(
-                          value: s,
-                          child: Text(
-                            s.label,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (v) {
-                    if (v != null) setState(() => _sourceType = v);
-                  },
+                const SizedBox(height: 14),
+                // STEP 2: Visual Product Photo Preview & Core Product Details
+                const Text(
+                  '2. Product Photo & Storefront Card Details',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13.5),
                 ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: _categoryCode,
-                  decoration:
-                      const InputDecoration(labelText: 'Store Category'),
-                  items: PipeBuyerShopTaxonomy.categories
-                      .map(
-                        (c) => DropdownMenuItem(
-                          value: c.code,
-                          child: Text(
-                            c.label,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() {
-                        _categoryCode = v;
-                        final subs =
-                            PipeBuyerShopTaxonomy.subcategoriesForCategory(v);
-                        if (!subs.contains(_subcategory)) {
-                          _subcategory = _defaultSubcategoryFor(v);
-                        }
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 10),
-                Builder(
-                  builder: (context) {
-                    final subs = <String>{
-                      ...PipeBuyerShopTaxonomy.subcategoriesForCategory(
-                        _categoryCode,
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        color: PipeBuyerColors.surfaceMuted,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: PipeBuyerColors.line),
                       ),
-                      if (_subcategory.trim().isNotEmpty) _subcategory.trim(),
-                    }.toList(growable: false);
-                    final effectiveSub = subs.contains(_subcategory)
-                        ? _subcategory
-                        : (subs.isNotEmpty ? subs.first : '');
-                    return DropdownButtonFormField<String>(
-                      key: ValueKey<String>(
-                        'subcat_${_categoryCode}_$effectiveSub',
-                      ),
-                      isExpanded: true,
-                      initialValue: effectiveSub,
-                      decoration: const InputDecoration(
-                        labelText: 'Subcategory',
-                      ),
-                      items: subs
-                          .map(
-                            (sub) => DropdownMenuItem(
-                              value: sub,
-                              child: Text(
-                                sub,
-                                overflow: TextOverflow.ellipsis,
+                      clipBehavior: Clip.antiAlias,
+                      child: imagePreviewUrl.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: imagePreviewUrl,
+                              fit: BoxFit.contain,
+                              placeholder: (_, __) => const Center(
+                                child: Icon(
+                                  Icons.image_outlined,
+                                  color: PipeBuyerColors.muted,
+                                ),
+                              ),
+                              errorWidget: (_, __, ___) => const Center(
+                                child: Icon(
+                                  Icons.broken_image_outlined,
+                                  color: PipeBuyerColors.muted,
+                                ),
+                              ),
+                            )
+                          : const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  color: PipeBuyerColors.muted,
+                                  size: 28,
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Photo Preview',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: PipeBuyerColors.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextFormField(
+                            controller: _imageUrlController,
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              labelText: 'Product Photo HTTPS URL',
+                              hintText:
+                                  'Auto-filled from product link, or paste image address',
+                              suffixIcon: IconButton(
+                                tooltip: 'Paste Image URL from Clipboard',
+                                onPressed: _pasteImageFromClipboard,
+                                icon: const Icon(
+                                  Icons.content_paste_rounded,
+                                  size: 18,
+                                ),
                               ),
                             ),
-                          )
-                          .toList(growable: false),
-                      onChanged: (v) {
-                        if (v != null) setState(() => _subcategory = v);
-                      },
-                    );
-                  },
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Tip: Product photos load automatically for most links. If a site blocks bots, right-click the product photo -> "Copy image address" and click paste.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: PipeBuyerColors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
@@ -2676,7 +3946,7 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                       child: TextFormField(
                         controller: _brandController,
                         decoration: const InputDecoration(
-                          labelText: 'Brand (e.g., Milwaukee, RIDGID)',
+                          labelText: 'Brand (e.g., Milwaukee, RIDGID, INGCO)',
                         ),
                       ),
                     ),
@@ -2685,90 +3955,133 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                       child: TextFormField(
                         controller: _vendorController,
                         decoration: const InputDecoration(
-                          labelText: 'Fulfilled / Sold By',
+                          labelText: 'Sold By / Platform',
                         ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _urlController,
-                  decoration: const InputDecoration(
-                    labelText: 'Clean Affiliate / Partner HTTPS URL *',
-                    hintText: 'https://www.amazon.com/dp/B077H7JP1D',
-                  ),
-                  validator: (v) {
-                    final trimmed = v?.trim() ?? '';
-                    if (trimmed.isEmpty &&
-                        _asinController.text.trim().length == 10) {
-                      return null;
-                    }
-                    if (!PipeBuyerShopUrlBuilder.isSafeHttpsUrl(trimmed)) {
-                      return 'Enter a valid HTTPS Amazon or Partner URL.';
-                    }
-                    return null;
-                  },
-                  onChanged: (val) {
-                    final parsed =
-                        PipeBuyerShopUrlBuilder.parseAffiliateSubmission(
-                      val,
-                      widget.settings,
-                    );
-                    setState(() => _parsedPreview = parsed);
-                    if (parsed != null &&
-                        parsed.asin.isNotEmpty &&
-                        _asinController.text.isEmpty) {
-                      _asinController.text = parsed.asin;
-                    }
-                  },
-                ),
-                const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
-                      child: TextFormField(
-                        controller: _asinController,
-                        decoration: const InputDecoration(
-                          labelText: 'Amazon ASIN (auto-detected)',
-                          hintText: 'B077H7JP1D',
-                        ),
+                      child: DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: _categoryCode,
+                        decoration:
+                            const InputDecoration(labelText: 'Store Category'),
+                        items: PipeBuyerShopTaxonomy.categories
+                            .map(
+                              (c) => DropdownMenuItem(
+                                value: c.code,
+                                child: Text(
+                                  c.label,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: (v) {
+                          if (v != null) {
+                            setState(() {
+                              _categoryCode = v;
+                              final subs = PipeBuyerShopTaxonomy
+                                  .subcategoriesForCategory(v);
+                              if (!subs.contains(_subcategory)) {
+                                _subcategory = _defaultSubcategoryFor(v);
+                              }
+                            });
+                          }
+                        },
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: TextFormField(
-                        controller: _badgeController,
-                        decoration: const InputDecoration(
-                          labelText: 'Callout Badge (optional)',
-                          hintText: 'Pipeline Pick',
-                        ),
+                      child: Builder(
+                        builder: (context) {
+                          final subs = <String>{
+                            ...PipeBuyerShopTaxonomy.subcategoriesForCategory(
+                              _categoryCode,
+                            ),
+                            if (_subcategory.trim().isNotEmpty)
+                              _subcategory.trim(),
+                          }.toList(growable: false);
+                          final effectiveSub = subs.contains(_subcategory)
+                              ? _subcategory
+                              : (subs.isNotEmpty ? subs.first : '');
+                          return DropdownButtonFormField<String>(
+                            key: ValueKey<String>(
+                              'subcat_${_categoryCode}_$effectiveSub',
+                            ),
+                            isExpanded: true,
+                            initialValue: effectiveSub,
+                            decoration: const InputDecoration(
+                              labelText: 'Subcategory',
+                            ),
+                            items: subs
+                                .map(
+                                  (sub) => DropdownMenuItem(
+                                    value: sub,
+                                    child: Text(
+                                      sub,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: (v) {
+                              if (v != null) setState(() => _subcategory = v);
+                            },
+                          );
+                        },
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
-                  controller: _descriptionController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Field Use Commentary (Amazon Original Context)',
-                    helperText:
-                        'Brief jobsite/trade commentary keeps Store pages compliant with Amazon content rules.',
-                  ),
-                ),
-                const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
+                      flex: 2,
                       child: TextFormField(
-                        controller: _imageUrlController,
+                        controller: _urlController,
                         decoration: const InputDecoration(
-                          labelText:
-                              'Official Product Image HTTPS URL (optional)',
-                          helperText:
-                              'Uses proportional scaling or built-in trade icon.',
+                          labelText: 'Destination Affiliate HTTPS URL *',
+                          hintText: 'https://www.amazon.com/dp/B077H7JP1D',
                         ),
+                        validator: (v) {
+                          final trimmed = v?.trim() ?? '';
+                          if (trimmed.isEmpty &&
+                              _asinController.text.trim().length == 10) {
+                            return null;
+                          }
+                          if (!PipeBuyerShopUrlBuilder.isSafeHttpsUrl(
+                            trimmed,
+                          )) {
+                            return 'Enter a valid HTTPS affiliate or partner URL.';
+                          }
+                          return null;
+                        },
+                        onChanged: (val) {
+                          final parsed =
+                              PipeBuyerShopUrlBuilder.parseAffiliateSubmission(
+                            val,
+                            widget.settings,
+                          );
+                          setState(() {
+                            _parsedPreview = parsed;
+                            if (parsed != null &&
+                                parsed.eligibleCountries.isNotEmpty) {
+                              _eligibleCountries =
+                                  List<String>.from(parsed.eligibleCountries);
+                            }
+                          });
+                          if (parsed != null &&
+                              parsed.asin.isNotEmpty &&
+                              _asinController.text.isEmpty) {
+                            _asinController.text = parsed.asin;
+                          }
+                        },
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -2776,28 +4089,222 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                       child: TextFormField(
                         controller: _priceController,
                         decoration: const InputDecoration(
-                          labelText:
-                              'Price Note (leave blank for live Amazon price)',
-                          helperText:
-                              'Blank = "Check live price & Prime delivery"',
+                          labelText: 'Price Note (optional)',
+                          hintText: 'e.g., USD 129.00',
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: _highlightsController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Key Specs (optional, one per line)',
+                const SizedBox(height: 14),
+                // STEP 3: Smart Country / Orderable Region Geo-Filtering
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: PipeBuyerColors.line),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.public_rounded,
+                            size: 17,
+                            color: PipeBuyerColors.industrialBlue,
+                          ),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '3. Orderable Countries (Smart Storefront Geo-Filter)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Shoppers only see items that can actually be ordered in their selected country (for example, Lazada PH / Shopee PH items only appear for Philippines shoppers, while AliExpress items show worldwide).',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: PipeBuyerColors.muted,
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          FilterChip(
+                            label: const Text(
+                              '🌍 Worldwide (All Countries)',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            selected: isWorldwide,
+                            selectedColor: const Color(0xFFDCFCE7),
+                            visualDensity: VisualDensity.compact,
+                            onSelected: (_) => _toggleEligibleCountry('GLOBAL'),
+                          ),
+                          ...PipeBuyerShopTaxonomy.countryOptions
+                              .where((c) => c.code != 'ALL')
+                              .map((country) {
+                            final selected = !isWorldwide &&
+                                _eligibleCountries.contains(country.code);
+                            return FilterChip(
+                              label: Text(
+                                '${country.flag} ${country.code}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: selected
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                ),
+                              ),
+                              tooltip: country.label,
+                              selected: selected,
+                              selectedColor: PipeBuyerColors.orangeSoft,
+                              visualDensity: VisualDensity.compact,
+                              onSelected: (_) =>
+                                  _toggleEligibleCountry(country.code),
+                            );
+                          }),
+                        ],
+                      ),
+                      if (isNonNorthAmericaOnly) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: PipeBuyerColors.warning
+                                  .withValues(alpha: .40),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.info_outline_rounded,
+                                size: 16,
+                                color: PipeBuyerColors.warning,
+                              ),
+                              const SizedBox(width: 7),
+                              Expanded(
+                                child: Text(
+                                  'Regional Store Detected (${_eligibleCountries.join(", ")}): This product will show for shoppers in ${_eligibleCountries.join(", ")} and stay automatically hidden for US & Canada shoppers who cannot check out on ${_vendorController.text}. For US/CA/Global buyers, add an Amazon or AliExpress link!',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: PipeBuyerColors.ink,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+                const SizedBox(height: 8),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Feature on Home & Top of Store'),
+                  title: const Text(
+                    'Feature on Home & Top of Store',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                  ),
                   value: _featured,
                   onChanged: (v) => setState(() => _featured = v),
+                ),
+                Theme(
+                  data: Theme.of(context)
+                      .copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Optional Details (Channel Override, ASIN, Badge, Specs & Field Notes)',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: PipeBuyerColors.industrialBlue,
+                      ),
+                    ),
+                    children: [
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<PipeBuyerShopSourceType>(
+                        key: ValueKey<String>('source_${_sourceType.code}'),
+                        isExpanded: true,
+                        initialValue: _sourceType,
+                        decoration:
+                            const InputDecoration(labelText: 'Partner Channel'),
+                        items: PipeBuyerShopSourceType.values
+                            .map(
+                              (s) => DropdownMenuItem(
+                                value: s,
+                                child: Text(
+                                  s.label,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: (v) {
+                          if (v != null) setState(() => _sourceType = v);
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _asinController,
+                              decoration: const InputDecoration(
+                                labelText: 'Amazon ASIN (auto-detected)',
+                                hintText: 'B077H7JP1D',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _badgeController,
+                              decoration: const InputDecoration(
+                                labelText: 'Callout Badge (optional)',
+                                hintText: 'Pipeline Pick',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _descriptionController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Field Use Commentary (optional)',
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _highlightsController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Key Specs (optional, one per line)',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -2818,6 +4325,11 @@ class _PipeBuyerAffiliateLinkEditorDialogState
               style: TextStyle(color: PipeBuyerColors.danger),
             ),
           ),
+        OutlinedButton.icon(
+          onPressed: _saving ? null : _testDraftLink,
+          icon: const Icon(Icons.open_in_new_rounded, size: 16),
+          label: const Text('Test Buy Link'),
+        ),
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(null),
           child: const Text('Cancel'),

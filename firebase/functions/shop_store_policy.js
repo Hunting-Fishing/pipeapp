@@ -578,7 +578,19 @@ function isAmazonFullHostname(hostname) {
     host === "amazon.com.au" ||
     host.endsWith(".amazon.com.au") ||
     host === "amazon.sg" ||
-    host.endsWith(".amazon.sg")
+    host.endsWith(".amazon.sg") ||
+    host === "amazon.ae" ||
+    host.endsWith(".amazon.ae") ||
+    host === "amazon.sa" ||
+    host.endsWith(".amazon.sa") ||
+    host === "amazon.de" ||
+    host.endsWith(".amazon.de") ||
+    host === "amazon.co.jp" ||
+    host.endsWith(".amazon.co.jp") ||
+    host === "amazon.com.mx" ||
+    host.endsWith(".amazon.com.mx") ||
+    host === "amazon.com.br" ||
+    host.endsWith(".amazon.com.br")
   );
 }
 
@@ -588,8 +600,364 @@ function isAmazonShortHostname(hostname) {
     host === "amzn.to" ||
     host === "a.co" ||
     host === "link.amazon" ||
-    host.endsWith(".link.amazon")
+    host.endsWith(".link.amazon") ||
+    host === "amzlinks.in" ||
+    host.endsWith(".amzlinks.in")
   );
+}
+
+const SHOP_COUNTRY_CODES = new Set([
+  "GLOBAL",
+  "US",
+  "CA",
+  "MX",
+  "BR",
+  "PH",
+  "SG",
+  "MY",
+  "TH",
+  "ID",
+  "VN",
+  "TW",
+  "AU",
+  "NZ",
+  "GB",
+  "EU",
+  "AE",
+  "SA",
+  "JP",
+  "IN",
+]);
+
+const SHOP_COUNTRY_ALIASES = Object.freeze({
+  WORLDWIDE: "GLOBAL",
+  ALL: "GLOBAL",
+  INTERNATIONAL: "GLOBAL",
+  INTL: "GLOBAL",
+  USA: "US",
+  CAN: "CA",
+  UK: "GB",
+  UAE: "AE",
+  KSA: "SA",
+  PHL: "PH",
+  SGP: "SG",
+  MYS: "MY",
+  THA: "TH",
+  IDN: "ID",
+  VNM: "VN",
+  AUS: "AU",
+});
+
+function normalizeCountryCodeToken(raw) {
+  const upper = cleanText(raw, 24).toUpperCase();
+  if (!upper) return "";
+  const mapped = SHOP_COUNTRY_ALIASES[upper] || upper;
+  return SHOP_COUNTRY_CODES.has(mapped) ? mapped : "";
+}
+
+function normalizeEligibleCountries(value, fallback = ["GLOBAL"]) {
+  const rawTokens = Array.isArray(value) ?
+    value :
+    typeof value === "string" ?
+      value.split(/[,;|/\s]+/) :
+      [];
+  const seen = new Set();
+  const output = [];
+  for (const item of rawTokens) {
+    const code = normalizeCountryCodeToken(item);
+    if (!code || seen.has(code)) continue;
+    if (code === "GLOBAL") {
+      return ["GLOBAL"];
+    }
+    seen.add(code);
+    output.push(code);
+    if (output.length >= 20) break;
+  }
+  if (output.length > 0) {
+    return output;
+  }
+  return Array.isArray(fallback) && fallback.length > 0 ? [...fallback] : ["GLOBAL"];
+}
+
+function inferEligibleCountries(hostnameOrUrl, sourceType = "", asin = "") {
+  let host = String(hostnameOrUrl || "").trim().toLowerCase();
+  if (host.includes("://")) {
+    try {
+      host = new URL(host).hostname.toLowerCase();
+    } catch {
+      host = "";
+    }
+  }
+  if (!host) {
+    return ["GLOBAL"];
+  }
+  if (hostMatches(host, ["lazada.com.ph", "s.lazada.com.ph", "c.lazada.com.ph", "shopee.ph", "s.shopee.ph", "ebay.ph"])) {
+    return ["PH"];
+  }
+  if (hostMatches(host, ["lazada.sg", "s.lazada.sg", "c.lazada.sg", "shopee.sg", "s.shopee.sg", "amazon.sg", "ebay.com.sg", "ebay.sg"])) {
+    return ["SG"];
+  }
+  if (hostMatches(host, ["lazada.com.my", "s.lazada.com.my", "c.lazada.com.my", "shopee.com.my", "s.shopee.com.my", "ebay.com.my"])) {
+    return ["MY"];
+  }
+  if (hostMatches(host, ["lazada.co.th", "s.lazada.co.th", "shopee.co.th", "s.shopee.co.th"])) {
+    return ["TH"];
+  }
+  if (hostMatches(host, ["lazada.co.id", "s.lazada.co.id", "shopee.co.id", "s.shopee.co.id"])) {
+    return ["ID"];
+  }
+  if (hostMatches(host, ["lazada.vn", "s.lazada.vn", "shopee.vn", "s.shopee.vn"])) {
+    return ["VN"];
+  }
+  if (hostMatches(host, ["shopee.tw", "s.shopee.tw"])) {
+    return ["TW"];
+  }
+  if (hostMatches(host, ["shopee.com.br", "s.shopee.com.br", "amazon.com.br"])) {
+    return ["BR"];
+  }
+  if (hostMatches(host, ["shopee.com.mx", "amazon.com.mx"])) {
+    return ["MX"];
+  }
+  if (hostMatches(host, ["amazon.co.uk", "ebay.co.uk"])) {
+    return ["GB"];
+  }
+  if (hostMatches(host, ["amazon.com.au", "ebay.com.au"])) {
+    return ["AU"];
+  }
+  if (hostMatches(host, ["amazon.ae"])) {
+    return ["AE"];
+  }
+  if (hostMatches(host, ["amazon.sa"])) {
+    return ["SA"];
+  }
+  if (hostMatches(host, ["amazon.de", "amazon.fr", "amazon.it", "amazon.es", "amazon.nl"])) {
+    return ["EU"];
+  }
+  if (hostMatches(host, ["amazon.co.jp"])) {
+    return ["JP"];
+  }
+  if (hostMatches(host, ["canadiantire.ca", "princessauto.com", "homedepot.ca", "lowes.ca", "walmart.ca", "vevor.ca", "ebay.ca"])) {
+    return ["CA"];
+  }
+  if (hostMatches(host, ["amazon.ca"])) {
+    return asin ? ["US", "CA"] : ["CA"];
+  }
+  if (hostMatches(host, [
+    "tractorsupply.com",
+    "northerntool.com",
+    "harborfreight.com",
+    "acmetools.com",
+    "zoro.com",
+    "grainger.com",
+    "homedepot.com",
+    "thd.co",
+    "lowes.com",
+    "walmart.com",
+    "goto.walmart.com",
+    "bootbarn.com",
+    "bakersgas.com",
+    "etrailer.com",
+  ])) {
+    return ["US"];
+  }
+  if (hostMatches(host, ["vevor.com"])) {
+    return ["US", "CA"];
+  }
+  if (hostMatches(host, [
+    "aliexpress.com",
+    "aliexpress.us",
+    "aliexpress.ru",
+    "s.click.aliexpress.com",
+    "a.aliexpress.com",
+    "star.aliexpress.com",
+    "ali.ski",
+    "alibaba.com",
+    "s.click.alibaba.com",
+    "dhgate.com",
+    "dhg.to",
+    "temu.com",
+    "temu.to",
+  ])) {
+    return ["GLOBAL"];
+  }
+  if (hostMatches(host, ["shope.ee", "shp.ee", "shopee.com", "lazada.com", "lzd.co"])) {
+    return ["PH", "SG", "MY", "TH", "ID", "VN"];
+  }
+  if (isAmazonShortHostname(host) || hostMatches(host, ["amazon.com"])) {
+    return ["US", "CA"];
+  }
+  if (hostMatches(host, ["ebay.com", "ebay.us", "ebay.to"])) {
+    return ["US", "CA", "GB", "AU"];
+  }
+  if (sourceType === "aliexpress_affiliate" || sourceType === "alibaba_b2b" || sourceType === "temu_affiliate") {
+    return ["GLOBAL"];
+  }
+  return ["GLOBAL"];
+}
+
+function doesProductShipToCountry(eligibleCountries, countryCode) {
+  const rawCountry = cleanText(countryCode, 24).toUpperCase();
+  if (!rawCountry || rawCountry === "ALL" || rawCountry === "GLOBAL" || rawCountry === "WORLDWIDE") {
+    return true;
+  }
+  const normalizedTarget = normalizeCountryCodeToken(rawCountry);
+  if (!normalizedTarget || normalizedTarget === "GLOBAL") {
+    return true;
+  }
+  const list = normalizeEligibleCountries(eligibleCountries, ["GLOBAL"]);
+  if (list.includes("GLOBAL")) {
+    return true;
+  }
+  return list.includes(normalizedTarget);
+}
+
+function cleanMarketplaceTitle(rawTitle) {
+  let title = cleanText(decodeHtmlEntities(String(rawTitle || "")), 220);
+  if (!title) return "";
+  if (/^(?:sorry! something went wrong|robot check|access denied|just a moment|page not found|404)/i.test(title)) {
+    return "";
+  }
+  title = title
+      .replace(/^(?:amazon\.(?:com|ca|co\.uk|com\.au|sg)\s*[:|-]\s*)/i, "")
+      .replace(/\s*[|-]\s*(?:amazon\.(?:com|ca|co\.uk|com\.au|sg)|lazada(?:\s+ph|\s+philippines|\s+sg|\s+my)?|shopee(?:\s+philippines|\s+singapore|\s+malaysia)?|aliexpress|ebay|walmart\.com|temu|tiktok\s*shop).*$/i, "")
+      .replace(/\s*:\s*(?:tools\s*&\s*home\s*improvement|industrial\s*&\s*scientific|automotive|patio,\s*lawn\s*&\s*garden|electronics).*$/i, "")
+      .trim();
+  return cleanText(title, 160);
+}
+
+function extractMetaContent(html, attrPattern) {
+  const tagRegex = new RegExp(`<meta[^>]+(?:property|name)=["'](?:${attrPattern})["'][^>]*>`, "gi");
+  let match;
+  while ((match = tagRegex.exec(html)) !== null) {
+    const contentMatch = match[0].match(/content=["']([^"']+)["']/i);
+    if (contentMatch && contentMatch[1]) {
+      return decodeHtmlEntities(contentMatch[1]).trim();
+    }
+  }
+  const revRegex = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:${attrPattern})["'][^>]*>`, "gi");
+  const revMatch = revRegex.exec(html);
+  if (revMatch && revMatch[1]) {
+    return decodeHtmlEntities(revMatch[1]).trim();
+  }
+  return "";
+}
+
+function toValidProductImageUrl(candidate, baseUrlStr = "") {
+  const raw = decodeHtmlEntities(String(candidate || "").trim());
+  if (!raw) return "";
+  let resolved = raw;
+  if (resolved.startsWith("//")) {
+    resolved = `https:${resolved}`;
+  } else if (resolved.startsWith("/") && baseUrlStr) {
+    try {
+      resolved = new URL(resolved, baseUrlStr).toString();
+    } catch {
+      return "";
+    }
+  }
+  try {
+    const parsed = parseSafeHttpsUrl(resolved, "Image URL");
+    if (/ir-na\.amazon-adsystem\.com|assoc-amazon\.com|pixel|1x1|spacer|sprite|logo|favicon/i.test(parsed.href)) {
+      return "";
+    }
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+}
+
+function extractHtmlProductMetadata(html, finalUrlStr = "") {
+  const source = String(html || "");
+  if (!source) {
+    return {title: "", imageUrl: "", brand: "", priceDisplay: ""};
+  }
+
+  let ldTitle = "";
+  let ldImage = "";
+  let ldBrand = "";
+  let ldPrice = "";
+  const ldRegex = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let ldMatch;
+  while ((ldMatch = ldRegex.exec(source)) !== null) {
+    const rawJson = (ldMatch[1] || "").trim();
+    if (!rawJson || rawJson.length > 150000) continue;
+    try {
+      const parsed = JSON.parse(rawJson);
+      const queue = Array.isArray(parsed) ? [...parsed] : [parsed];
+      while (queue.length > 0) {
+        const node = queue.shift();
+        if (!node || typeof node !== "object") continue;
+        if (Array.isArray(node["@graph"])) queue.push(...node["@graph"]);
+        const typeVal = Array.isArray(node["@type"]) ? node["@type"].join(" ") : String(node["@type"] || "");
+        if (/product/i.test(typeVal)) {
+          if (!ldTitle && typeof node.name === "string") ldTitle = cleanMarketplaceTitle(node.name);
+          if (!ldImage) {
+            const rawImg = Array.isArray(node.image) ? node.image[0] :
+              (node.image && typeof node.image === "object" ? node.image.url : node.image);
+            ldImage = toValidProductImageUrl(rawImg, finalUrlStr);
+          }
+          if (!ldBrand && node.brand) {
+            const b = typeof node.brand === "string" ? node.brand : node.brand.name;
+            if (typeof b === "string") ldBrand = cleanText(decodeHtmlEntities(b), 80);
+          }
+          if (!ldPrice && node.offers) {
+            const offer = Array.isArray(node.offers) ? node.offers[0] : node.offers;
+            if (offer && (offer.price || offer.lowPrice)) {
+              const currency = cleanText(offer.priceCurrency || "", 8);
+              const amount = cleanText(String(offer.price || offer.lowPrice), 24);
+              const sym = currency === "USD" ? "$" : currency === "CAD" ? "CA$" : currency === "PHP" ? "₱" : currency === "SGD" ? "S$" : (currency ? `${currency} ` : "$");
+              ldPrice = `${sym}${amount}`;
+            }
+          }
+        }
+      }
+    } catch {
+      // Ignore malformed JSON-LD blocks on partner pages
+    }
+  }
+
+  const amzProductTitleMatch = source.match(/id=["']productTitle["'][^>]*>([\s\S]*?)<\/span>/i);
+  const amzProductTitle = amzProductTitleMatch && amzProductTitleMatch[1] ?
+    cleanMarketplaceTitle(amzProductTitleMatch[1].replace(/<[^>]+>/g, " ")) :
+    "";
+  const ogTitle = cleanMarketplaceTitle(extractMetaContent(source, "og:title|twitter:title"));
+  const htmlTitleMatch = source.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const docTitle = htmlTitleMatch && htmlTitleMatch[1] ?
+    cleanMarketplaceTitle(htmlTitleMatch[1].replace(/<[^>]+>/g, " ")) :
+    "";
+
+  const amzHiResMatch =
+    source.match(/"hiRes"\s*:\s*"(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+)"/i) ||
+    source.match(/"large"\s*:\s*"(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+)"/i) ||
+    source.match(/data-old-hires=["'](https:[^"']+)["']/i) ||
+    source.match(/id=["']landingImage["'][^>]*src=["'](https:[^"']+)["']/i);
+  const amzImg = amzHiResMatch && amzHiResMatch[1] ?
+    toValidProductImageUrl(amzHiResMatch[1].replace(/\\u0026/g, "&"), finalUrlStr) :
+    "";
+  const ogImg = toValidProductImageUrl(
+      extractMetaContent(source, "og:image:secure_url|og:image|twitter:image:src|twitter:image"),
+      finalUrlStr,
+  );
+
+  const metaPriceAmt = extractMetaContent(source, "product:price:amount|og:price:amount");
+  const metaPriceCur = extractMetaContent(source, "product:price:currency|og:price:currency");
+  let metaPrice = "";
+  if (metaPriceAmt) {
+    const sym = metaPriceCur === "PHP" ? "₱" : metaPriceCur === "CAD" ? "CA$" : metaPriceCur === "SGD" ? "S$" : (metaPriceCur && metaPriceCur !== "USD" ? `${metaPriceCur} ` : "$");
+    metaPrice = cleanText(`${sym}${metaPriceAmt}`, 48);
+  }
+
+  const bestTitle = amzProductTitle || ldTitle || ogTitle || docTitle;
+  const bestImage = amzImg || ogImg || ldImage;
+  const bestBrand = ldBrand || inferBrandFromText(bestTitle);
+  const bestPrice = ldPrice || metaPrice;
+
+  return {
+    title: bestTitle,
+    imageUrl: bestImage,
+    brand: bestBrand,
+    priceDisplay: bestPrice,
+  };
 }
 
 function hostMatches(hostname, candidates) {
@@ -1136,6 +1504,7 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
       suggestedBrand: "",
       suggestedCategoryCode: "power_hand_tools",
       imageUrl: "",
+      eligibleCountries: ["US", "CA"],
       isAmazonLink: true,
       isShortLink: false,
       embeddedAssociateTag: "",
@@ -1197,13 +1566,13 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
   }
 
   if (
-    /^http:\/\/(?:www\.)?(?:amazon\.|amzn\.to|a\.co|link\.amazon|s\.click\.aliexpress\.com|a\.aliexpress\.com|aliexpress\.|shopee\.|shope\.ee|s\.shopee\.|lazada\.|s\.lazada\.|c\.lazada\.|invol\.co|invl\.io|ebay\.)/i.test(
+    /^http:\/\/(?:www\.)?(?:amazon\.|amzn\.to|a\.co|link\.amazon|amzlinks\.in|s\.click\.aliexpress\.com|a\.aliexpress\.com|aliexpress\.|shopee\.|shope\.ee|s\.shopee\.|lazada\.|s\.lazada\.|c\.lazada\.|invol\.co|invl\.io|ebay\.)/i.test(
         extractedHref,
     )
   ) {
     extractedHref = extractedHref.replace(/^http:\/\//i, "https://");
   } else if (
-    /^(?:www\.)?(?:amazon\.com|amazon\.ca|amzn\.to|a\.co|link\.amazon|s\.click\.aliexpress\.com|aliexpress\.com|shope\.ee|shopee\.[a-z.]+|lazada\.[a-z.]+|invol\.co|ebay\.com)\//i.test(
+    /^(?:www\.)?(?:amazon\.com|amazon\.ca|amzn\.to|a\.co|link\.amazon|amzlinks\.in|s\.click\.aliexpress\.com|aliexpress\.com|shope\.ee|shopee\.[a-z.]+|lazada\.[a-z.]+|invol\.co|ebay\.com)\//i.test(
         extractedHref,
     )
   ) {
@@ -1224,6 +1593,7 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
   const combinedHint = [suggestedTitle, slugTitle, parsedUrl.pathname].filter(Boolean).join(" ");
   const suggestedBrand = inferBrandFromText(combinedHint);
   const suggestedCategoryCode = inferCategoryCodeFromText(combinedHint);
+  const eligibleCountries = inferEligibleCountries(parsedUrl.hostname, sourceType, asin);
 
   const embeddedTag = isAmazon ?
     cleanText(parsedUrl.searchParams.get("tag"), 64) :
@@ -1274,6 +1644,7 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
     suggestedBrand,
     suggestedCategoryCode,
     imageUrl: extractedImg,
+    eligibleCountries,
     isAmazonLink: isAmazon,
     isShortLink: isShort,
     embeddedAssociateTag: embeddedTag,
@@ -1298,7 +1669,7 @@ function normalizeHiddenStarterIds(value) {
     if (!id || seen.has(id)) continue;
     seen.add(id);
     output.push(id);
-    if (output.length >= 200) break;
+    if (output.length >= 500) break;
   }
   return output;
 }
@@ -1536,6 +1907,13 @@ function validateShopProductInput(raw = {}, existing = null) {
       raw.marketplaceCategories ?? base.marketplaceCategories ?? category.marketplaceCategories,
       {maxItems: 10, maxItemLength: 64},
   );
+  const defaultCountries = (parsedSubmission && parsedSubmission.eligibleCountries) ||
+    inferEligibleCountries(parsedDestination.hostname, sourceType, inferredAsin);
+  const eligibleCountries = raw.eligibleCountries !== undefined ?
+    normalizeEligibleCountries(raw.eligibleCountries, defaultCountries) :
+    (Array.isArray(base.eligibleCountries) && base.eligibleCountries.length > 0 ?
+      normalizeEligibleCountries(base.eligibleCountries, defaultCountries) :
+      defaultCountries);
 
   const normalized = {
     title,
@@ -1563,6 +1941,7 @@ function validateShopProductInput(raw = {}, existing = null) {
     priorityRank,
     highlights,
     tags,
+    eligibleCountries,
     marketplaceCategories: marketplaceCategories.length > 0 ?
       marketplaceCategories :
       category.marketplaceCategories,
@@ -1577,6 +1956,11 @@ function buildPublicShopProduct(id, productData, settings = DEFAULT_STORE_SETTIN
   }
   const monetizedUrlUs = buildMonetizedDestinationUrl(productData, settings, {regionCode: "US"});
   const monetizedUrlCa = buildMonetizedDestinationUrl(productData, settings, {regionCode: "CA"});
+  const fallbackCountries = inferEligibleCountries(
+      productData.destinationHost || productData.destinationUrl,
+      productData.sourceType,
+      productData.asin,
+  );
   return {
     id,
     title: productData.title,
@@ -1601,6 +1985,7 @@ function buildPublicShopProduct(id, productData, settings = DEFAULT_STORE_SETTIN
     priorityRank: Number(productData.priorityRank || 100),
     highlights: Array.isArray(productData.highlights) ? productData.highlights : [],
     tags: Array.isArray(productData.tags) ? productData.tags : [],
+    eligibleCountries: normalizeEligibleCountries(productData.eligibleCountries, fallbackCountries),
     marketplaceCategories: Array.isArray(productData.marketplaceCategories) ?
       productData.marketplaceCategories :
       [],
@@ -1684,6 +2069,7 @@ module.exports = {
   KNOWN_INDUSTRIAL_BRANDS,
   SHOP_CATEGORIES,
   SHOP_CATEGORY_BY_CODE,
+  SHOP_COUNTRY_CODES,
   SHOP_PLACEMENTS,
   SHOP_PRODUCT_STATUSES,
   SHOP_SOURCE_TYPES,
@@ -1697,15 +2083,19 @@ module.exports = {
   cleanText,
   decodeHtmlEntities,
   detectAffiliatePlatform,
+  doesProductShipToCountry,
   extractAmazonAsin,
+  extractHtmlProductMetadata,
   extractTitleFromAmazonSlug,
   extractTitleFromGenericSlug,
   inferBrandFromText,
   inferCategoryCodeFromText,
+  inferEligibleCountries,
   isAmazonFullHostname,
   isAmazonShortHostname,
   isPrivateOrLocalHostname,
   normalizeAssociateTag,
+  normalizeEligibleCountries,
   normalizeHiddenStarterIds,
   normalizeStoreSettings,
   parseAffiliateSubmission,

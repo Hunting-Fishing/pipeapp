@@ -207,6 +207,21 @@ class PipeBuyerShopSettings {
 }
 
 @immutable
+class PipeBuyerShopCountryOption {
+  const PipeBuyerShopCountryOption({
+    required this.code,
+    required this.label,
+    required this.shortLabel,
+    required this.flag,
+  });
+
+  final String code;
+  final String label;
+  final String shortLabel;
+  final String flag;
+}
+
+@immutable
 class PipeBuyerShopProduct {
   const PipeBuyerShopProduct({
     required this.id,
@@ -230,6 +245,7 @@ class PipeBuyerShopProduct {
     this.status = 'active',
     this.highlights = const <String>[],
     this.tags = const <String>[],
+    this.eligibleCountries = const <String>[],
     this.marketplaceCategories = const <String>[],
     this.clickCount = 0,
     this.isStarterSeed = false,
@@ -256,9 +272,52 @@ class PipeBuyerShopProduct {
   final String status;
   final List<String> highlights;
   final List<String> tags;
+  final List<String> eligibleCountries;
   final List<String> marketplaceCategories;
   final int clickCount;
   final bool isStarterSeed;
+
+  List<String> get effectiveEligibleCountries {
+    if (eligibleCountries.isNotEmpty) {
+      return PipeBuyerShopUrlBuilder.normalizeEligibleCountries(
+        eligibleCountries,
+      );
+    }
+    return PipeBuyerShopUrlBuilder.inferEligibleCountries(
+      destinationUrl,
+      sourceType: sourceType,
+      asin: asin,
+    );
+  }
+
+  bool shipsToCountry(String countryCode) =>
+      PipeBuyerShopUrlBuilder.doesProductShipToCountry(
+        effectiveEligibleCountries,
+        countryCode,
+      );
+
+  String get shippingSummaryLabel {
+    final countries = effectiveEligibleCountries;
+    if (countries.isEmpty || countries.contains('GLOBAL')) {
+      return 'Ships Worldwide';
+    }
+    if (countries.length == 1) {
+      final opt = PipeBuyerShopTaxonomy.countryOptionByCode(countries.first);
+      return opt != null
+          ? '${opt.flag} ${opt.shortLabel} Only'
+          : 'Ships: ${countries.first} Only';
+    }
+    if (countries.length <= 3) {
+      return 'Ships: ${countries.join(' • ')}';
+    }
+    return 'Ships: ${countries.take(3).join(' • ')} +${countries.length - 3}';
+  }
+
+  String get destinationHost {
+    final uri = Uri.tryParse(destinationUrl.trim());
+    if (uri == null || uri.host.isEmpty) return '';
+    return uri.host.toLowerCase().replaceFirst(RegExp(r'^www\.'), '');
+  }
 
   String get effectiveCtaLabel {
     if (ctaLabel.trim().isNotEmpty) return ctaLabel.trim();
@@ -292,6 +351,13 @@ class PipeBuyerShopProduct {
 
   factory PipeBuyerShopProduct.fromJson(Map<String, dynamic> json) {
     List<String> strList(Object? raw) {
+      if (raw is String && raw.trim().isNotEmpty) {
+        return raw
+            .split(RegExp(r'[,;|/\s]+'))
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList(growable: false);
+      }
       if (raw is! Iterable) return const <String>[];
       return raw
           .map((e) => e?.toString().trim() ?? '')
@@ -303,6 +369,7 @@ class PipeBuyerShopProduct {
         json['categoryCode']?.toString().trim() ?? 'pipe_welding_fab';
     final cat = PipeBuyerShopTaxonomy.categoryByCode(catCode);
     final mktCats = strList(json['marketplaceCategories']);
+    final rawCountries = strList(json['eligibleCountries']);
 
     return PipeBuyerShopProduct(
       id: json['id']?.toString().trim() ?? '',
@@ -327,6 +394,9 @@ class PipeBuyerShopProduct {
       status: json['status']?.toString().trim() ?? 'active',
       highlights: strList(json['highlights']),
       tags: strList(json['tags']),
+      eligibleCountries: rawCountries.isNotEmpty
+          ? PipeBuyerShopUrlBuilder.normalizeEligibleCountries(rawCountries)
+          : const <String>[],
       marketplaceCategories: mktCats.isNotEmpty
           ? mktCats
           : (cat?.marketplaceCategories ?? const <String>[]),
@@ -357,6 +427,7 @@ class PipeBuyerShopProduct {
         'priorityRank': priorityRank,
         'highlights': highlights,
         'tags': tags,
+        'eligibleCountries': effectiveEligibleCountries,
         'marketplaceCategories': marketplaceCategories,
       };
 }
@@ -457,8 +528,262 @@ abstract final class PipeBuyerShopUrlBuilder {
         'amazon.com.br',
       ]);
 
-  static bool _isAmazonShortHost(String host) =>
-      _hostMatches(host, const <String>['amzn.to', 'a.co', 'link.amazon']);
+  static bool _isAmazonShortHost(String host) => _hostMatches(
+        host,
+        const <String>['amzn.to', 'a.co', 'link.amazon', 'amzlinks.in'],
+      );
+
+  static const Set<String> allowedCountryCodes = <String>{
+    'GLOBAL',
+    'US',
+    'CA',
+    'MX',
+    'BR',
+    'PH',
+    'SG',
+    'MY',
+    'TH',
+    'ID',
+    'VN',
+    'TW',
+    'AU',
+    'NZ',
+    'GB',
+    'EU',
+    'AE',
+    'SA',
+    'JP',
+    'IN',
+  };
+
+  static const Map<String, String> _countryAliases = <String, String>{
+    'WORLDWIDE': 'GLOBAL',
+    'ALL': 'GLOBAL',
+    'INTERNATIONAL': 'GLOBAL',
+    'INTL': 'GLOBAL',
+    'USA': 'US',
+    'CAN': 'CA',
+    'UK': 'GB',
+    'UAE': 'AE',
+    'KSA': 'SA',
+    'PHL': 'PH',
+    'SGP': 'SG',
+    'MYS': 'MY',
+    'THA': 'TH',
+    'IDN': 'ID',
+    'VNM': 'VN',
+    'AUS': 'AU',
+  };
+
+  static String normalizeCountryToken(String raw) {
+    final upper = raw.trim().toUpperCase();
+    if (upper.isEmpty) return '';
+    final mapped = _countryAliases[upper] ?? upper;
+    return allowedCountryCodes.contains(mapped) ? mapped : '';
+  }
+
+  static List<String> normalizeEligibleCountries(
+    Iterable<String> raw, {
+    List<String> fallback = const <String>['GLOBAL'],
+  }) {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final item in raw) {
+      final code = normalizeCountryToken(item);
+      if (code.isEmpty || seen.contains(code)) continue;
+      if (code == 'GLOBAL') return const <String>['GLOBAL'];
+      seen.add(code);
+      out.add(code);
+      if (out.length >= 20) break;
+    }
+    if (out.isNotEmpty) return out;
+    return fallback.isNotEmpty ? fallback : const <String>['GLOBAL'];
+  }
+
+  static List<String> inferEligibleCountries(
+    String hostOrUrl, {
+    PipeBuyerShopSourceType? sourceType,
+    String asin = '',
+  }) {
+    var h = hostOrUrl.trim().toLowerCase();
+    if (h.contains('://')) {
+      h = Uri.tryParse(h)?.host.toLowerCase() ?? '';
+    }
+    if (h.isEmpty) return const <String>['GLOBAL'];
+
+    if (_hostMatches(h, const <String>[
+      'lazada.com.ph',
+      's.lazada.com.ph',
+      'c.lazada.com.ph',
+      'shopee.ph',
+      's.shopee.ph',
+      'ebay.ph',
+    ])) {
+      return const <String>['PH'];
+    }
+    if (_hostMatches(h, const <String>[
+      'lazada.sg',
+      's.lazada.sg',
+      'c.lazada.sg',
+      'shopee.sg',
+      's.shopee.sg',
+      'amazon.sg',
+      'ebay.com.sg',
+      'ebay.sg',
+    ])) {
+      return const <String>['SG'];
+    }
+    if (_hostMatches(h, const <String>[
+      'lazada.com.my',
+      's.lazada.com.my',
+      'c.lazada.com.my',
+      'shopee.com.my',
+      's.shopee.com.my',
+      'ebay.com.my',
+    ])) {
+      return const <String>['MY'];
+    }
+    if (_hostMatches(h, const <String>[
+      'lazada.co.th',
+      's.lazada.co.th',
+      'shopee.co.th',
+      's.shopee.co.th',
+    ])) {
+      return const <String>['TH'];
+    }
+    if (_hostMatches(h, const <String>[
+      'lazada.co.id',
+      's.lazada.co.id',
+      'shopee.co.id',
+      's.shopee.co.id',
+    ])) {
+      return const <String>['ID'];
+    }
+    if (_hostMatches(h, const <String>[
+      'lazada.vn',
+      's.lazada.vn',
+      'shopee.vn',
+      's.shopee.vn',
+    ])) {
+      return const <String>['VN'];
+    }
+    if (_hostMatches(h, const <String>['shopee.tw', 's.shopee.tw'])) {
+      return const <String>['TW'];
+    }
+    if (_hostMatches(h,
+        const <String>['shopee.com.br', 's.shopee.com.br', 'amazon.com.br'])) {
+      return const <String>['BR'];
+    }
+    if (_hostMatches(h, const <String>['shopee.com.mx', 'amazon.com.mx'])) {
+      return const <String>['MX'];
+    }
+    if (_hostMatches(h, const <String>['amazon.co.uk', 'ebay.co.uk'])) {
+      return const <String>['GB'];
+    }
+    if (_hostMatches(h, const <String>['amazon.com.au', 'ebay.com.au'])) {
+      return const <String>['AU'];
+    }
+    if (_hostMatches(h, const <String>['amazon.ae'])) {
+      return const <String>['AE'];
+    }
+    if (_hostMatches(h, const <String>['amazon.sa'])) {
+      return const <String>['SA'];
+    }
+    if (_hostMatches(h,
+        const <String>['amazon.de', 'amazon.fr', 'amazon.it', 'amazon.es'])) {
+      return const <String>['EU'];
+    }
+    if (_hostMatches(h, const <String>['amazon.co.jp'])) {
+      return const <String>['JP'];
+    }
+    if (_hostMatches(h, const <String>[
+      'canadiantire.ca',
+      'princessauto.com',
+      'homedepot.ca',
+      'lowes.ca',
+      'walmart.ca',
+      'vevor.ca',
+      'ebay.ca',
+    ])) {
+      return const <String>['CA'];
+    }
+    if (_hostMatches(h, const <String>['amazon.ca'])) {
+      return asin.trim().isNotEmpty
+          ? const <String>['US', 'CA']
+          : const <String>['CA'];
+    }
+    if (_hostMatches(h, const <String>[
+      'tractorsupply.com',
+      'northerntool.com',
+      'harborfreight.com',
+      'acmetools.com',
+      'zoro.com',
+      'grainger.com',
+      'homedepot.com',
+      'thd.co',
+      'lowes.com',
+      'walmart.com',
+      'goto.walmart.com',
+      'bootbarn.com',
+      'bakersgas.com',
+      'etrailer.com',
+    ])) {
+      return const <String>['US'];
+    }
+    if (_hostMatches(h, const <String>['vevor.com'])) {
+      return const <String>['US', 'CA'];
+    }
+    if (_hostMatches(h, const <String>[
+      'aliexpress.com',
+      'aliexpress.us',
+      'aliexpress.ru',
+      's.click.aliexpress.com',
+      'ali.ski',
+      'alibaba.com',
+      's.click.alibaba.com',
+      'dhgate.com',
+      'dhg.to',
+      'temu.com',
+      'temu.to',
+    ])) {
+      return const <String>['GLOBAL'];
+    }
+    if (_hostMatches(
+        h, const <String>['shope.ee', 'shp.ee', 'shopee.com', 'lazada.com'])) {
+      return const <String>['PH', 'SG', 'MY', 'TH', 'ID', 'VN'];
+    }
+    if (_isAmazonShortHost(h) ||
+        _hostMatches(h, const <String>['amazon.com'])) {
+      return const <String>['US', 'CA'];
+    }
+    if (_hostMatches(h, const <String>['ebay.com', 'ebay.us', 'ebay.to'])) {
+      return const <String>['US', 'CA', 'GB', 'AU'];
+    }
+    if (sourceType == PipeBuyerShopSourceType.aliexpressAffiliate ||
+        sourceType == PipeBuyerShopSourceType.alibabaB2b ||
+        sourceType == PipeBuyerShopSourceType.temuAffiliate) {
+      return const <String>['GLOBAL'];
+    }
+    return const <String>['GLOBAL'];
+  }
+
+  static bool doesProductShipToCountry(
+    Iterable<String> eligibleCountries,
+    String countryCode,
+  ) {
+    final upper = countryCode.trim().toUpperCase();
+    if (upper.isEmpty ||
+        upper == 'ALL' ||
+        upper == 'GLOBAL' ||
+        upper == 'WORLDWIDE') {
+      return true;
+    }
+    final target = normalizeCountryToken(upper);
+    if (target.isEmpty || target == 'GLOBAL') return true;
+    final normalized = normalizeEligibleCountries(eligibleCountries);
+    if (normalized.contains('GLOBAL')) return true;
+    return normalized.contains(target);
+  }
 
   static ({
     String platformId,
@@ -1054,6 +1379,7 @@ abstract final class PipeBuyerShopUrlBuilder {
         suggestedBrand: '',
         suggestedCategoryCode: 'power_hand_tools',
         imageUrl: '',
+        eligibleCountries: const <String>['US', 'CA'],
         isAmazonLink: true,
         isShortLink: false,
         embeddedAssociateTag: '',
@@ -1132,7 +1458,7 @@ abstract final class PipeBuyerShopUrlBuilder {
     }
 
     if (RegExp(
-      r'^http://(?:www\.)?(?:amazon\.|amzn\.to|a\.co|link\.amazon|aliexpress\.|s\.click\.aliexpress\.com|shopee\.|shope\.ee|s\.shopee\.|lazada\.|s\.lazada\.|invol\.co|invl\.io|ebay\.|walmart\.|temu\.|vevor\.)',
+      r'^http://(?:www\.)?(?:amazon\.|amzn\.to|a\.co|link\.amazon|amzlinks\.in|aliexpress\.|s\.click\.aliexpress\.com|shopee\.|shope\.ee|s\.shopee\.|lazada\.|s\.lazada\.|invol\.co|invl\.io|ebay\.|walmart\.|temu\.|vevor\.)',
       caseSensitive: false,
     ).hasMatch(extractedHref)) {
       extractedHref = extractedHref.replaceFirst(
@@ -1140,7 +1466,7 @@ abstract final class PipeBuyerShopUrlBuilder {
         'https://',
       );
     } else if (RegExp(
-      r'^(?:www\.)?(?:amazon\.com|amazon\.ca|amzn\.to|a\.co|link\.amazon|aliexpress\.com|s\.click\.aliexpress\.com|shopee\.|shope\.ee|lazada\.|invol\.co|ebay\.com|vevor\.com)/',
+      r'^(?:www\.)?(?:amazon\.com|amazon\.ca|amzn\.to|a\.co|link\.amazon|amzlinks\.in|aliexpress\.com|s\.click\.aliexpress\.com|shopee\.|shope\.ee|lazada\.|invol\.co|ebay\.com|vevor\.com)/',
       caseSensitive: false,
     ).hasMatch(extractedHref)) {
       extractedHref = 'https://$extractedHref';
@@ -1163,6 +1489,11 @@ abstract final class PipeBuyerShopUrlBuilder {
         .join(' ');
     final suggestedBrand = inferBrand(hintText);
     final suggestedCategory = inferCategoryCode(hintText);
+    final inferredCountries = inferEligibleCountries(
+      uri.host,
+      sourceType: sourceType,
+      asin: asin,
+    );
 
     final embeddedTag = (uri.queryParameters['tag'] ??
             uri.queryParameters['sk'] ??
@@ -1210,6 +1541,7 @@ abstract final class PipeBuyerShopUrlBuilder {
       suggestedBrand: suggestedBrand,
       suggestedCategoryCode: suggestedCategory,
       imageUrl: extractedImg,
+      eligibleCountries: inferredCountries,
       isAmazonLink: isAmazon,
       isShortLink: isShort,
       embeddedAssociateTag: embeddedTag,
@@ -1238,6 +1570,10 @@ class PipeBuyerParsedAffiliateSubmission {
     required this.monetizedPreviewCa,
     this.platformName = 'Amazon',
     this.suggestedVendorName = 'Amazon',
+    this.eligibleCountries = const <String>['GLOBAL'],
+    this.suggestedPriceDisplay = '',
+    this.resolvedUrl = '',
+    this.metadataFetched = false,
   });
 
   final String destinationUrl;
@@ -1249,15 +1585,159 @@ class PipeBuyerParsedAffiliateSubmission {
   final String suggestedBrand;
   final String suggestedCategoryCode;
   final String imageUrl;
+  final List<String> eligibleCountries;
+  final String suggestedPriceDisplay;
+  final String resolvedUrl;
+  final bool metadataFetched;
   final bool isAmazonLink;
   final bool isShortLink;
   final String embeddedAssociateTag;
   final String effectiveAssociateTag;
   final String monetizedPreviewUs;
   final String monetizedPreviewCa;
+
+  factory PipeBuyerParsedAffiliateSubmission.fromServerJson(
+    Map<String, dynamic> json,
+  ) {
+    final rawCountries = json['eligibleCountries'];
+    final countries = rawCountries is Iterable
+        ? PipeBuyerShopUrlBuilder.normalizeEligibleCountries(
+            rawCountries.map((e) => e?.toString() ?? ''),
+          )
+        : const <String>['GLOBAL'];
+    return PipeBuyerParsedAffiliateSubmission(
+      destinationUrl: json['destinationUrl']?.toString().trim() ?? '',
+      asin: json['asin']?.toString().trim() ?? '',
+      sourceType:
+          PipeBuyerShopSourceType.fromCode(json['sourceType']?.toString()),
+      platformName: json['platformName']?.toString().trim() ?? 'Partner',
+      suggestedVendorName:
+          json['suggestedVendorName']?.toString().trim() ?? 'Partner Store',
+      suggestedTitle: json['suggestedTitle']?.toString().trim() ?? '',
+      suggestedBrand: json['suggestedBrand']?.toString().trim() ?? '',
+      suggestedCategoryCode: json['suggestedCategoryCode']?.toString().trim() ??
+          'power_hand_tools',
+      imageUrl: json['imageUrl']?.toString().trim() ?? '',
+      eligibleCountries: countries,
+      suggestedPriceDisplay:
+          json['suggestedPriceDisplay']?.toString().trim() ?? '',
+      resolvedUrl: json['resolvedUrl']?.toString().trim() ?? '',
+      metadataFetched: json['metadataFetched'] == true,
+      isAmazonLink: json['isAmazonLink'] == true,
+      isShortLink: json['isShortLink'] == true,
+      embeddedAssociateTag:
+          json['embeddedAssociateTag']?.toString().trim() ?? '',
+      effectiveAssociateTag:
+          json['effectiveAssociateTag']?.toString().trim() ?? '',
+      monetizedPreviewUs: json['monetizedPreviewUs']?.toString().trim() ?? '',
+      monetizedPreviewCa: json['monetizedPreviewCa']?.toString().trim() ?? '',
+    );
+  }
 }
 
 abstract final class PipeBuyerShopTaxonomy {
+  static const List<PipeBuyerShopCountryOption> countryOptions =
+      <PipeBuyerShopCountryOption>[
+    PipeBuyerShopCountryOption(
+      code: 'ALL',
+      label: 'All Countries & Regions',
+      shortLabel: 'All Regions',
+      flag: '🌍',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'US',
+      label: 'United States',
+      shortLabel: 'US',
+      flag: '🇺🇸',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'CA',
+      label: 'Canada',
+      shortLabel: 'Canada',
+      flag: '🇨🇦',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'PH',
+      label: 'Philippines',
+      shortLabel: 'Philippines',
+      flag: '🇵🇭',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'SG',
+      label: 'Singapore',
+      shortLabel: 'Singapore',
+      flag: '🇸🇬',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'MY',
+      label: 'Malaysia',
+      shortLabel: 'Malaysia',
+      flag: '🇲🇾',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'TH',
+      label: 'Thailand',
+      shortLabel: 'Thailand',
+      flag: '🇹🇭',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'ID',
+      label: 'Indonesia',
+      shortLabel: 'Indonesia',
+      flag: '🇮🇩',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'VN',
+      label: 'Vietnam',
+      shortLabel: 'Vietnam',
+      flag: '🇻🇳',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'AU',
+      label: 'Australia',
+      shortLabel: 'Australia',
+      flag: '🇦🇺',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'GB',
+      label: 'United Kingdom',
+      shortLabel: 'UK',
+      flag: '🇬🇧',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'EU',
+      label: 'European Union',
+      shortLabel: 'EU',
+      flag: '🇪🇺',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'AE',
+      label: 'United Arab Emirates',
+      shortLabel: 'UAE',
+      flag: '🇦🇪',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'MX',
+      label: 'Mexico',
+      shortLabel: 'Mexico',
+      flag: '🇲🇽',
+    ),
+    PipeBuyerShopCountryOption(
+      code: 'BR',
+      label: 'Brazil',
+      shortLabel: 'Brazil',
+      flag: '🇧🇷',
+    ),
+  ];
+
+  static PipeBuyerShopCountryOption? countryOptionByCode(String code) {
+    final upper = code.trim().toUpperCase();
+    for (final option in countryOptions) {
+      if (option.code == upper) return option;
+    }
+    return null;
+  }
+
   static const List<PipeBuyerAffiliatePlatformInfo>
       affiliatePlatformsDirectory = <PipeBuyerAffiliatePlatformInfo>[
     PipeBuyerAffiliatePlatformInfo(

@@ -16,8 +16,13 @@ import 'package:pipe_app/marketplace/pipebuyer_shop_vendor_apply_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeAdminShopClient extends PipeBuyerShopClient {
-  _FakeAdminShopClient({super.urlLauncher});
+  _FakeAdminShopClient({
+    super.urlLauncher,
+    this.remotePreviewResponder,
+  });
 
+  final Future<PipeBuyerParsedAffiliateSubmission?> Function(String rawInput)?
+      remotePreviewResponder;
   Map<String, dynamic>? lastVendorSubmission;
   final List<Map<String, Object?>> upsertedPayloads = <Map<String, Object?>>[];
   final List<String> deletedIds = <String>[];
@@ -100,6 +105,42 @@ class _FakeAdminShopClient extends PipeBuyerShopClient {
   }
 
   @override
+  Future<Map<String, dynamic>> hideStarterProducts(
+    List<String> productIds,
+  ) async {
+    _hiddenStarterIds.addAll(
+      productIds.map((e) => e.trim().toLowerCase()).where((e) => e.isNotEmpty),
+    );
+    return <String, dynamic>{
+      'hiddenStarterIds': _hiddenStarterIds.toList(growable: false),
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> restoreStarterProducts({
+    String? productId,
+  }) async {
+    if (productId != null && productId.trim().isNotEmpty) {
+      _hiddenStarterIds.remove(productId.trim().toLowerCase());
+    } else {
+      _hiddenStarterIds.clear();
+    }
+    return <String, dynamic>{
+      'hiddenStarterIds': _hiddenStarterIds.toList(growable: false),
+    };
+  }
+
+  @override
+  Future<PipeBuyerParsedAffiliateSubmission?> fetchRemoteAffiliatePreview(
+    String rawInput,
+  ) async {
+    if (remotePreviewResponder != null) {
+      return remotePreviewResponder!(rawInput);
+    }
+    return null;
+  }
+
+  @override
   Future<Map<String, dynamic>> submitVendorApplication({
     required String companyName,
     required String contactName,
@@ -155,7 +196,10 @@ class _FakeAdminShopClient extends PipeBuyerShopClient {
         'pendingApplicationCount': 1,
         'approvedVendorCount': 0,
         'clicksBySource': <String, int>{'amazon_affiliate': 48},
-        'clicksByPlacement': <String, int>{'store_grid': 36, 'home_showcase': 12},
+        'clicksByPlacement': <String, int>{
+          'store_grid': 36,
+          'home_showcase': 12
+        },
       },
     );
   }
@@ -166,14 +210,17 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  test('Amazon ASIN extraction and US/CA Associate tag monetization work cleanly', () {
+  test(
+      'Amazon ASIN extraction and US/CA Associate tag monetization work cleanly',
+      () {
     expect(
       PipeBuyerShopUrlBuilder.extractAmazonAsin(
         'https://www.amazon.com/Milwaukee-2767-20/dp/B077H7JP1D/ref=sr_1_1',
       ),
       'B077H7JP1D',
     );
-    expect(PipeBuyerShopUrlBuilder.extractAmazonAsin('b0000224j8'), 'B0000224J8');
+    expect(
+        PipeBuyerShopUrlBuilder.extractAmazonAsin('b0000224j8'), 'B0000224J8');
 
     const settings = PipeBuyerShopSettings(
       amazonAssociateTagUs: 'pipebuyer-20',
@@ -219,7 +266,8 @@ void main() {
       vendorName: 'Milwaukee Authorized Partner',
       sourceType: PipeBuyerShopSourceType.brandPartner,
       categoryCode: 'pipe_welding_fab',
-      destinationUrl: 'https://www.milwaukeetool.com/Products/MXF314?irclickid=xyz',
+      destinationUrl:
+          'https://www.milwaukeetool.com/Products/MXF314?irclickid=xyz',
     );
     final partnerUri = Uri.parse(
       PipeBuyerShopUrlBuilder.buildMonetizedUrl(partnerProduct, settings),
@@ -241,7 +289,8 @@ void main() {
 
     // Unsafe URLs rejected
     expect(
-      PipeBuyerShopUrlBuilder.isSafeHttpsUrl('http://www.amazon.com/dp/B077H7JP1D'),
+      PipeBuyerShopUrlBuilder.isSafeHttpsUrl(
+          'http://www.amazon.com/dp/B077H7JP1D'),
       isFalse,
     );
     expect(
@@ -250,23 +299,27 @@ void main() {
     );
   });
 
-  test('Shop taxonomy maps Marketplace categories and defines deep-link paths', () {
+  test('Shop taxonomy maps Marketplace categories and defines deep-link paths',
+      () {
     expect(PipeBuyerShopTaxonomy.categories.length, 8);
-    expect(PipeBuyerShopTaxonomy.starterCatalog.length, greaterThanOrEqualTo(18));
+    expect(
+        PipeBuyerShopTaxonomy.starterCatalog.length, greaterThanOrEqualTo(18));
     expect(MarketplaceDeepLinks.shopStorePath, '/shop');
     expect(MarketplaceDeepLinks.shopVendorApplyPath, '/shop/apply');
     expect(MarketplaceDeepLinks.shopAdminPath, '/admin/shop');
 
-    final pipeItems = PipeBuyerShopTaxonomy.contextualProductsForMarketplace('Pipe');
+    final pipeItems =
+        PipeBuyerShopTaxonomy.contextualProductsForMarketplace('Pipe');
     expect(pipeItems, isNotEmpty);
     expect(pipeItems.first.categoryCode, 'pipe_welding_fab');
 
-    final haulingItems =
-        PipeBuyerShopTaxonomy.contextualProductsForMarketplace('Transport & Hauling');
+    final haulingItems = PipeBuyerShopTaxonomy.contextualProductsForMarketplace(
+        'Transport & Hauling');
     expect(haulingItems.first.categoryCode, 'rigging_hauling_cargo');
   });
 
-  testWidgets('Grouped navigation and Home Intent Actions expose Shopping & Store', (
+  testWidgets(
+      'Grouped navigation and Home Intent Actions expose Shopping & Store', (
     tester,
   ) async {
     var shopTapped = 0;
@@ -329,7 +382,9 @@ void main() {
     expect(homeShopTapped, 1);
   });
 
-  testWidgets('PipeBuyerShopStorePage filters items, toggles CA region, and opens tagged Amazon link', (
+  testWidgets(
+      'PipeBuyerShopStorePage filters items, toggles CA region, and opens tagged Amazon link',
+      (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 1600));
@@ -377,7 +432,8 @@ void main() {
     expect(launchedUris.first.queryParameters['tag'], 'pipebuyer0c-20');
   });
 
-  testWidgets('PipeBuyerShopVendorApplyPage submits distributor/brand application', (
+  testWidgets(
+      'PipeBuyerShopVendorApplyPage submits distributor/brand application', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1024, 1800));
@@ -432,7 +488,8 @@ void main() {
     );
   });
 
-  testWidgets('Contextual shop card and Admin authorization guard work cleanly', (
+  testWidgets('Contextual shop card and Admin authorization guard work cleanly',
+      (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -479,7 +536,9 @@ void main() {
     expect(find.text('48'), findsOneWidget);
   });
 
-  testWidgets('Storefront and Home Shop Showcase render cleanly on 360px mobile with 1.25x text scale', (
+  testWidgets(
+      'Storefront and Home Shop Showcase render cleanly on 360px mobile with 1.25x text scale',
+      (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(360, 800));
@@ -538,10 +597,13 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.text('Shop Tools, Welding, Rigging & Jobsite Gear'), findsOneWidget);
+    expect(find.text('Shop Tools, Welding, Rigging & Jobsite Gear'),
+        findsOneWidget);
   });
 
-  test('parseAffiliateSubmission handles SiteStripe short/full links, mobile share text, HTML snippets, and ASINs', () {
+  test(
+      'parseAffiliateSubmission handles SiteStripe short/full links, mobile share text, HTML snippets, and ASINs',
+      () {
     const settings = PipeBuyerShopSettings(
       amazonAssociateTagUs: 'pipebuyer-20',
       amazonAssociateTagCa: 'pipebuyer0c-20',
@@ -557,8 +619,10 @@ void main() {
     expect(full.suggestedBrand, 'RIDGID');
     expect(full.suggestedCategoryCode, 'pipe_welding_fab');
     expect(full.effectiveAssociateTag, 'pipebuyer-20');
-    expect(Uri.parse(full.monetizedPreviewUs).queryParameters['linkCode'], 'll1');
-    expect(Uri.parse(full.monetizedPreviewUs).queryParameters['linkId'], 'abc123');
+    expect(
+        Uri.parse(full.monetizedPreviewUs).queryParameters['linkCode'], 'll1');
+    expect(
+        Uri.parse(full.monetizedPreviewUs).queryParameters['linkId'], 'abc123');
 
     // 2. Amazon Mobile App Associate Share Text + SiteStripe Short Link
     final mobileShare = PipeBuyerShopUrlBuilder.parseAffiliateSubmission(
@@ -581,7 +645,8 @@ void main() {
     );
     expect(htmlSnippet, isNotNull);
     expect(htmlSnippet!.asin, 'B0032TF88Q');
-    expect(htmlSnippet.imageUrl, 'https://m.media-amazon.com/images/I/71weld._SL250_.jpg');
+    expect(htmlSnippet.imageUrl,
+        'https://m.media-amazon.com/images/I/71weld._SL250_.jpg');
     expect(htmlSnippet.suggestedBrand, 'Lincoln Electric');
     expect(htmlSnippet.suggestedCategoryCode, 'pipe_welding_fab');
 
@@ -595,7 +660,9 @@ void main() {
     expect(bareAsin.destinationUrl, 'https://www.amazon.com/dp/B077H7JP1D');
   });
 
-  testWidgets('Admin & Catalog Editor roles can Quick-Paste add and remove affiliate links, and MFA guard prompts cleanly', (
+  testWidgets(
+      'Admin & Catalog Editor roles can Quick-Paste add and remove affiliate links, and MFA guard prompts cleanly',
+      (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 1400));
@@ -642,12 +709,15 @@ void main() {
     // Open Quick-Paste Add Affiliate Link dialog
     await tester.tap(find.text('Add Affiliate Link').first);
     await tester.pumpAndSettle();
-    expect(find.text('1-Step Amazon SiteStripe / Share Quick-Paste'), findsOneWidget);
+    expect(
+      find.text('1. Choose Platform & Paste Affiliate Link'),
+      findsOneWidget,
+    );
 
     await tester.enterText(
       find.widgetWithText(
         TextField,
-        'Paste Amazon SiteStripe Link, amzn.to, Share Text, HTML, or ASIN',
+        'Paste Affiliate Link, Shortlink, Share Text, or ASIN',
       ),
       'https://www.amazon.com/RIDGID-31020-Heavy-Duty-Straight-Wrench/dp/B09XYZW123?linkCode=ll1&tag=pipebuyer-20',
     );
@@ -681,7 +751,9 @@ void main() {
     expect(fakeClient.deletedIds, contains('custom_1'));
   });
 
-  test('1,000-item Master CSV & 48 Subcategories parse cleanly and skip pending blank rows', () {
+  test(
+      '1,000-item Master CSV & 48 Subcategories parse cleanly and skip pending blank rows',
+      () {
     expect(PipeBuyerShopTaxonomy.categories, hasLength(8));
     final allSubs = PipeBuyerShopTaxonomy.subcategoriesForCategory(null);
     expect(allSubs, hasLength(48));
@@ -690,7 +762,8 @@ void main() {
     final masterCsv = File(
       'docs/shop_catalog/pipebuyer_store_1000_items_master.csv',
     ).readAsStringSync();
-    const settings = PipeBuyerShopSettings(amazonAssociateTagUs: 'pipebuyer-20');
+    const settings =
+        PipeBuyerShopSettings(amazonAssociateTagUs: 'pipebuyer-20');
     final blankScan = PipeBuyerShopCsvHelper.parseSpreadsheetText(
       masterCsv,
       settings,
@@ -721,7 +794,9 @@ void main() {
     );
   });
 
-  testWidgets('PipeBuyerShopAdminPage imports ready CSV rows via Bulk Spreadsheet dialog', (
+  testWidgets(
+      'PipeBuyerShopAdminPage imports ready CSV rows via Bulk Spreadsheet dialog',
+      (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 1200));
@@ -763,7 +838,9 @@ void main() {
     expect(fakeClient.upsertedPayloads.first['id'], 'pb-bulk-1');
   });
 
-  testWidgets('PipeBuyerShopStorePage allows inline Admin link removal directly from /shop', (
+  testWidgets(
+      'PipeBuyerShopStorePage allows inline Admin link removal directly from /shop',
+      (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 1600));
@@ -803,5 +880,183 @@ void main() {
     final removedStarter = PipeBuyerShopTaxonomy.starterCatalog
         .firstWhere((item) => item.id == fakeClient.deletedIds.first);
     expect(find.text(removedStarter.title), findsNothing);
+  });
+
+  testWidgets(
+      'PipeBuyerShopStorePage smart country geo-filtering hides PH-only Lazada/Shopee links for US shoppers and shows them for PH or ALL',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final fakeClient = _FakeAdminShopClient();
+    await fakeClient.hideStarterProducts(
+      PipeBuyerShopTaxonomy.starterCatalog.map((e) => e.id).toList(),
+    );
+    await fakeClient.upsertProduct(<String, Object?>{
+      'id': 'lazada-ph-welder',
+      'title': 'INGCO Inverter Stick Welder 200A (Lazada PH)',
+      'brand': 'INGCO',
+      'vendorName': 'Lazada',
+      'sourceType': 'lazada_affiliate',
+      'categoryCode': 'pipe_welding_fab',
+      'destinationUrl':
+          'https://www.lazada.com.ph/products/ingco-welder-i12345.html',
+      'eligibleCountries': <String>['PH'],
+      'featured': true,
+    });
+    await fakeClient.upsertProduct(<String, Object?>{
+      'id': 'ali-global-clamp',
+      'title': 'Heavy Duty Pipe Alignment Clamp (AliExpress Global)',
+      'brand': 'VEVOR',
+      'vendorName': 'AliExpress',
+      'sourceType': 'aliexpress_affiliate',
+      'categoryCode': 'pipe_welding_fab',
+      'destinationUrl': 'https://s.click.aliexpress.com/e/_dPipeClamp',
+      'eligibleCountries': <String>['GLOBAL'],
+      'featured': true,
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: PipeBuyerTheme.light(),
+        home: PipeBuyerShopStorePage(client: fakeClient),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Default US shopper sees the Worldwide AliExpress item, NOT the PH-only Lazada item
+    expect(
+      find.text('Heavy Duty Pipe Alignment Clamp (AliExpress Global)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('INGCO Inverter Stick Welder 200A (Lazada PH)'),
+      findsNothing,
+    );
+    expect(
+      find.textContaining('1 regional item hidden for US'),
+      findsOneWidget,
+    );
+
+    // Switch shopper delivery country to Philippines via country picker
+    await tester.tap(find.byKey(const Key('shop_country_picker_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Philippines').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('INGCO Inverter Stick Welder 200A (Lazada PH)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Heavy Duty Pipe Alignment Clamp (AliExpress Global)'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+      'PipeBuyerShopAdminPage hides demo templates in 1 click, opens Test Buy Link, and auto-fills photo + country on paste',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final launched = <Uri>[];
+    final fakeClient = _FakeAdminShopClient(
+      urlLauncher: (uri) async {
+        launched.add(uri);
+        return true;
+      },
+      remotePreviewResponder: (raw) async {
+        return const PipeBuyerParsedAffiliateSubmission(
+          sourceType: PipeBuyerShopSourceType.shopeeAffiliate,
+          platformName: 'Shopee',
+          asin: '',
+          destinationUrl: 'https://shope.ee/9pShopeeDrill',
+          monetizedPreviewUs: 'https://shope.ee/9pShopeeDrill',
+          monetizedPreviewCa: 'https://shope.ee/9pShopeeDrill',
+          embeddedAssociateTag: '',
+          effectiveAssociateTag: 'Shopee Shortlink (Embedded Attribution)',
+          isAmazonLink: false,
+          isShortLink: true,
+          imageUrl: 'https://cf.shopee.ph/file/drill-photo-500.jpg',
+          suggestedTitle: 'Makita 18V Brushless Hammer Drill Kit',
+          suggestedBrand: 'Makita',
+          suggestedVendorName: 'Shopee',
+          suggestedCategoryCode: 'power_hand_tools',
+          suggestedPriceDisplay: 'PHP 6,490',
+          eligibleCountries: <String>['PH'],
+          resolvedUrl: 'https://shopee.ph/Makita-18V-Brushless-Drill-i.100.200',
+          metadataFetched: true,
+        );
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: PipeBuyerTheme.light(),
+        home: PipeBuyerShopAdminPage(
+          client: fakeClient,
+          sessionOverride: () async => const PipeBuyerShopRoleSession(
+            authorized: true,
+            reason: 'authorized',
+            uid: 'joan-uid',
+            role: 'store_manager',
+            allowedPlatforms: <String>['all'],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1-click Hide All Demo Templates clears all 28 built-in starter placeholders
+    final hideBtn = find.textContaining('Hide All Demo Templates (');
+    expect(hideBtn, findsOneWidget);
+    await tester.tap(hideBtn);
+    await tester.pumpAndSettle();
+    expect(find.text('Affiliate Links (0)'), findsOneWidget);
+
+    // Open Add Affiliate Link dialog and paste a Shopee PH shortlink
+    await tester.tap(find.text('Add Affiliate Link').first);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('affiliate_quick_paste_field')),
+      'https://shope.ee/9pShopeeDrill',
+    );
+    // Advance debounce timer (380ms) and settle
+    await tester.pump(const Duration(milliseconds: 450));
+    await tester.pumpAndSettle();
+
+    // Photo URL, title, price, and PH regional store warning auto-populate
+    expect(
+      find.text('Makita 18V Brushless Hammer Drill Kit'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Regional Store Detected (PH)'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Publish Affiliate Link'));
+    await tester.pumpAndSettle();
+
+    expect(fakeClient.upsertedPayloads, hasLength(1));
+    expect(
+      fakeClient.upsertedPayloads.first['imageUrl'],
+      'https://cf.shopee.ph/file/drill-photo-500.jpg',
+    );
+    expect(
+        fakeClient.upsertedPayloads.first['eligibleCountries'], <String>['PH']);
+
+    // Switch to Affiliate Links tab (now 1 live item) and click Test Buy Link
+    await tester.tap(find.text('Affiliate Links (1)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('YOUR LIVE LINK'), findsOneWidget);
+    await tester.tap(find.text('Test Buy Link'));
+    await tester.pumpAndSettle();
+
+    expect(launched, hasLength(1));
+    expect(launched.first.toString(), 'https://shope.ee/9pShopeeDrill');
   });
 }

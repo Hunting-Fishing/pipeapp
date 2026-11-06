@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -425,21 +426,70 @@ class PipeBuyerShopClient {
     }
   }
 
-  Future<String> loadPreferredRegion() async {
+  static String inferDefaultShopperCountry() {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(_regionPrefsKey)?.trim().toUpperCase();
-      if (saved == 'CA' || saved == 'US') return saved!;
+      final rawCountry = ui.PlatformDispatcher.instance.locale.countryCode
+              ?.trim()
+              .toUpperCase() ??
+          '';
+      if (rawCountry.isNotEmpty) {
+        final match = PipeBuyerShopTaxonomy.countryOptionByCode(rawCountry);
+        if (match != null && match.code != 'ALL') {
+          return match.code;
+        }
+      }
     } catch (_) {}
     return 'US';
   }
 
+  Future<String> loadPreferredRegion() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_regionPrefsKey)?.trim().toUpperCase();
+      if (saved != null && saved.isNotEmpty) {
+        if (saved == 'ALL' ||
+            PipeBuyerShopTaxonomy.countryOptionByCode(saved) != null) {
+          return saved;
+        }
+      }
+    } catch (_) {}
+    return inferDefaultShopperCountry();
+  }
+
   Future<void> savePreferredRegion(String regionCode) async {
-    final normalized = regionCode.trim().toUpperCase() == 'CA' ? 'CA' : 'US';
+    final upper = regionCode.trim().toUpperCase();
+    final normalized = (upper == 'ALL' ||
+            PipeBuyerShopTaxonomy.countryOptionByCode(upper) != null)
+        ? upper
+        : 'US';
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_regionPrefsKey, normalized);
     } catch (_) {}
+  }
+
+  Future<PipeBuyerParsedAffiliateSubmission?> fetchRemoteAffiliatePreview(
+    String rawInput,
+  ) async {
+    final trimmed = rawInput.trim();
+    if (trimmed.isEmpty) return null;
+    if (!_firebaseReady && _functions == null) return null;
+    try {
+      final result = await _call(
+        'parseShopAffiliateLink',
+        <String, Object?>{
+          'rawInput': trimmed,
+          'fetchMetadata': true,
+        },
+      );
+      if (result.isEmpty ||
+          (result['destinationUrl']?.toString().trim().isEmpty ?? true)) {
+        return null;
+      }
+      return PipeBuyerParsedAffiliateSubmission.fromServerJson(result);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<Set<String>> loadSavedProductIds() async {
@@ -726,8 +776,19 @@ class PipeBuyerShopClient {
     return _call(
       'restoreStarterShopProducts',
       <String, Object?>{
+        'mode': 'restore',
         if (productId != null && productId.trim().isNotEmpty)
           'productId': productId.trim(),
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> hideStarterProducts(List<String> productIds) {
+    return _call(
+      'restoreStarterShopProducts',
+      <String, Object?>{
+        'mode': 'hide',
+        'productIds': productIds,
       },
     );
   }
