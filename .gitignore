@@ -59,3 +59,9 @@ firebase/functions/.secret.local
 data/yellow_pages/ledger/*.json
 data/yellow_pages/ledger/*.jsonl
 !data/yellow_pages/ledger/09_global_crawl_checkpoint.json
+
+# Photographed printed directory raw photos, tiles & OCR transcripts
+data/yellow_pages/book_photos/
+data/yellow_pages/book_tiles/
+data/yellow_pages/book_tiles_opt/
+data/yellow_pages/book_extract/
