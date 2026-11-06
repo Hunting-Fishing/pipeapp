@@ -5,6 +5,7 @@ import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_admin_role_manager.dart';
 import 'marketplace_admin_transaction_portal.dart';
+import 'marketplace_admin_user_permissions_panel.dart';
 import 'marketplace_exp_realty.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_payment_readiness.dart';
@@ -28,9 +29,6 @@ class MarketplaceAdminDashboard extends StatefulWidget {
 class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-
-  final _userSearchController = TextEditingController();
-  String _userSearchQuery = '';
 
   // Analytics time granularity and filter states
   String _selectedGranularity =
@@ -68,7 +66,6 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   @override
   void dispose() {
     _tabController.dispose();
-    _userSearchController.dispose();
     super.dispose();
   }
 
@@ -239,6 +236,15 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                   padding: const EdgeInsets.only(right: 8),
                   child: OutlinedButton.icon(
                     onPressed: () =>
+                        MarketplaceNavigation.openShopAdmin(context),
+                    icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+                    label: const Text('Store & Affiliate Admin'),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
                         MarketplaceNavigation.openPartnerAdmin(context),
                     icon: const Icon(Icons.handshake_outlined, size: 18),
                     label: const Text('Partner With Us Queue'),
@@ -268,6 +274,12 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                   tooltip: 'View what everyone else sees',
                   onPressed: _switchToRegularUserView,
                   icon: const Icon(Icons.visibility_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Store & Affiliate Admin',
+                  onPressed: () =>
+                      MarketplaceNavigation.openShopAdmin(context),
+                  icon: const Icon(Icons.shopping_bag_outlined),
                 ),
                 IconButton(
                   tooltip: 'Partner With Us Queue',
@@ -307,7 +319,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 text: 'Billing & Provider Readiness'),
             Tab(
                 icon: Icon(Icons.people_outline),
-                text: 'Users Directory & Leaderboards'),
+                text: 'Users, Permissions & Restrictions'),
             Tab(
                 icon: Icon(Icons.fact_check_outlined),
                 text: 'Moderation & Safety'),
@@ -1594,144 +1606,8 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   // 4. Provider readiness and non-secret billing architecture
   Widget _buildBankingGatewaysTab() => const MarketplacePaymentReadinessPanel();
 
-  // 5. Users Directory & Leaderboards Tab
-  Widget _buildUsersTab() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream:
-          FirebaseFirestore.instance.collection('users').limit(200).snapshots(),
-      builder: (context, snapshot) {
-        final isLoading = snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData;
-        final docs = snapshot.data?.docs ?? [];
-        final currentUser = FirebaseAuth.instance.currentUser;
-        final accountEmail = currentUser?.email ?? 'Administrator';
-
-        final filtered = docs.where((doc) {
-          if (_userSearchQuery.isEmpty) return true;
-          final data = doc.data();
-          final search = _userSearchQuery.toLowerCase();
-          return '${data['email'] ?? ''}'.toLowerCase().contains(search) ||
-              '${data['display_name'] ?? data['displayName'] ?? ''}'
-                  .toLowerCase()
-                  .contains(search) ||
-              doc.id.toLowerCase().contains(search);
-        }).toList();
-
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _explanationBanner(
-                    title: 'Users Directory & Member Controls',
-                    explanation:
-                        'Search Pipe Buyer members and maintain ordinary account-type metadata. Administrator access is managed separately through protected Firebase claims and MFA.',
-                  ),
-                  if (isLoading) const LinearProgressIndicator(),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _userSearchController,
-                    onChanged: (val) =>
-                        setState(() => _userSearchQuery = val.trim()),
-                    decoration: const InputDecoration(
-                      hintText: 'Search users by email, name, or UID…',
-                      prefixIcon: Icon(Icons.search),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: filtered.isEmpty
-                  ? ListView(
-                      children: [
-                        ListTile(
-                          leading: CircleAvatar(
-                              backgroundColor: Colors.purple.shade100,
-                              child: const Icon(Icons.person,
-                                  color: Colors.purple)),
-                          title: Text(accountEmail,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                              'UID: ${currentUser?.uid ?? 'master-admin-uid'} • Role: ADMINISTRATOR'),
-                          trailing: const Chip(
-                              label: Text('ADMINISTRATOR'),
-                              backgroundColor: Colors.purpleAccent),
-                        ),
-                      ],
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const Divider(),
-                      itemBuilder: (context, index) {
-                        final u = filtered[index].data();
-                        final uid = filtered[index].id;
-                        final email =
-                            '${u['email'] ?? u['displayName'] ?? u['display_name'] ?? uid}';
-                        final role =
-                            '${u['accountType'] ?? u['role'] ?? 'personal'}';
-
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: role == 'business'
-                                ? Colors.blue.shade100
-                                : Colors.grey.shade200,
-                            child: Icon(role == 'business'
-                                ? Icons.business
-                                : Icons.person),
-                          ),
-                          title: Text(email,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle:
-                              Text('UID: $uid • Role: ${role.toUpperCase()}'),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (val) => _updateUserRole(uid, val),
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                  value: 'personal',
-                                  child: Text('Set Role: Personal')),
-                              PopupMenuItem(
-                                  value: 'business',
-                                  child: Text('Set Role: Business')),
-                              PopupMenuItem(
-                                  value: 'carrier',
-                                  child: Text('Set Role: Hotshot Carrier')),
-                            ],
-                            child: Chip(
-                              label: Text(role.toUpperCase()),
-                              backgroundColor: role == 'administrator'
-                                  ? Colors.purple.shade100
-                                  : Colors.blue.shade50,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _updateUserRole(String uid, String role) async {
-    await FirebaseFirestore.instance.collection('users').doc(uid).set({
-      'accountType': role,
-      'role': role,
-    }, SetOptions(merge: true));
-
-    if (mounted) {
-      PipeFeedback.show(
-        context,
-        message: 'User role updated to ${role.toUpperCase()}',
-        tone: PipeStatusTone.success,
-      );
-    }
-  }
+  // 5. Users, Permissions, Affiliate Access & Restrictions Tab
+  Widget _buildUsersTab() => const MarketplaceAdminUserPermissionsPanel();
 
   // 6. Moderation & Trust Safety Tab
   Widget _buildModerationTab() {
@@ -1782,6 +1658,46 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                           MarketplaceNavigation.openYellowPagesAdmin(context),
                       icon: const Icon(Icons.manage_search_rounded),
                       label: const Text('Open Directory Control'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Card(
+              color: const Color(0xFFEFF6FF),
+              margin: const EdgeInsets.only(bottom: 14),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.shopping_bag_outlined,
+                        color: Color(0xFF0F52BA), size: 30),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PipeBuyer Shopping Store — Global Affiliate Networks, Products & Vendor Applications',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Configure Amazon, AliExpress, Lazada, Shopee, Involve Asia, eBay & partner affiliate IDs, publish products across 8 categories & 48 subcategories, bulk-import CSV catalogs, and review vendor applications.',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: () =>
+                          MarketplaceNavigation.openShopAdmin(context),
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text('Open Store Control'),
                     ),
                   ],
                 ),
@@ -1978,6 +1894,38 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                     style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
                   ),
                 ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.manage_accounts_outlined,
+                    color: Colors.deepPurple,
+                  ),
+                  title: const Text(
+                    'User Permissions, Affiliate Access & Restrictions',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Grant permissions to Google Sign-in & email users (Amazon, AliExpress, Lazada, Shopee & global affiliate uploads), assign roles, or restrict/suspend accounts.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _tabController.animateTo(4),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(
+                    Icons.shopping_bag_outlined,
+                    color: Color(0xFFFF6A00),
+                  ),
+                  title: const Text(
+                    'Store & Passive-Income Affiliate Platforms Hub',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Manage Amazon, AliExpress, Lazada, Shopee, Involve Asia, eBay, VEVOR & partner tracking IDs, products, and CSV imports.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => MarketplaceNavigation.openShopAdmin(context),
+                ),
+                const Divider(height: 1),
                 ListTile(
                   leading: const Icon(
                     Icons.admin_panel_settings_outlined,

@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {
   AccountSecurityError,
+  assertNotRestrictedFor,
   requireAuthenticatedIdentity,
 } = require("./account_security");
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
@@ -127,6 +128,9 @@ function createCommunicationCommands(
   }
   const secured = (scope, handler) => command(async (request) => {
     const identity = requireAuthenticatedIdentity(request);
+    if (scope === "messaging") {
+      assertNotRestrictedFor(request, "restrict_messaging_offers");
+    }
     await enforceUserRateLimit({db, admin, request, scope});
     return handler(request, identity);
   });

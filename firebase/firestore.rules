@@ -21,6 +21,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return signedIn() &&
+        !('restricted' in request.auth.token && request.auth.token.restricted == true) &&
         'admin' in request.auth.token &&
         'role' in request.auth.token &&
         request.auth.token.admin == true &&
@@ -32,6 +33,9 @@ service cloud.firestore {
             request.auth.token.firebase.sign_in_second_factor.size() > 0) ||
           ('primaryAdmin' in request.auth.token &&
             request.auth.token.primaryAdmin == true &&
+            verifiedEmail()) ||
+          ('federatedAdminApproved' in request.auth.token &&
+            request.auth.token.federatedAdminApproved == true &&
             verifiedEmail())
         );
     }
@@ -114,7 +118,9 @@ service cloud.firestore {
           // billing Functions. Clients read it for display; never write it.
           'isVip', 'vipActive', 'vipStatus', 'vipExpiresAt', 'vipUntil',
           'vipSubscriptionId', 'vipUpdatedAt', 'membership',
-          'membershipTier', 'subscriptionTier', 'subscriptionStatus'
+          'membershipTier', 'subscriptionTier', 'subscriptionStatus',
+          'shopRole', 'allowedAffiliatePlatforms', 'permissions',
+          'restricted', 'loginDisabled', 'restrictions', 'restrictionReason'
         ]);
       allow update: if isAdmin();
 
@@ -123,6 +129,18 @@ service cloud.firestore {
         // Save and unsave are server commands so analytics and the user's
         // persisted selection change atomically and can be retried safely.
         allow create, update, delete: if false;
+      }
+
+      match /saved_shop_items/{productId} {
+        allow read: if owns(uid);
+        allow create, update, delete: if false;
+      }
+
+      match /business_profiles/{profileId} {
+        allow read: if owns(uid) || isAdmin();
+        allow create, update: if owns(uid) &&
+          request.resource.data.ownerUid == uid;
+        allow delete: if owns(uid) && resource.data.ownerUid == uid;
       }
 
       match /followed_sellers/{sellerId} {
@@ -953,6 +971,58 @@ service cloud.firestore {
     }
 
     match /insurance_audit_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // PipeBuyer Shopping Store — Amazon Affiliate, Brand Partners, Distributors & Vendor Portal
+    match /shop_public_products/{productId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /shop_settings/{docId} {
+      allow read: if docId == 'public_config' || isAdmin();
+      allow write: if false;
+    }
+
+    match /shop_products/{productId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /shop_vendors/{vendorId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /shop_vendor_applications/{applicationId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.submitterUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /shop_click_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /shop_audit_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /shop_staff/{staffUid} {
+      allow read: if owns(staffUid) || isAdmin();
+      allow write: if false;
+    }
+
+    match /user_permissions/{targetUid} {
+      allow read: if owns(targetUid) || isAdmin();
+      allow write: if false;
+    }
+
+    match /admin_permission_audits/{auditId} {
       allow read: if isAdmin();
       allow write: if false;
     }

@@ -286,3 +286,32 @@ Callable commands:
 - `reviewInsuranceProviderApplication`
 - `upsertInsuranceProvider`
 - `updateInsuranceRateApplicationStatus`
+
+## Pipe Buyer Shopping Store & Affiliate Partner Plane
+
+All Store & Affiliate collections are server-controlled (`allow write: if false`
+for clients) and mutated exclusively via `shop_store_commands.js`:
+
+- `shop_settings/public_config`: publicly readable Store flags, US/CA/UK/AU
+  Amazon Associate tags, UTM defaults, and FTC/Amazon Associate disclosure text.
+- `shop_settings/admin_config`: administrator-only Store configuration master.
+- `shop_products/{productId}`: administrator-only product master catalog across
+  `amazon_affiliate`, `brand_partner` (e.g., Milwaukee, RIDGID, Lincoln
+  Electric), `distributor_affiliate`, and `vendor_catalog` channels.
+- `shop_public_products/{productId}`: publicly readable active projection with
+  pre-monetized US & Canada affiliate URLs.
+- `shop_vendors/{vendorId}`: publicly readable approved distributor, brand, and
+  business vendor partner records.
+- `shop_vendor_applications/{applicationId}`: onboarding applications submitted
+  by distributors, brands, and businesses (`submitterUid` or administrator read).
+- `shop_click_events/{eventId}`: administrator-only outbound affiliate click
+  telemetry (`productId`, `categoryCode`, `sourceType`, `brand`, `placement`).
+- `shop_audit_events/{eventId}`: immutable administrator audit trail for Store
+  settings, product changes, staff role changes, and partner approvals.
+- `shop_staff/{uid}`: active Store management roster (`catalog_editor` and
+  `store_manager` roles paired with Firebase Auth `shopRole` custom claims and
+  MFA; Platform `administrator` accounts retain full Store, Associate tag, and
+  staff management authority).
+- `users/{uid}/saved_shop_items/{productId}`: owner-readable saved Store gear.
+- `users/{uid}/business_profiles/{profileId}`: owner-managed multi-business
+  profiles selectable from the Account & Role Switcher popup.

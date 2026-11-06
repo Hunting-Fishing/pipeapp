@@ -196,7 +196,12 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
       ),
       Expanded(
           child: TabBarView(controller: _tabs, children: [
-        _Overview(onOpen: _tabs.animateTo),
+        _Overview(
+          onOpen: _tabs.animateTo,
+          showAdminPortal: _isAdminUser,
+          adminState: _adminState,
+          onRefreshAdmin: () => _checkAdmin(forceRefresh: true),
+        ),
         const MarketplaceProfilePage(),
         const MarketplaceAccountSecurityPage(embedded: true),
         _MyListings(
@@ -218,8 +223,16 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
 }
 
 class _Overview extends StatelessWidget {
-  const _Overview({required this.onOpen});
+  const _Overview({
+    required this.onOpen,
+    required this.showAdminPortal,
+    required this.adminState,
+    required this.onRefreshAdmin,
+  });
   final ValueChanged<int> onOpen;
+  final bool showAdminPortal;
+  final MarketplaceAdministratorState adminState;
+  final Future<void> Function() onRefreshAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -242,6 +255,232 @@ class _Overview extends StatelessWidget {
           final userScore =
               ((data['userScore'] as num?)?.toInt() ?? 70).clamp(0, 100);
           return ListView(padding: const EdgeInsets.all(18), children: [
+            if (showAdminPortal) ...[
+              Card(
+                color: Colors.purple.shade900,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.stars,
+                              color: Colors.amber, size: 36),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Administrator Portal active',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Access revenue analytics, Store & Affiliate catalog controls, bank accounts, merchant gateways & user controls.',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.white70),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 8,
+                        children: [
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                                backgroundColor: Colors.amber.shade700),
+                            onPressed: () => onOpen(
+                                MarketplaceAccountHub.adminPortalTabIndex),
+                            icon: const Icon(Icons.launch,
+                                color: Colors.black, size: 16),
+                            label: const Text(
+                              'Open Admin Portal',
+                              style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white54),
+                            ),
+                            onPressed: () =>
+                                MarketplaceNavigation.openShopAdmin(context),
+                            icon: const Icon(Icons.shopping_bag_outlined,
+                                size: 16),
+                            label: const Text('Store & Affiliate Admin'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ] else if (adminState ==
+                MarketplaceAdministratorState.mfaRequired) ...[
+              Card(
+                color: const Color(0xFFFFF4E5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: const BorderSide(color: Color(0xFFFF9A36)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.admin_panel_settings_outlined,
+                              color: Colors.deepOrange.shade800, size: 28),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Administrator sign-in requires MFA',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                                color: Colors.deepOrange.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Your Administrator & Store Admin role is assigned. Verify your phone and enable Two-step SMS in Verification & Security, then sign in with SMS to unlock Admin tools.',
+                        style: TextStyle(fontSize: 12.5, height: 1.35),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: () => onOpen(
+                                MarketplaceAccountHub.verificationTabIndex),
+                            icon: const Icon(Icons.sms_outlined, size: 17),
+                            label: const Text('Set Up 2-Step SMS'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: onRefreshAdmin,
+                            icon: const Icon(Icons.refresh, size: 17),
+                            label: const Text('Refresh Access'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+            if (data['restricted'] == true) ...[
+              Card(
+                color: Colors.red.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: Colors.red.shade300),
+                ),
+                child: ListTile(
+                  leading: Icon(Icons.block_rounded, color: Colors.red.shade800),
+                  title: Text(
+                    'Account Restricted',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Colors.red.shade900,
+                    ),
+                  ),
+                  subtitle: Text(
+                    (data['restrictionReason']?.toString().trim().isNotEmpty ??
+                            false)
+                        ? 'Reason: ${data['restrictionReason']}'
+                        : 'Certain posting or Store actions are currently restricted by an Administrator.',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+            if (!showAdminPortal &&
+                data['restricted'] != true &&
+                const <String>{
+                  'affiliate_contributor',
+                  'catalog_editor',
+                  'store_manager',
+                }.contains(data['shopRole']?.toString().trim())) ...[
+              Card(
+                color: const Color(0xFFFFF7ED),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: const BorderSide(color: Color(0xFFFF9A36)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.shopping_bag_outlined,
+                            color: Color(0xFFD9480F),
+                            size: 28,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Store & Affiliate Product Contributor Active',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Your account has permission to publish affiliate products from Amazon, AliExpress, Lazada, Shopee, Involve Asia, eBay, VEVOR & global partner programs.',
+                        style: TextStyle(fontSize: 12.5, height: 1.35),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: () =>
+                                MarketplaceNavigation.openShopAdmin(context),
+                            icon: const Icon(Icons.add_link_rounded, size: 17),
+                            label: const Text('Add / Manage Store Products'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                MarketplaceNavigation.openShopStore(context),
+                            icon: const Icon(Icons.storefront_outlined, size: 17),
+                            label: const Text('Open Pipe Buyer Store'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
             Text('Hello, ${user.displayName ?? user.email ?? 'seller'}',
                 style:
                     const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
@@ -278,6 +517,10 @@ class _Overview extends StatelessWidget {
                   : const Chip(label: Text('Not verified')),
             )),
             const SizedBox(height: 12),
+            _AccountShortcut(
+                icon: Icons.shopping_bag_outlined,
+                title: 'Shop tools, welding & oilfield gear',
+                onTap: () => MarketplaceNavigation.openShopStore(context)),
             _AccountShortcut(
                 icon: Icons.badge_outlined,
                 title: 'Edit profile, tags and service areas',

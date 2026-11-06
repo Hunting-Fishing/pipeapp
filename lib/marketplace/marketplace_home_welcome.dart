@@ -86,6 +86,7 @@ class _MarketplaceHomeWelcomeState extends State<MarketplaceHomeWelcome> {
                 MarketplaceNavigation.openInsuranceHub(context),
             onPartnerWithUs: () =>
                 MarketplaceNavigation.openPartnerWithUs(context),
+            onShopStore: () => MarketplaceNavigation.openShopStore(context),
           );
         }
 
@@ -131,6 +132,7 @@ class _MarketplaceHomeWelcomeState extends State<MarketplaceHomeWelcome> {
                   MarketplaceNavigation.openInsuranceHub(context),
               onPartnerWithUs: () =>
                   MarketplaceNavigation.openPartnerWithUs(context),
+              onShopStore: () => MarketplaceNavigation.openShopStore(context),
             );
             if (!showVerificationReminder) {
               return hero;
@@ -287,6 +289,7 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
     this.onListServices,
     this.onCommercialInsurance,
     this.onPartnerWithUs,
+    this.onShopStore,
   });
 
   final String? name;
@@ -300,6 +303,7 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
   final VoidCallback? onListServices;
   final VoidCallback? onCommercialInsurance;
   final VoidCallback? onPartnerWithUs;
+  final VoidCallback? onShopStore;
 
   bool get _signedIn => name != null && name!.trim().isNotEmpty;
 
@@ -332,6 +336,7 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
             onListServices: onListServices,
             onCommercialInsurance: onCommercialInsurance,
             onPartnerWithUs: onPartnerWithUs,
+            onShopStore: onShopStore,
           ),
           const SizedBox(height: 12),
           const PipeBuyerTrustBand(
@@ -379,6 +384,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
     this.onListServices,
     this.onCommercialInsurance,
     this.onPartnerWithUs,
+    this.onShopStore,
   });
 
   final VoidCallback? onBrowse;
@@ -389,6 +395,7 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
   final VoidCallback? onListServices;
   final VoidCallback? onCommercialInsurance;
   final VoidCallback? onPartnerWithUs;
+  final VoidCallback? onShopStore;
 
   @override
   Widget build(BuildContext context) {
@@ -506,6 +513,17 @@ class MarketplaceHomeIntentActions extends StatelessWidget {
                         onTap: onPartnerWithUs,
                       ),
                     ),
+                    if (onShopStore != null)
+                      SizedBox(
+                        width: cardWidth,
+                        child: _MarketplaceIntentCard(
+                          icon: LucideIcons.shoppingBag,
+                          title: 'Shop tools & gear',
+                          subtitle:
+                              'Curated pipe wrenches, welding gear, rigging & oilfield PPE.',
+                          onTap: onShopStore,
+                        ),
+                      ),
                   ],
                 ),
               ],

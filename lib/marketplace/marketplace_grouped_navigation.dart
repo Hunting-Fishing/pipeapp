@@ -16,6 +16,10 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
     this.onPartnerWithUs,
     this.onInsuranceHub,
     this.onInsuranceProviderApply,
+    this.onShopStore,
+    this.onShopVendorApply,
+    this.onShopAdmin,
+    this.isAdmin = false,
   });
 
   final int selectedPageIndex;
@@ -29,6 +33,10 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
   final VoidCallback? onPartnerWithUs;
   final VoidCallback? onInsuranceHub;
   final VoidCallback? onInsuranceProviderApply;
+  final VoidCallback? onShopStore;
+  final VoidCallback? onShopVendorApply;
+  final VoidCallback? onShopAdmin;
+  final bool isAdmin;
 
   @override
   Widget build(BuildContext context) => ListView(
@@ -99,6 +107,33 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
                 label: 'Commercial Insurance',
                 selected: false,
                 onTap: onInsuranceHub!,
+              ),
+          ],
+          if (onShopStore != null || onShopVendorApply != null) ...[
+            const _SectionLabel('SHOPPING & STORE'),
+            if (onShopStore != null)
+              _NavItem(
+                icon: Icons.shopping_bag_outlined,
+                selectedIcon: Icons.shopping_bag_rounded,
+                label: 'Shop Tools & Gear',
+                selected: false,
+                onTap: onShopStore!,
+              ),
+            if (onShopVendorApply != null)
+              _NavItem(
+                icon: Icons.store_mall_directory_outlined,
+                selectedIcon: Icons.store_mall_directory_rounded,
+                label: 'Vendor & Brand Portal',
+                selected: false,
+                onTap: onShopVendorApply!,
+              ),
+            if (isAdmin && onShopAdmin != null)
+              _NavItem(
+                icon: Icons.tune_rounded,
+                selectedIcon: Icons.tune_rounded,
+                label: 'Store & Affiliate Admin',
+                selected: false,
+                onTap: onShopAdmin!,
               ),
           ],
           const _SectionLabel('DEALS'),

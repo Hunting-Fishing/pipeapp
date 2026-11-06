@@ -60,6 +60,7 @@ import 'marketplace_offer_commerce_summary.dart';
 import 'marketplace_property_details.dart';
 import 'marketplace_serial_decoder.dart';
 import 'marketplace_trucking_plan.dart';
+import 'pipebuyer_shop_contextual_widgets.dart';
 import 'pipebuyer_site_footer.dart';
 
 const _navy = Color(0xFFF8FAFC);
@@ -1325,6 +1326,10 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
             MarketplaceNavigation.openInsuranceHub(context);
             return;
           }
+          if (target == 11) {
+            MarketplaceNavigation.openShopStore(context);
+            return;
+          }
           if (target == 2) {
             _openCreate();
             return;
@@ -1426,6 +1431,12 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
             selectedIcon: Icon(Icons.shield_rounded),
           ),
           const MarketplaceShellDestination(
+            pageIndex: 11,
+            label: 'Shop Tools & Gear',
+            icon: Icon(Icons.shopping_bag_outlined),
+            selectedIcon: Icon(Icons.shopping_bag_rounded),
+          ),
+          const MarketplaceShellDestination(
             pageIndex: 4,
             label: 'Messages',
             icon: _NavMessageIcon(selected: false),
@@ -1475,6 +1486,9 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
           onPartnerWithUs: () =>
               MarketplaceNavigation.openPartnerWithUs(context),
           onInsuranceHub: () => MarketplaceNavigation.openInsuranceHub(context),
+          onShopStore: () => MarketplaceNavigation.openShopStore(context),
+          onShopVendorApply: () =>
+              MarketplaceNavigation.openShopVendorApply(context),
         ),
         railLeading: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
@@ -1531,6 +1545,44 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
           },
         ),
         actions: [
+          if (MediaQuery.sizeOf(context).width >= 680)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: OutlinedButton.icon(
+                key: const Key('appbar-shop-store-button'),
+                onPressed: () => MarketplaceNavigation.openShopStore(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(
+                    color: PipeBuyerColors.orange,
+                  ),
+                  backgroundColor: Colors.white.withValues(alpha: 0.08),
+                  visualDensity: VisualDensity.compact,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.shopping_bag_outlined,
+                  size: 18,
+                  color: PipeBuyerColors.orange,
+                ),
+                label: const Text(
+                  'Shop Store',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+                ),
+              ),
+            )
+          else
+            PipeAccessibleIconButton(
+              key: const Key('appbar-shop-store-icon'),
+              label: 'Shop Store',
+              onTapHint: 'Opens Pipe Buyer Affiliate & Partner Shopping Store',
+              onPressed: () => MarketplaceNavigation.openShopStore(context),
+              icon: const Icon(Icons.shopping_bag_outlined),
+            ),
           if (MediaQuery.sizeOf(context).width >= 680)
             Padding(
               padding: const EdgeInsets.only(right: 4),
@@ -1663,6 +1715,24 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       onTap: () {
                         Navigator.of(context).pop();
                         MarketplaceNavigation.openInsuranceHub(context);
+                      },
+                    ),
+                    _DrawerDestination(
+                      icon: Icons.shopping_bag_outlined,
+                      label: 'Shop Tools & Gear',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        MarketplaceNavigation.openShopStore(context);
+                      },
+                    ),
+                    _DrawerDestination(
+                      icon: Icons.store_mall_directory_outlined,
+                      label: 'Vendor & Brand Portal',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        MarketplaceNavigation.openShopVendorApply(context);
                       },
                     ),
                     _DrawerDestination(
@@ -2266,6 +2336,8 @@ class _HomePage extends StatelessWidget {
                   saved: saved,
                   onSaved: onSaved,
                 ),
+                const Gap(18),
+                const PipeBuyerHomeShopShowcase(),
               ] else
                 _HomeServiceNotice(
                   message:
@@ -2360,6 +2432,14 @@ class _HomeQuickActions extends StatelessWidget {
         label: 'Commercial insurance',
         color: const Color(0xFF0E7490),
         onTap: () => MarketplaceNavigation.openInsuranceHub(context),
+      ),
+      _QuickAction(
+        icon: LucideIcons.shoppingBag,
+        assetPath:
+            'assets/images/industrial_icons/09-software-and-administration/04-maintenance-tools.svg',
+        label: 'Shop tools & gear',
+        color: PipeBuyerColors.orange,
+        onTap: () => MarketplaceNavigation.openShopStore(context),
       ),
       _QuickAction(
         icon: LucideIcons.handshake,
@@ -4455,6 +4535,12 @@ class _ListingDetailsState extends State<_ListingDetails> {
             if (_features.dispatch) ...[
               const SizedBox(height: 10),
               MarketplaceDispatchQuoteCard(onPressed: _getTruckingQuote),
+            ],
+            if (!_isWanted) ...[
+              const SizedBox(height: 12),
+              PipeBuyerContextualShopCard(
+                marketplaceCategory: listing.category,
+              ),
             ],
             const SizedBox(height: 10),
             Row(children: [

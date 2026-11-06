@@ -9,14 +9,17 @@ class AdministratorAuthorizationError extends Error {
 }
 
 function administratorClaims(token = {}) {
+  if (token.restricted === true) return false;
   const firebase = token.firebase || {};
   const hasSecondFactor = typeof firebase.sign_in_second_factor === "string" &&
     firebase.sign_in_second_factor.trim().length > 0;
   const hasPrimaryAdminClaim = token.primaryAdmin === true &&
     token.email_verified === true;
+  const hasFederatedAdminClaim = token.federatedAdminApproved === true &&
+    token.email_verified === true;
   return token.admin === true &&
     token.role === "administrator" &&
-    (hasSecondFactor || hasPrimaryAdminClaim);
+    (hasSecondFactor || hasPrimaryAdminClaim || hasFederatedAdminClaim);
 }
 
 function isAdministrator(request) {
@@ -45,6 +48,16 @@ function enrolledFactorCount(userRecord) {
   return Array.isArray(factors) ? factors.length : 0;
 }
 
+function hasVerifiedFederatedProvider(userRecord) {
+  if (!userRecord || userRecord.emailVerified !== true) return false;
+  const providers = Array.isArray(userRecord.providerData) ?
+    userRecord.providerData : [];
+  return providers.some((p) => {
+    const id = String(p && p.providerId || "").trim().toLowerCase();
+    return id === "google.com" || id === "apple.com" || id === "microsoft.com";
+  });
+}
+
 function validateAdministratorCandidate(userRecord, options = {}) {
   if (!userRecord || !userRecord.uid) {
     throw new AdministratorAuthorizationError(
@@ -64,7 +77,13 @@ function validateAdministratorCandidate(userRecord, options = {}) {
         "Verify the account email before granting administrator access.",
     );
   }
-  if (!options.allowPrimaryWithoutMfa && enrolledFactorCount(userRecord) < 1) {
+  const allowFederated = options.allowVerifiedFederated === true &&
+    hasVerifiedFederatedProvider(userRecord);
+  if (
+    !options.allowPrimaryWithoutMfa &&
+    !allowFederated &&
+    enrolledFactorCount(userRecord) < 1
+  ) {
     throw new AdministratorAuthorizationError(
         "failed-precondition",
         "Enroll a supported Firebase multi-factor method before granting administrator access.",
@@ -81,9 +100,13 @@ function administratorClaimUpdate(existingClaims = {}, enabled, options = {}) {
     if (options.primaryAdmin === true) {
       claims.primaryAdmin = true;
     }
+    if (options.federatedAdminApproved === true) {
+      claims.federatedAdminApproved = true;
+    }
   } else {
     delete claims.admin;
     delete claims.primaryAdmin;
+    delete claims.federatedAdminApproved;
     if (claims.role === "administrator") delete claims.role;
   }
   return claims;
@@ -94,6 +117,7 @@ module.exports = {
   administratorClaimUpdate,
   administratorClaims,
   enrolledFactorCount,
+  hasVerifiedFederatedProvider,
   isAdministrator,
   requireAdministrator,
   validateAdministratorCandidate,

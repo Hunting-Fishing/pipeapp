@@ -26,6 +26,11 @@ class MarketplaceDeepLinks {
   static const insuranceProviderApplyRouteName =
       'commercial-insurance-provider-apply';
   static const insuranceAdminRouteName = 'commercial-insurance-admin';
+  static const shopStoreRouteName = 'pipebuyer-shop-store';
+  static const shopVendorApplyRouteName = 'pipebuyer-shop-vendor-apply';
+  static const shopVendorApplyAliasRouteName =
+      'pipebuyer-shop-vendor-apply-alias';
+  static const shopAdminRouteName = 'pipebuyer-shop-admin';
   static const authActionRouteName = 'marketplace-auth-action';
 
   static const privacyPath = '/privacy';
@@ -41,6 +46,10 @@ class MarketplaceDeepLinks {
   static const insuranceHubPath = '/insurance';
   static const insuranceProviderApplyPath = '/insurance/list-provider';
   static const insuranceAdminPath = '/admin/insurance';
+  static const shopStorePath = '/shop';
+  static const shopVendorApplyPath = '/shop/apply';
+  static const shopVendorApplyAliasPath = '/shop/vendors/apply';
+  static const shopAdminPath = '/admin/shop';
   static const authActionPath = '/auth/action';
 
   static String listing(String listingId) =>

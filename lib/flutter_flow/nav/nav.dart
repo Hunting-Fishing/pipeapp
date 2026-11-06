@@ -30,6 +30,9 @@ import '/marketplace/pipebuyer_insurance_provider_apply_page.dart';
 import '/marketplace/pipebuyer_list_services_page.dart';
 import '/marketplace/pipebuyer_partner_admin_page.dart';
 import '/marketplace/pipebuyer_partner_with_us_page.dart';
+import '/marketplace/pipebuyer_shop_admin_page.dart';
+import '/marketplace/pipebuyer_shop_store_page.dart';
+import '/marketplace/pipebuyer_shop_vendor_apply_page.dart';
 import '/marketplace/pipebuyer_yellow_pages_directory_page.dart';
 
 export 'package:go_router/go_router.dart';
@@ -369,6 +372,48 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: MarketplaceDeepLinks.insuranceAdminPath,
           requireAuth: true,
           builder: (context, params) => const PipeBuyerInsuranceAdminPage(),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.shopStoreRouteName,
+          path: MarketplaceDeepLinks.shopStorePath,
+          builder: (context, params) => PipeBuyerShopStorePage(
+            initialQuery:
+                params.getParam<String>('q', ParamType.string) ?? '',
+            initialCategoryCode:
+                params.getParam<String>('category', ParamType.string) ?? '',
+            initialBrand:
+                params.getParam<String>('brand', ParamType.string) ?? '',
+            initialSourceCode:
+                params.getParam<String>('source', ParamType.string) ?? '',
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.shopVendorApplyRouteName,
+          path: MarketplaceDeepLinks.shopVendorApplyPath,
+          builder: (context, params) => PipeBuyerShopVendorApplyPage(
+            initialTrack:
+                params.getParam<String>('track', ParamType.string) ??
+                    'industrial_distributor',
+            initialBrand:
+                params.getParam<String>('brand', ParamType.string) ?? '',
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.shopVendorApplyAliasRouteName,
+          path: MarketplaceDeepLinks.shopVendorApplyAliasPath,
+          builder: (context, params) => PipeBuyerShopVendorApplyPage(
+            initialTrack:
+                params.getParam<String>('track', ParamType.string) ??
+                    'industrial_distributor',
+            initialBrand:
+                params.getParam<String>('brand', ParamType.string) ?? '',
+          ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.shopAdminRouteName,
+          path: MarketplaceDeepLinks.shopAdminPath,
+          requireAuth: true,
+          builder: (context, params) => const PipeBuyerShopAdminPage(),
         ),
         FFRoute(
           name: MarketplaceDeepLinks.privacyRouteName,

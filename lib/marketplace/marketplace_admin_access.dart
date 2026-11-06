@@ -28,6 +28,9 @@ MarketplaceAdministratorState marketplaceAdministratorClaimsState(
   Map<String, dynamic>? claims,
 ) {
   final values = claims ?? const <String, dynamic>{};
+  if (values['restricted'] == true) {
+    return MarketplaceAdministratorState.roleMissing;
+  }
   final hasAdministratorRole =
       values['admin'] == true && values['role'] == 'administrator';
   if (!hasAdministratorRole) {
@@ -37,6 +40,13 @@ MarketplaceAdministratorState marketplaceAdministratorClaimsState(
   final hasPrimaryAdminClaim =
       values['primaryAdmin'] == true && values['email_verified'] == true;
   if (hasPrimaryAdminClaim) {
+    return MarketplaceAdministratorState.authorized;
+  }
+
+  final hasFederatedAdminApproval =
+      values['federatedAdminApproved'] == true &&
+      values['email_verified'] == true;
+  if (hasFederatedAdminApproval) {
     return MarketplaceAdministratorState.authorized;
   }
 
