@@ -82,15 +82,13 @@ class MarketplaceBusinessProfileEntry {
       publicPhone: '${map['publicPhone'] ?? ''}'.trim(),
       publicEmail: '${map['publicEmail'] ?? ''}'.trim(),
       website: '${map['website'] ?? ''}'.trim(),
-      serviceArea:
-          rawArea is Map ? Map<String, dynamic>.from(rawArea) : null,
+      serviceArea: rawArea is Map ? Map<String, dynamic>.from(rawArea) : null,
       serviceAreaLabel: '${map['serviceAreaLabel'] ?? ''}'.trim(),
       serviceCountryCodes: strings(map['serviceCountryCodes']),
       serviceRegionKeys: strings(map['serviceRegionKeys']),
       servicePlaceKeys: strings(map['servicePlaceKeys']),
       privateAddress: '${map['privateAddress'] ?? ''}'.trim(),
-      yardLocation:
-          rawYard is Map ? Map<String, dynamic>.from(rawYard) : null,
+      yardLocation: rawYard is Map ? Map<String, dynamic>.from(rawYard) : null,
       description: '${map['description'] ?? ''}'.trim(),
       photoUrl: '${map['photoUrl'] ?? ''}'.trim(),
     );
@@ -153,7 +151,15 @@ List<MarketplaceWebsiteRoleEntry> resolveWebsiteRolesFromClaims(
   final secondFactor = firebase is Map
       ? (firebase['sign_in_second_factor']?.toString().trim() ?? '')
       : '';
+  final signInProvider = firebase is Map
+      ? (firebase['sign_in_provider']?.toString().trim().toLowerCase() ?? '')
+      : '';
   final hasSecondFactor = secondFactor.isNotEmpty;
+  final isFederatedProvider = const <String>{
+    'google.com',
+    'apple.com',
+    'microsoft.com',
+  }.contains(signInProvider);
   final emailVerified = values['email_verified'] == true;
 
   final roles = <MarketplaceWebsiteRoleEntry>[];
@@ -214,22 +220,27 @@ List<MarketplaceWebsiteRoleEntry> resolveWebsiteRolesFromClaims(
     );
   } else {
     final shopRole = '${values['shopRole'] ?? ''}'.trim().toLowerCase();
-    if (shopRole == 'store_manager' || shopRole == 'catalog_editor') {
-      final ready = emailVerified && hasSecondFactor;
+    if (shopRole == 'store_manager' ||
+        shopRole == 'catalog_editor' ||
+        shopRole == 'affiliate_contributor') {
+      final ready = emailVerified && values['restricted'] != true;
+      final title = switch (shopRole) {
+        'store_manager' => 'Store Manager',
+        'catalog_editor' => 'Store Catalog Editor',
+        _ => 'Affiliate Product Contributor',
+      };
       roles.add(
         MarketplaceWebsiteRoleEntry(
           id: 'role_shop_staff_$shopRole',
           target: MarketplaceWebsiteRoleTarget.shopAdmin,
-          title: shopRole == 'store_manager'
-              ? 'Store Manager'
-              : 'Store Catalog Editor',
+          title: title,
           subtitle: ready
-              ? 'Manage PipeBuyer Store products & affiliate links'
-              : 'Store role assigned • Complete verified email & 2-step SMS to unlock',
+              ? 'Manage PipeBuyer Store products & 25+ affiliate platforms'
+              : 'Store role assigned • Verify your email address to unlock',
           icon: Icons.shopping_bag_outlined,
           authorized: ready,
-          mfaRequired: !ready,
-          badgeLabel: ready ? 'ROLE LIVE' : '2-STEP SMS NEEDED',
+          mfaRequired: false,
+          badgeLabel: ready ? 'ROLE LIVE' : 'VERIFY EMAIL',
         ),
       );
     }
@@ -237,7 +248,9 @@ List<MarketplaceWebsiteRoleEntry> resolveWebsiteRolesFromClaims(
 
   final ypRole = '${values['yellowPagesRole'] ?? ''}'.trim().toLowerCase();
   if (ypRole == 'manager' || ypRole == 'agent') {
-    final ready = emailVerified && hasSecondFactor;
+    final ready = emailVerified &&
+        values['restricted'] != true &&
+        (hasSecondFactor || isFederatedProvider);
     roles.add(
       MarketplaceWebsiteRoleEntry(
         id: 'role_directory_$ypRole',
@@ -247,7 +260,7 @@ List<MarketplaceWebsiteRoleEntry> resolveWebsiteRolesFromClaims(
             : 'Oilfield Directory Agent',
         subtitle: ready
             ? 'Directory verification queue, contact center & flagged entries'
-            : 'Directory role assigned • Complete 2-step SMS to unlock',
+            : 'Directory role assigned • Sign in via Google or complete 2-step SMS',
         icon: Icons.contact_phone_outlined,
         authorized: ready,
         mfaRequired: !ready,
@@ -554,7 +567,8 @@ class _MarketplaceAccountRoleSwitcherDialogState
                                     'switcher-create-business-submit',
                                   ),
                                   onPressed: _submitNewBusiness,
-                                  icon: const Icon(Icons.add_business, size: 17),
+                                  icon:
+                                      const Icon(Icons.add_business, size: 17),
                                   label: const Text('Create & switch'),
                                 ),
                               ],
@@ -569,7 +583,8 @@ class _MarketplaceAccountRoleSwitcherDialogState
                           key: const Key('switcher-add-business-button'),
                           onPressed: () =>
                               setState(() => _addingNewBusiness = true),
-                          icon: const Icon(Icons.add_business_outlined, size: 18),
+                          icon:
+                              const Icon(Icons.add_business_outlined, size: 18),
                           label: const Text('Add another business account'),
                         ),
                       ),
@@ -657,12 +672,8 @@ class _SwitcherOptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = active
-        ? accentColor.withValues(alpha: 0.08)
-        : Colors.white;
-    final border = active
-        ? accentColor
-        : const Color(0xFFE2E8F0);
+    final bg = active ? accentColor.withValues(alpha: 0.08) : Colors.white;
+    final border = active ? accentColor : const Color(0xFFE2E8F0);
     return Material(
       color: bg,
       borderRadius: BorderRadius.circular(14),

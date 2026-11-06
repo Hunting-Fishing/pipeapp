@@ -1540,6 +1540,12 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       const MarketplaceAdminDashboard(initialTabIndex: 7),
                 ),
               ),
+              onScopedStaffAdmin: () =>
+                  MarketplaceNavigation.openScopedStaffAdmin(context),
+              onAffiliateLinks: () => MarketplaceNavigation.openShopAdmin(
+                context,
+                initialTabIndex: 1,
+              ),
               onSignOut: _signOut,
             );
           },
@@ -1812,6 +1818,17 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                             initialTabIndex: 7,
                           ),
                         ),
+                      );
+                    },
+                    onScopedStaffAdmin: () {
+                      Navigator.of(context).pop();
+                      MarketplaceNavigation.openScopedStaffAdmin(context);
+                    },
+                    onAffiliateLinks: () {
+                      Navigator.of(context).pop();
+                      MarketplaceNavigation.openShopAdmin(
+                        context,
+                        initialTabIndex: 1,
                       );
                     },
                     onSignOut: _signOut,
@@ -3545,9 +3562,9 @@ class _BrowsePageState extends State<_BrowsePage> {
         subtitle: 'Filters search the complete live inventory',
         builder: (sheetContext) => StatefulBuilder(
             builder: (context, setSheetState) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       DropdownButtonFormField<String>(
                           initialValue: draft.transactionType ?? '__all__',
                           decoration: const InputDecoration(
@@ -3732,8 +3749,7 @@ class _BrowsePageState extends State<_BrowsePage> {
         crossAxisCount: MediaQuery.sizeOf(modalContext).width > 600 ? 4 : 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        itemCount:
-            phase1MarketplaceCategories(
+        itemCount: phase1MarketplaceCategories(
               regulatedListingsEnabled: regulatedListingsEnabled,
             ).length +
             1,
@@ -3817,43 +3833,47 @@ class _CategoryPickerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => PipeBuyerHoverLift(
       child: Material(
-      color: selected ? const Color(0xFFFFF1E8) : Colors.white,
-      shape: RoundedRectangleBorder(
-          side: BorderSide(
-              color: selected ? PipeBuyerColors.orange : const Color(0xFFD8E0E9),
-              width: selected ? 2 : 1),
-          borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-          onTap: onTap,
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Expanded(
-                child: _MarketplaceArtworkPanel(
-                    label: label,
-                    assetPath:
-                        MarketplaceCatalogPhotoAssets.forCategory(label) ??
-                            IndustrialIconAssets.forLabel(label),
-                    fallbackIcon: icon,
-                    borderRadius: 0)),
-            Padding(
-                padding: const EdgeInsets.fromLTRB(10, 9, 8, 10),
-                child: Row(children: [
-                  Expanded(
-                      child: Text(label,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              height: 1.15,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800))),
-                  if (selected)
-                    const Padding(
-                        padding: EdgeInsets.only(left: 4),
-                        child: Icon(LucideIcons.circleCheck,
-                            size: 18, color: PipeBuyerColors.orange))
-                ]))
-          ]))));
+          color: selected ? const Color(0xFFFFF1E8) : Colors.white,
+          shape: RoundedRectangleBorder(
+              side: BorderSide(
+                  color: selected
+                      ? PipeBuyerColors.orange
+                      : const Color(0xFFD8E0E9),
+                  width: selected ? 2 : 1),
+              borderRadius: BorderRadius.circular(16)),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+              onTap: onTap,
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                        child: _MarketplaceArtworkPanel(
+                            label: label,
+                            assetPath:
+                                MarketplaceCatalogPhotoAssets.forCategory(
+                                        label) ??
+                                    IndustrialIconAssets.forLabel(label),
+                            fallbackIcon: icon,
+                            borderRadius: 0)),
+                    Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 9, 8, 10),
+                        child: Row(children: [
+                          Expanded(
+                              child: Text(label,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      height: 1.15,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800))),
+                          if (selected)
+                            const Padding(
+                                padding: EdgeInsets.only(left: 4),
+                                child: Icon(LucideIcons.circleCheck,
+                                    size: 18, color: PipeBuyerColors.orange))
+                        ]))
+                  ]))));
 }
 
 class _ListingCard extends StatelessWidget {
@@ -4340,8 +4360,8 @@ class _ListingDetailsState extends State<_ListingDetails> {
                         onTap: () => PipeBuyerPhotoLightbox.open(
                               context,
                               photos: _galleryPhotos,
-                              initialIndex: _selectedPhotoIndex
-                                  .clamp(0, _galleryPhotos.length - 1),
+                              initialIndex: _selectedPhotoIndex.clamp(
+                                  0, _galleryPhotos.length - 1),
                               title: listing.title,
                             ),
                         child: MouseRegion(
@@ -4349,14 +4369,12 @@ class _ListingDetailsState extends State<_ListingDetails> {
                             child: ClipRRect(
                                 borderRadius: BorderRadius.circular(18),
                                 child: PipeBuyerCachedImage(
-                                    imageUrl: _galleryPhotos[_selectedPhotoIndex
-                                        .clamp(0, _galleryPhotos.length - 1)],
+                                    imageUrl:
+                                        _galleryPhotos[_selectedPhotoIndex.clamp(0, _galleryPhotos.length - 1)],
                                     width: double.infinity,
                                     height: 210,
                                     fit: BoxFit.cover,
-                                    fallback: Center(
-                                        child: Icon(listing.icon,
-                                            size: 90, color: _orange))))))),
+                                    fallback: Center(child: Icon(listing.icon, size: 90, color: _orange))))))),
             if (_galleryPhotos.length > 1) ...[
               const SizedBox(height: 10),
               SizedBox(
@@ -4729,8 +4747,8 @@ class _ListingDetailsState extends State<_ListingDetails> {
     addRow('Lease / rights details', details['leaseDetails'],
         Icons.description_outlined);
     addRow('Listed by', details['listingRepresentation'], Icons.badge_outlined);
-    addRow(
-        'Representing brokerage', details['brokerageName'], Icons.business_outlined);
+    addRow('Representing brokerage', details['brokerageName'],
+        Icons.business_outlined);
     addRow('Agent license #', details['agentLicenseNumber'],
         Icons.verified_user_outlined);
     addRow('Jurisdiction', details['agentJurisdiction'], Icons.public_outlined);

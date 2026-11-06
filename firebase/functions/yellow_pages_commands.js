@@ -1,7 +1,7 @@
 "use strict";
 
 const {HttpsError} = require("firebase-functions/v2/https");
-const {isAdministrator} = require("./administrator_authorization");
+const {isAdministrator, hasVerifiedFederatedProvider} = require("./administrator_authorization");
 const {
   CATEGORY_BY_CODE,
   COUNTRY_BY_CODE,
@@ -297,28 +297,39 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
     if (!request || !request.auth) return {authorized: false, reason: "signed_out"};
     const uid = request.auth.uid;
     const token = request.auth.token || {};
+    if (token.restricted === true) {
+      return {authorized: false, reason: "account_restricted"};
+    }
     const verifiedEmail = token.email_verified === true;
     const mfa = secondFactor(token);
+    const federatedVerified = hasVerifiedFederatedProvider(token);
 
     if (isAdministrator(request)) {
       if (!verifiedEmail) return {authorized: false, reason: "verified_email_required"};
       return {authorized: true, uid, role: "administrator", isAdmin: true};
     }
 
-    const claimRole = text(token.yellowPagesRole, 40).toLowerCase();
-    if (!STAFF_ROLES.has(claimRole)) return {authorized: false, reason: "role_missing"};
-    if (!verifiedEmail) return {authorized: false, reason: "verified_email_required"};
-    if (!mfa) return {authorized: false, reason: "mfa_required"};
-
     const roster = await db().collection(STAFF).doc(uid).get();
     const rosterData = roster.data() || {};
-    if (!roster.exists || rosterData.active !== true || rosterData.role !== claimRole) {
+    if (rosterData.restricted === true) {
+      return {authorized: false, reason: "account_restricted"};
+    }
+    const rosterRole = roster.exists && rosterData.active === true ?
+      text(rosterData.role, 40).toLowerCase() :
+      "";
+    const claimRole = text(token.yellowPagesRole, 40).toLowerCase();
+    const effectiveRole = STAFF_ROLES.has(rosterRole) ? rosterRole : claimRole;
+    if (!STAFF_ROLES.has(effectiveRole)) return {authorized: false, reason: "role_missing"};
+    if (!verifiedEmail) return {authorized: false, reason: "verified_email_required"};
+    if (!mfa && !federatedVerified) return {authorized: false, reason: "mfa_required"};
+
+    if (!roster.exists || rosterData.active !== true || rosterRole !== effectiveRole) {
       return {authorized: false, reason: "roster_inactive"};
     }
     return {
       authorized: true,
       uid,
-      role: claimRole,
+      role: effectiveRole,
       isAdmin: false,
     };
   }

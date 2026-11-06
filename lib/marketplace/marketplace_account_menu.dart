@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_admin_access.dart';
+import 'marketplace_navigation.dart';
 
 class MarketplaceAccountMenuButton extends StatefulWidget {
   const MarketplaceAccountMenuButton({
@@ -16,11 +17,14 @@ class MarketplaceAccountMenuButton extends StatefulWidget {
     required this.onMemberships,
     required this.onSupport,
     this.onAdminSettings,
+    this.onScopedStaffAdmin,
+    this.onAffiliateLinks,
     required this.onSignOut,
     this.signedInOverride,
     this.displayNameOverride,
     this.emailOverride,
     this.adminAccessOverride,
+    this.staffPermissionsOverride,
   });
 
   final bool extended;
@@ -29,11 +33,14 @@ class MarketplaceAccountMenuButton extends StatefulWidget {
   final VoidCallback onMemberships;
   final VoidCallback onSupport;
   final VoidCallback? onAdminSettings;
+  final VoidCallback? onScopedStaffAdmin;
+  final VoidCallback? onAffiliateLinks;
   final VoidCallback onSignOut;
   final bool? signedInOverride;
   final String? displayNameOverride;
   final String? emailOverride;
   final Future<bool> Function({bool forceRefresh})? adminAccessOverride;
+  final MarketplaceStaffPermissionsState? staffPermissionsOverride;
 
   @override
   State<MarketplaceAccountMenuButton> createState() =>
@@ -43,23 +50,50 @@ class MarketplaceAccountMenuButton extends StatefulWidget {
 class _MarketplaceAccountMenuButtonState
     extends State<MarketplaceAccountMenuButton> {
   StreamSubscription<User?>? _tokenSubscription;
+  StreamSubscription<MarketplaceStaffPermissionsState>? _staffSubscription;
   bool _isAdmin = false;
+  MarketplaceStaffPermissionsState _staffState =
+      const MarketplaceStaffPermissionsState.none();
 
   @override
   void initState() {
     super.initState();
     marketplaceAdminViewAsUserMode.addListener(_onViewModeChanged);
+    if (widget.staffPermissionsOverride != null) {
+      _staffState = widget.staffPermissionsOverride!;
+    }
     if (widget.adminAccessOverride == null && widget.signedInOverride == null) {
       _tokenSubscription =
           FirebaseAuth.instance.idTokenChanges().listen((_) => _refreshAdmin());
+      if (widget.staffPermissionsOverride == null) {
+        _staffSubscription = watchMarketplaceStaffPermissions().listen((next) {
+          if (!mounted) return;
+          setState(() {
+            _staffState = next;
+            if (next.isFullAdmin != _isAdmin) {
+              _isAdmin = next.isFullAdmin;
+            }
+          });
+        });
+      }
     }
     _refreshAdmin(forceRefresh: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant MarketplaceAccountMenuButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.staffPermissionsOverride != oldWidget.staffPermissionsOverride &&
+        widget.staffPermissionsOverride != null) {
+      setState(() => _staffState = widget.staffPermissionsOverride!);
+    }
   }
 
   @override
   void dispose() {
     marketplaceAdminViewAsUserMode.removeListener(_onViewModeChanged);
     _tokenSubscription?.cancel();
+    _staffSubscription?.cancel();
     super.dispose();
   }
 
@@ -71,9 +105,21 @@ class _MarketplaceAccountMenuButtonState
     final authorized = widget.adminAccessOverride != null
         ? await widget.adminAccessOverride!(forceRefresh: forceRefresh)
         : await marketplaceAdministratorAccess(forceRefresh: forceRefresh);
-    if (mounted && authorized != _isAdmin) {
-      setState(() => _isAdmin = authorized);
+    MarketplaceStaffPermissionsState? resolvedStaff;
+    if (widget.staffPermissionsOverride != null) {
+      resolvedStaff = widget.staffPermissionsOverride!;
+    } else if (widget.adminAccessOverride == null &&
+        widget.signedInOverride == null) {
+      resolvedStaff =
+          await resolveMarketplaceStaffPermissions(forceRefresh: forceRefresh);
     }
+    if (!mounted) return;
+    setState(() {
+      _isAdmin = authorized || (resolvedStaff?.isFullAdmin ?? false);
+      if (resolvedStaff != null) {
+        _staffState = resolvedStaff;
+      }
+    });
   }
 
   @override
@@ -102,9 +148,19 @@ class _MarketplaceAccountMenuButtonState
 
     final name = rawName;
     final initial = name.isEmpty ? 'P' : name.substring(0, 1).toUpperCase();
+    final hasAnyStaffOrAdmin = _isAdmin || _staffState.hasScopedStaffAccess;
     final isViewingAsRegularUser =
-        _isAdmin && marketplaceAdminViewAsUserMode.value;
+        hasAnyStaffOrAdmin && marketplaceAdminViewAsUserMode.value;
     final showAdminChrome = _isAdmin && !isViewingAsRegularUser;
+    final showScopedStaffChrome = !_isAdmin &&
+        _staffState.hasScopedStaffAccess &&
+        !isViewingAsRegularUser;
+
+    final footerSub = showAdminChrome
+        ? 'Administrator • Full access'
+        : showScopedStaffChrome
+            ? _staffState.footerSubtitle
+            : 'Account & membership';
 
     return PopupMenuButton<_AccountMenuAction>(
       tooltip: 'Open account menu',
@@ -127,14 +183,30 @@ class _MarketplaceAccountMenuButtonState
             setMarketplaceAdminViewAsUserMode(false);
             widget.onAdminSettings?.call();
             return;
+          case _AccountMenuAction.scopedStaffAdmin:
+            setMarketplaceAdminViewAsUserMode(false);
+            if (widget.onScopedStaffAdmin != null) {
+              widget.onScopedStaffAdmin!();
+            } else {
+              MarketplaceNavigation.openScopedStaffAdmin(context);
+            }
+            return;
+          case _AccountMenuAction.affiliateLinks:
+            setMarketplaceAdminViewAsUserMode(false);
+            if (widget.onAffiliateLinks != null) {
+              widget.onAffiliateLinks!();
+            } else {
+              MarketplaceNavigation.openShopAdmin(context, initialTabIndex: 1);
+            }
+            return;
           case _AccountMenuAction.toggleViewAsRegularUser:
             final enterUserView = !marketplaceAdminViewAsUserMode.value;
             setMarketplaceAdminViewAsUserMode(enterUserView);
             PipeFeedback.show(
               context,
               message: enterUserView
-                  ? 'Viewing what everyone else sees. Open your account menu anytime to switch back to Admin.'
-                  : 'Admin view restored.',
+                  ? 'Viewing what everyone else sees. Open your account menu anytime to switch back.'
+                  : 'Workspace view restored.',
               tone: PipeStatusTone.info,
             );
             return;
@@ -190,6 +262,27 @@ class _MarketplaceAccountMenuButtonState
                                 'ADMIN',
                                 style: TextStyle(
                                   color: Colors.purple.shade800,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ] else if (showScopedStaffChrome &&
+                              _staffState.roleBadgeLabel.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFEDD5),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                _staffState.roleBadgeLabel,
+                                style: const TextStyle(
+                                  color: Color(0xFF9A3412),
                                   fontSize: 9.5,
                                   fontWeight: FontWeight.w900,
                                 ),
@@ -262,6 +355,17 @@ class _MarketplaceAccountMenuButtonState
                 accent: Colors.purple.shade800,
               ),
             ),
+          if (widget.onAffiliateLinks != null)
+            const PopupMenuItem(
+              value: _AccountMenuAction.affiliateLinks,
+              child: _MenuRow(
+                icon: Icons.add_link_rounded,
+                title: 'Add / Manage Affiliate Links',
+                subtitle:
+                    'Amazon, AliExpress, Lazada, Shopee & 25+ passive-income platforms',
+                accent: Color(0xFF9A3412),
+              ),
+            ),
           const PopupMenuItem(
             value: _AccountMenuAction.toggleViewAsRegularUser,
             child: _MenuRow(
@@ -270,13 +374,46 @@ class _MarketplaceAccountMenuButtonState
               subtitle: 'Preview regular customer mode (hides admin UI)',
             ),
           ),
+        ] else if (showScopedStaffChrome) ...[
+          const PopupMenuDivider(),
+          const PopupMenuItem(
+            value: _AccountMenuAction.scopedStaffAdmin,
+            child: _MenuRow(
+              icon: Icons.dashboard_customize_outlined,
+              title: 'Admin workspace (My roles)',
+              subtitle:
+                  'Restricted to only the permissions assigned to your account',
+              accent: Color(0xFF9A3412),
+            ),
+          ),
+          if (_staffState.hasShopAccess)
+            const PopupMenuItem(
+              value: _AccountMenuAction.affiliateLinks,
+              child: _MenuRow(
+                icon: Icons.add_link_rounded,
+                title: 'Add / Manage Affiliate Links',
+                subtitle:
+                    'Amazon, AliExpress, Lazada, Shopee & 25+ affiliate platforms',
+                accent: PipeBuyerColors.orangePressed,
+              ),
+            ),
+          const PopupMenuItem(
+            value: _AccountMenuAction.toggleViewAsRegularUser,
+            child: _MenuRow(
+              icon: Icons.visibility_outlined,
+              title: 'View what everyone else sees',
+              subtitle: 'Preview regular customer mode (hides staff tools)',
+            ),
+          ),
         ] else if (isViewingAsRegularUser) ...[
           const PopupMenuDivider(),
           PopupMenuItem(
             value: _AccountMenuAction.toggleViewAsRegularUser,
             child: _MenuRow(
               icon: Icons.admin_panel_settings_outlined,
-              title: 'Switch back to Admin view',
+              title: _isAdmin
+                  ? 'Switch back to Admin view'
+                  : 'Switch back to Staff workspace',
               subtitle: 'Currently viewing what everyone else sees',
               accent: Colors.purple.shade800,
             ),
@@ -332,17 +469,18 @@ class _MarketplaceAccountMenuButtonState
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
                         Text(
-                          showAdminChrome
-                              ? 'Administrator • Full access'
-                              : 'Account & membership',
+                          footerSub,
                           style: TextStyle(
                             color: showAdminChrome
                                 ? Colors.purple.shade700
-                                : PipeBuyerColors.muted,
+                                : showScopedStaffChrome
+                                    ? const Color(0xFF9A3412)
+                                    : PipeBuyerColors.muted,
                             fontSize: 10,
-                            fontWeight: showAdminChrome
-                                ? FontWeight.w700
-                                : FontWeight.normal,
+                            fontWeight:
+                                (showAdminChrome || showScopedStaffChrome)
+                                    ? FontWeight.w700
+                                    : FontWeight.normal,
                           ),
                         ),
                       ],
@@ -374,6 +512,8 @@ enum _AccountMenuAction {
   memberships,
   support,
   adminSettings,
+  scopedStaffAdmin,
+  affiliateLinks,
   toggleViewAsRegularUser,
   signOut,
 }

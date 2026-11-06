@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'marketplace_scoped_staff_dashboard.dart';
 import 'pipebuyer_contact_center_dashboard.dart';
 import 'pipebuyer_insurance_admin_page.dart';
 import 'pipebuyer_insurance_hub_page.dart';
@@ -26,7 +27,7 @@ class MarketplaceNavigation {
 
   static final ValueNotifier<int> homeRequests = ValueNotifier<int>(0);
   static final ValueNotifier<MarketplaceDestinationRequest?>
-  destinationRequests = ValueNotifier<MarketplaceDestinationRequest?>(null);
+      destinationRequests = ValueNotifier<MarketplaceDestinationRequest?>(null);
   static final ValueNotifier<int> wantedRequests = ValueNotifier<int>(0);
   static final ValueNotifier<int?> accountSubTabRequests =
       ValueNotifier<int?>(null);
@@ -197,10 +198,28 @@ class MarketplaceNavigation {
     );
   }
 
-  static Future<void> openShopAdmin(BuildContext context) {
+  static Future<void> openShopAdmin(
+    BuildContext context, {
+    int initialTabIndex = 0,
+  }) {
     return Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => const PipeBuyerShopAdminPage(),
+        builder: (_) => PipeBuyerShopAdminPage(
+          initialTabIndex: initialTabIndex,
+        ),
+      ),
+    );
+  }
+
+  static Future<void> openScopedStaffAdmin(
+    BuildContext context, {
+    int initialShopTabIndex = 1,
+  }) {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => MarketplaceScopedStaffDashboard(
+          initialShopTabIndex: initialShopTabIndex,
+        ),
       ),
     );
   }
