@@ -5,10 +5,15 @@ const {enforceUserRateLimit} = require("./abuse_rate_limit");
 const {loadPhase1FeatureFlags} = require("./phase1_feature_flags");
 const {
   loadProviderReadiness,
-  safeConfiguredUrl,
-  stripeFormRequest,
   stripeSecretKey,
 } = require("./stripe_marketplace_commands");
+const {
+  safeConfiguredUrl,
+  stripeFormRequest,
+} = require("./stripe_checkout_commands");
+const {
+  resolveSubscriptionPromotionCode,
+} = require("./subscription_promotion_resolver");
 const {stripeMarketplaceConfig} = require("./stripe_marketplace_config");
 const {
   automaticTaxEnabled,
@@ -142,6 +147,11 @@ function fallbackPeriodSeconds(billingInterval) {
   return billingInterval === "monthly" ?
     32 * 24 * 60 * 60 :
     366 * 24 * 60 * 60;
+}
+
+function isYellowPagesCheckoutSessionPaid(session) {
+  const status = String(session && session.payment_status || "").trim().toLowerCase();
+  return status === "paid" || status === "no_payment_required";
 }
 
 function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
@@ -314,11 +324,34 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
         };
       }
 
+      const userData = userSnapshot.exists ? userSnapshot.data() || {} : {};
+      const existingCustomerId = extractStripeId(
+          reqData.stripeCustomerId || userData.stripeCustomerId,
+          "cus_",
+      );
+      const requestedPromotionCode = text(
+          data.promotionCode !== undefined ? data.promotionCode : reqData.promotionCode,
+          64,
+      );
+      const promotion = requestedPromotionCode ?
+        await resolveSubscriptionPromotionCode({
+          secretKey,
+          code: requestedPromotionCode,
+          stripeCustomerId: existingCustomerId,
+          existingSubscriber: false,
+          productId: priceSpec.productId,
+          productLabel: "Oilfield Directory listing",
+          billingInterval,
+        }) :
+        null;
+      const promotionCodeId = promotion ? promotion.id : "";
+
       const existingSessionId = text(reqData.stripeCheckoutSessionId, 200);
       if (
         existingSessionId.startsWith("cs_") &&
         reqData.requestedPriceId === priceSpec.priceId &&
-        reqData.billingInterval === billingInterval
+        reqData.billingInterval === billingInterval &&
+        String(reqData.appliedPromotionCodeId || "") === promotionCodeId
       ) {
         try {
           const existingSession = await stripeFormRequest({
@@ -338,6 +371,9 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
               requestedTier,
               billingInterval,
               currency: String(existingSession.currency || "").toUpperCase(),
+              promotionCodeApplied: Boolean(promotionCodeId),
+              promotionCode: promotion ? promotion.code : "",
+              promotionCodeSummary: promotion ? promotion.summary : "",
               alreadyCreated: true,
             };
           }
@@ -353,11 +389,6 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
           "cad" :
           "usd";
 
-      const userData = userSnapshot.exists ? userSnapshot.data() || {} : {};
-      const existingCustomerId = extractStripeId(
-          reqData.stripeCustomerId || userData.stripeCustomerId,
-          "cus_",
-      );
       const customerEmail = text(
           reqData.email ||
           (request.auth.token && request.auth.token.email) ||
@@ -408,7 +439,11 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
             "customer_update[name]": "auto",
           } : (customerEmail ? {customer_email: customerEmail} : {})),
           billing_address_collection: "required",
-          allow_promotion_codes: "true",
+          ...(promotionCodeId ? {
+            "discounts[0][promotion_code]": promotionCodeId,
+          } : {
+            allow_promotion_codes: billingInterval === "monthly" ? "true" : "false",
+          }),
           "automatic_tax[enabled]": autoTax ? "true" : "false",
           "tax_id_collection[enabled]": "true",
           "adaptive_pricing[enabled]": "true",
@@ -424,6 +459,10 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
           "metadata[planCode]": priceSpec.planCode,
           "metadata[countryCode]": countryCode,
           "metadata[taxCollectionStatus]": collectionStatus,
+          ...(promotionCodeId ? {
+            "metadata[promotionCodeId]": promotionCodeId,
+            "metadata[promotionCode]": promotion.code,
+          } : {}),
           "subscription_data[metadata][billingType]": "yellow_pages_subscription",
           "subscription_data[metadata][pipeBuyerUid]": uid,
           "subscription_data[metadata][yellowPagesRequestId]": requestId,
@@ -435,6 +474,10 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
           "subscription_data[metadata][planCode]": priceSpec.planCode,
           "subscription_data[metadata][countryCode]": countryCode,
           "subscription_data[metadata][taxCollectionStatus]": collectionStatus,
+          ...(promotionCodeId ? {
+            "subscription_data[metadata][promotionCodeId]": promotionCodeId,
+            "subscription_data[metadata][promotionCode]": promotion.code,
+          } : {}),
         },
       });
 
@@ -457,6 +500,9 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
           paymentStatus: "checkout_created",
           stripeCheckoutSessionId: sessionId,
           checkoutAttempt: attemptNumber,
+          appliedPromotionCodeId: promotionCodeId || null,
+          promotionCode: promotion ? promotion.code : null,
+          promotionCodeSummary: promotion ? promotion.summary : null,
           taxCollectionStatus: collectionStatus,
           updatedAt: FieldValue.serverTimestamp(),
         }, {merge: true}),
@@ -469,6 +515,9 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
           priceId: priceSpec.priceId,
           planCode: priceSpec.planCode,
           checkoutCurrency: checkoutCurrency.toUpperCase(),
+          promotionCodeId: promotionCodeId || null,
+          promotionCode: promotion ? promotion.code : null,
+          promotionCodeSummary: promotion ? promotion.summary : null,
           status: "created",
           taxCollectionStatus: collectionStatus,
           createdAt: FieldValue.serverTimestamp(),
@@ -483,6 +532,9 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
         requestedTier,
         billingInterval,
         currency: checkoutCurrency.toUpperCase(),
+        promotionCodeApplied: Boolean(promotionCodeId),
+        promotionCode: promotion ? promotion.code : "",
+        promotionCodeSummary: promotion ? promotion.summary : "",
         alreadyCreated: false,
       };
     } catch (error) {
@@ -609,7 +661,7 @@ function createYellowPagesBilling(admin, config = stripeMarketplaceConfig) {
     const billingInterval = normalizeYellowPagesBillingInterval(
         meta.billingInterval,
     );
-    const isPaid = session.payment_status === "paid";
+    const isPaid = isYellowPagesCheckoutSessionPaid(session);
     const amounts = extractCheckoutSettlementAmounts(session);
     const provisionalPaidThrough = isPaid ?
       Timestamp.fromMillis(
@@ -943,6 +995,7 @@ module.exports = {
   YELLOW_PAGES_PAID_TIERS,
   createYellowPagesBilling,
   invoiceYellowPagesPlan,
+  isYellowPagesCheckoutSessionPaid,
   normalizeYellowPagesBillingInterval,
   resolveYellowPagesPriceSpec,
   subscriptionYellowPagesPlan,

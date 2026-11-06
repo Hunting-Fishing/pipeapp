@@ -810,6 +810,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         ErrorClass: HttpsError,
         fieldName: "logoUrl",
       });
+      const promotionCode = text(data.promotionCode, 64);
 
       const docRef = await db().collection(LISTING_REQUESTS).add({
         schemaVersion: 2,
@@ -837,6 +838,7 @@ function createYellowPagesCommands(admin, {notifyAdministrators} = {}) {
         description: text(data.description, 2500),
         requestedTier,
         billingInterval,
+        ...(promotionCode ? {promotionCode} : {}),
         paymentStatus: isFreeTier ?
           "not_required" :
           "pending_checkout",

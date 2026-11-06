@@ -73,6 +73,20 @@
     ],
     "rewrites": [
       {
+        "source": "/api/outreach/unsubscribe",
+        "function": {
+          "functionId": "yellowPagesOutreachUnsubscribe",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/api/webhooks/resend",
+        "function": {
+          "functionId": "yellowPagesResendWebhook",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

@@ -88,6 +88,7 @@ const {
   createStripeWebhookDispatchLifecycleWrapper,
 } = require("./stripe_webhook_dispatch_lifecycle");
 const {createYellowPagesBilling} = require("./yellow_pages_billing");
+const {createYellowPagesOutreach} = require("./yellow_pages_outreach");
 
 const admin = createAdminRuntime();
 const affiliateCommands = createAffiliateCommands(admin);
@@ -122,6 +123,7 @@ const marketplaceRefundWebhookGate = createMarketplaceRefundWebhookGate(
 );
 const stripeDisputeResponse = createStripeDisputeResponse(admin);
 const yellowPagesBilling = createYellowPagesBilling(admin);
+const yellowPagesOutreach = createYellowPagesOutreach(admin, {stripeSecretKey});
 const baseStripeWebhookHandler = createStripeWebhookHandler(admin, {
   marketplaceFinancialResolution: marketplaceRefundWebhookGate,
   yellowPagesBilling,
@@ -301,6 +303,31 @@ exports.createYellowPagesListingCheckout = onCall(
 exports.createYellowPagesBillingPortalSession = onCall(
     stripeCallableOptions,
     yellowPagesBilling.createYellowPagesBillingPortalSession,
+);
+exports.getYellowPagesOutreachStats = onCall(
+    stripeCallableOptions,
+    yellowPagesOutreach.getYellowPagesOutreachStats,
+);
+exports.sendYellowPagesOutreachPreview = onCall(
+    stripeCallableOptions,
+    yellowPagesOutreach.sendYellowPagesOutreachPreview,
+);
+exports.sendYellowPagesOutreachBatch = onCall(
+    stripeCallableOptions,
+    yellowPagesOutreach.sendYellowPagesOutreachBatch,
+);
+exports.yellowPagesOutreachUnsubscribe = onRequest(
+    {
+      secrets: [stripeSecretKey.name],
+      cors: true,
+    },
+    yellowPagesOutreach.handleOutreachUnsubscribeHttp,
+);
+exports.yellowPagesResendWebhook = onRequest(
+    {
+      cors: false,
+    },
+    yellowPagesOutreach.handleResendWebhookHttp,
 );
 exports.executeMarketplaceRefund = onCall(
     stripeCallableOptions,

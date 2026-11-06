@@ -202,6 +202,7 @@ function createDispatchSubscriptionCommands(admin) {
           existingSubscriber: false,
           productId,
           productLabel: "Dispatch membership",
+          billingInterval: plan,
         }) : null;
       const promotionCodeId = promotion ? promotion.id : "";
       const allowPromotionCodes =

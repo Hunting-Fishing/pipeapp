@@ -17,6 +17,25 @@ function promotionCodeTargetsProduct(promotionCode, productId) {
   return normalizedProductId ? products.includes(normalizedProductId) : true;
 }
 
+function assertPromotionCompatibleWithBillingInterval(
+    promotionCode,
+    billingInterval = "monthly",
+) {
+  const interval = String(billingInterval || "monthly").trim().toLowerCase();
+  const isYearly = interval === "yearly" || interval === "year" || interval === "annual";
+  if (!isYearly) return;
+  const coupon = couponFromPromotionCode(promotionCode);
+  if (!coupon) return;
+  const duration = String(coupon.duration || "").toLowerCase();
+  const months = Number(coupon.duration_in_months);
+  if (duration === "repeating" && Number.isFinite(months) && months > 0 && months < 12) {
+    throw new HttpsError(
+        "failed-precondition",
+        `This ${months}-month promo code applies to Monthly billing. Switch to Monthly to claim your ${months} free months.`,
+    );
+  }
+}
+
 async function resolveSubscriptionPromotionCode({
   secretKey,
   code,
@@ -24,6 +43,7 @@ async function resolveSubscriptionPromotionCode({
   existingSubscriber = false,
   productId = "",
   productLabel = "subscription",
+  billingInterval = "monthly",
 }) {
   const normalizedCode = normalizePromotionCode(code, {required: true});
   const path = "/v1/promotion_codes" +
@@ -54,6 +74,7 @@ async function resolveSubscriptionPromotionCode({
         `That promo code is not valid for ${productLabel}.`,
     );
   }
+  assertPromotionCompatibleWithBillingInterval(promotionCode, billingInterval);
   if (existingSubscriber &&
       promotionCode.restrictions &&
       promotionCode.restrictions.first_time_transaction === true) {
@@ -75,6 +96,7 @@ async function resolveSubscriptionPromotionCode({
 }
 
 module.exports = {
+  assertPromotionCompatibleWithBillingInterval,
   promotionCodeTargetsProduct,
   resolveSubscriptionPromotionCode,
 };

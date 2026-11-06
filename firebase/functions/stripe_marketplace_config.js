@@ -107,6 +107,17 @@ const stripeMarketplaceConfig = Object.freeze({
   coupons: Object.freeze({
     oneYearFree: "PIPEBUYER_FREE_1Y",
     fiveYearsFree: "PIPEBUYER_FREE_5Y",
+    sixMonthsFree2026: "PIPEBUYER_2026_6M_FREE",
+  }),
+  promotions: Object.freeze({
+    pipebuyer2026: Object.freeze({
+      code: "pipebuyer2026",
+      promotionCodeId: "promo_1UYidsDkO07WMXyRU671qy2n",
+      couponId: "PIPEBUYER_2026_6M_FREE",
+      percentOff: 100,
+      duration: "repeating",
+      durationInMonths: 6,
+    }),
   }),
   // Underlying marketplace inventory is physical by default. Specific listing
   // categories can override this server-side when a more precise Stripe tax

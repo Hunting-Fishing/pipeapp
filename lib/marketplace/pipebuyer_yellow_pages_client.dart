@@ -366,6 +366,14 @@ class PipeBuyerYellowPagesClient {
     );
   }
 
+  Future<Map<String, dynamic>> getPublicEntry(String companyId) {
+    return _call(
+      'getPipeBuyerYellowPagesEntry',
+      <String, Object?>{'companyId': companyId},
+      requiresAuthentication: false,
+    );
+  }
+
   Future<void> recordLeadInteraction({
     required String companyId,
     required String interactionType,
@@ -405,6 +413,7 @@ class PipeBuyerYellowPagesClient {
     String description = '',
     required String requestedTier,
     String billingInterval = 'yearly',
+    String promotionCode = '',
   }) {
     return _call(
       'submitYellowPagesServiceListingRequest',
@@ -430,6 +439,8 @@ class PipeBuyerYellowPagesClient {
         'description': description,
         'requestedTier': requestedTier,
         'billingInterval': billingInterval,
+        if (promotionCode.trim().isNotEmpty)
+          'promotionCode': promotionCode.trim(),
       },
     );
   }
@@ -439,6 +450,7 @@ class PipeBuyerYellowPagesClient {
     String? requestedTier,
     String? billingInterval,
     String? currency,
+    String? promotionCode,
   }) {
     return _call(
       'createYellowPagesListingCheckout',
@@ -449,6 +461,8 @@ class PipeBuyerYellowPagesClient {
         if (billingInterval != null && billingInterval.isNotEmpty)
           'billingInterval': billingInterval,
         if (currency != null && currency.isNotEmpty) 'currency': currency,
+        if (promotionCode != null && promotionCode.trim().isNotEmpty)
+          'promotionCode': promotionCode.trim(),
       },
     );
   }
@@ -766,5 +780,52 @@ class PipeBuyerYellowPagesClient {
         'role': role,
       },
     ).then((_) {});
+  }
+
+  Future<Map<String, dynamic>> getOutreachStats({bool forceRefresh = false}) {
+    return _call(
+      'getYellowPagesOutreachStats',
+      <String, Object?>{'forceRefresh': forceRefresh},
+    );
+  }
+
+  Future<Map<String, dynamic>> sendOutreachPreview({
+    String? toEmail,
+    String? companyId,
+    bool dryRun = false,
+  }) {
+    return _call(
+      'sendYellowPagesOutreachPreview',
+      <String, Object?>{
+        if (toEmail != null && toEmail.trim().isNotEmpty)
+          'toEmail': toEmail.trim(),
+        if (companyId != null && companyId.trim().isNotEmpty)
+          'companyId': companyId.trim(),
+        'dryRun': dryRun,
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> sendOutreachBatch({
+    int limit = 25,
+    String countryCode = '',
+    String regionCode = '',
+    String categoryCode = '',
+    List<String> companyIds = const <String>[],
+    bool dryRun = false,
+    bool forceResend = false,
+  }) {
+    return _call(
+      'sendYellowPagesOutreachBatch',
+      <String, Object?>{
+        'limit': limit,
+        if (countryCode.trim().isNotEmpty) 'countryCode': countryCode.trim(),
+        if (regionCode.trim().isNotEmpty) 'regionCode': regionCode.trim(),
+        if (categoryCode.trim().isNotEmpty) 'categoryCode': categoryCode.trim(),
+        if (companyIds.isNotEmpty) 'companyIds': companyIds,
+        'dryRun': dryRun,
+        'forceResend': forceResend,
+      },
+    );
   }
 }
