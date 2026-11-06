@@ -65,3 +65,5 @@ data/yellow_pages/book_photos/
 data/yellow_pages/book_tiles/
 data/yellow_pages/book_tiles_opt/
 data/yellow_pages/book_extract/
+data/yellow_pages/reports/*.xlsx
+data/yellow_pages/reports/cossd_all_book_listings_crossref.csv
