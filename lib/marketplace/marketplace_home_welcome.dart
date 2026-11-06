@@ -109,12 +109,11 @@ class _MarketplaceHomeWelcomeState extends State<MarketplaceHomeWelcome> {
               user.displayName,
               user.email?.split('@').first,
             ];
-            final name = candidates
-                .map((value) => '${value ?? ''}'.trim())
-                .firstWhere(
-                  (value) => value.isNotEmpty,
-                  orElse: () => 'Pipe Buyer member',
-                );
+            final name =
+                candidates.map((value) => '${value ?? ''}'.trim()).firstWhere(
+                      (value) => value.isNotEmpty,
+                      orElse: () => 'Pipe Buyer member',
+                    );
             final accountType = '${data['accountType'] ?? 'personal'}';
             final hero = MarketplaceHomeDiscoveryHero(
               name: name,

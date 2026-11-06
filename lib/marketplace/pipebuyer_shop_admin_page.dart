@@ -36,12 +36,14 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
   late TabController _tabController;
 
   bool _checkingAccess = true;
-  PipeBuyerShopRoleSession _session = const PipeBuyerShopRoleSession.signedOut();
+  PipeBuyerShopRoleSession _session =
+      const PipeBuyerShopRoleSession.signedOut();
   bool _loading = true;
   String? _loadError;
 
   PipeBuyerShopSettings _settings = const PipeBuyerShopSettings();
-  List<PipeBuyerShopProduct> _firestoreProducts = const <PipeBuyerShopProduct>[];
+  List<PipeBuyerShopProduct> _firestoreProducts =
+      const <PipeBuyerShopProduct>[];
   List<Map<String, dynamic>> _applications = const <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _vendors = const <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _staff = const <Map<String, dynamic>>[];
@@ -147,7 +149,8 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
       _loadError = null;
     });
 
-    PipeBuyerShopRoleSession resolved = const PipeBuyerShopRoleSession.signedOut();
+    PipeBuyerShopRoleSession resolved =
+        const PipeBuyerShopRoleSession.signedOut();
     try {
       if (widget.sessionOverride != null) {
         resolved = await widget.sessionOverride!();
@@ -467,8 +470,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
     String? nextStatus,
     bool? nextFeatured,
   }) async {
-    final existsInFirestore =
-        _firestoreProducts.any((p) => p.id == product.id);
+    final existsInFirestore = _firestoreProducts.any((p) => p.id == product.id);
     try {
       await _client.setProductVisibility(
         productId: product.id,
@@ -534,7 +536,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
       if (!mounted) return;
       _staffEmailController.clear();
       setState(() => _savingStaff = false);
-        PipeFeedback.show(
+      PipeFeedback.show(
         context,
         message:
             'Store role ($_selectedStaffRole) granted. Verified Google Sign-in & email accounts can add products immediately.',
@@ -1478,7 +1480,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                       ),
                     ),
                     const SizedBox(width: 12),
-                      Expanded(
+                    Expanded(
                       child: TextField(
                         controller: _auTagController,
                         decoration: const InputDecoration(
@@ -1566,7 +1568,8 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                       child: TextField(
                         controller: _ebayCampController,
                         decoration: const InputDecoration(
-                          labelText: 'eBay Partner Network 10-Digit Campaign ID',
+                          labelText:
+                              'eBay Partner Network 10-Digit Campaign ID',
                           hintText: 'e.g., 5338999999',
                         ),
                         onChanged: (_) => setState(() {}),
@@ -1577,7 +1580,8 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                       child: TextField(
                         controller: _skimlinksController,
                         decoration: const InputDecoration(
-                          labelText: 'Skimlinks / Sovrn Publisher ID (optional)',
+                          labelText:
+                              'Skimlinks / Sovrn Publisher ID (optional)',
                         ),
                         onChanged: (_) => setState(() {}),
                       ),
@@ -1825,9 +1829,8 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
   }
 
   Widget _buildRolesTab() {
-    final activeStaff = _staff
-        .where((s) => s['active'] == true)
-        .toList(growable: false);
+    final activeStaff =
+        _staff.where((s) => s['active'] == true).toList(growable: false);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1868,7 +1871,8 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                       'Add, edit, feature, pause, remove, and bulk-import Amazon, AliExpress, Lazada, Shopee & partner affiliate links (supports Google Sign-in).',
                 ),
                 const _RolePermissionSummaryRow(
-                  roleTitle: 'Affiliate Product Contributor (affiliate_contributor)',
+                  roleTitle:
+                      'Affiliate Product Contributor (affiliate_contributor)',
                   description:
                       'Add and edit affiliate products across allowed platforms (Amazon, AliExpress, Lazada, Shopee, eBay, etc.) immediately via Google Sign-in.',
                 ),
@@ -2415,7 +2419,8 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                             style: TextButton.styleFrom(
                               visualDensity: VisualDensity.compact,
                             ),
-                            icon: const Icon(Icons.content_paste_rounded, size: 15),
+                            icon: const Icon(Icons.content_paste_rounded,
+                                size: 15),
                             label: const Text(
                               'Paste Clipboard',
                               style: TextStyle(fontSize: 11.5),
@@ -2480,7 +2485,8 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                 DropdownButtonFormField<PipeBuyerShopSourceType>(
                   isExpanded: true,
                   initialValue: _sourceType,
-                  decoration: const InputDecoration(labelText: 'Partner Channel'),
+                  decoration:
+                      const InputDecoration(labelText: 'Partner Channel'),
                   items: PipeBuyerShopSourceType.values
                       .map(
                         (s) => DropdownMenuItem(
@@ -2500,7 +2506,8 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                 DropdownButtonFormField<String>(
                   isExpanded: true,
                   initialValue: _categoryCode,
-                  decoration: const InputDecoration(labelText: 'Store Category'),
+                  decoration:
+                      const InputDecoration(labelText: 'Store Category'),
                   items: PipeBuyerShopTaxonomy.categories
                       .map(
                         (c) => DropdownMenuItem(
@@ -2566,7 +2573,8 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _titleController,
-                  decoration: const InputDecoration(labelText: 'Product Title *'),
+                  decoration:
+                      const InputDecoration(labelText: 'Product Title *'),
                   validator: (v) => (v == null || v.trim().length < 3)
                       ? 'Enter product title (at least 3 characters).'
                       : null,
@@ -2666,7 +2674,8 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                       child: TextFormField(
                         controller: _imageUrlController,
                         decoration: const InputDecoration(
-                          labelText: 'Official Product Image HTTPS URL (optional)',
+                          labelText:
+                              'Official Product Image HTTPS URL (optional)',
                           helperText:
                               'Uses proportional scaling or built-in trade icon.',
                         ),
@@ -2677,8 +2686,10 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                       child: TextFormField(
                         controller: _priceController,
                         decoration: const InputDecoration(
-                          labelText: 'Price Note (leave blank for live Amazon price)',
-                          helperText: 'Blank = "Check live price & Prime delivery"',
+                          labelText:
+                              'Price Note (leave blank for live Amazon price)',
+                          helperText:
+                              'Blank = "Check live price & Prime delivery"',
                         ),
                       ),
                     ),

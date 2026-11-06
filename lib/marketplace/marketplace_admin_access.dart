@@ -43,8 +43,7 @@ MarketplaceAdministratorState marketplaceAdministratorClaimsState(
     return MarketplaceAdministratorState.authorized;
   }
 
-  final hasFederatedAdminApproval =
-      values['federatedAdminApproved'] == true &&
+  final hasFederatedAdminApproval = values['federatedAdminApproved'] == true &&
       values['email_verified'] == true;
   if (hasFederatedAdminApproval) {
     return MarketplaceAdministratorState.authorized;

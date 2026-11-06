@@ -277,8 +277,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 ),
                 IconButton(
                   tooltip: 'Store & Affiliate Admin',
-                  onPressed: () =>
-                      MarketplaceNavigation.openShopAdmin(context),
+                  onPressed: () => MarketplaceNavigation.openShopAdmin(context),
                   icon: const Icon(Icons.shopping_bag_outlined),
                 ),
                 IconButton(

@@ -136,7 +136,8 @@ class AdminManagedUserRecord {
 
 abstract class AdminPermissionsRepository {
   Future<List<AdminManagedUserRecord>> listUsers({String query = ''});
-  Future<AdminManagedUserRecord> updatePermissions(Map<String, Object?> payload);
+  Future<AdminManagedUserRecord> updatePermissions(
+      Map<String, Object?> payload);
 }
 
 class CloudFunctionsAdminPermissionsRepository
@@ -161,11 +162,11 @@ class CloudFunctionsAdminPermissionsRepository
     try {
       final response = await _resolvedFunctions
           .httpsCallable(
-            'listAdminUsersAndPermissions',
-            options: HttpsCallableOptions(
-              timeout: const Duration(seconds: 30),
-            ),
-          )
+        'listAdminUsersAndPermissions',
+        options: HttpsCallableOptions(
+          timeout: const Duration(seconds: 30),
+        ),
+      )
           .call(<String, Object?>{
         'query': query.trim(),
         'limit': 350,
@@ -454,7 +455,8 @@ class _MarketplaceAdminUserPermissionsPanelState
     }
   }
 
-  Future<void> _openPermissionsDialog({AdminManagedUserRecord? existing}) async {
+  Future<void> _openPermissionsDialog(
+      {AdminManagedUserRecord? existing}) async {
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => AdminUserPermissionsDialog(
@@ -525,7 +527,8 @@ class _MarketplaceAdminUserPermissionsPanelState
                     label: const Text('Grant Permissions by Email'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => MarketplaceNavigation.openShopAdmin(context),
+                    onPressed: () =>
+                        MarketplaceNavigation.openShopAdmin(context),
                     icon: const Icon(Icons.shopping_bag_outlined, size: 18),
                     label: const Text('Affiliate Platforms & Store'),
                   ),
@@ -692,7 +695,8 @@ class _MarketplaceAdminUserPermissionsPanelState
                             CircleAvatar(
                               radius: 18,
                               backgroundColor: user.hasAnyRestriction
-                                  ? PipeBuyerColors.danger.withValues(alpha: .15)
+                                  ? PipeBuyerColors.danger
+                                      .withValues(alpha: .15)
                                   : user.isAdmin
                                       ? Colors.purple.shade100
                                       : user.hasStoreAccess
@@ -754,7 +758,8 @@ class _MarketplaceAdminUserPermissionsPanelState
                                 bg: Colors.purple.shade100,
                                 fg: Colors.purple.shade900,
                               ),
-                            if (user.canGrantPermissions && !user.isPrimaryAdmin)
+                            if (user.canGrantPermissions &&
+                                !user.isPrimaryAdmin)
                               _RoleBadge(
                                 label: 'CAN GRANT PERMISSIONS',
                                 bg: Colors.indigo.shade50,
@@ -929,7 +934,8 @@ class _AdminUserPermissionsDialogState
     _emailController = TextEditingController(text: u?.email ?? '');
     _reasonController = TextEditingController(text: u?.restrictionReason ?? '');
     _shopRole = u?.shopRole ?? 'catalog_editor';
-    final existingPlatforms = u?.allowedAffiliatePlatforms ?? const <String>['all'];
+    final existingPlatforms =
+        u?.allowedAffiliatePlatforms ?? const <String>['all'];
     _allAffiliatePlatforms =
         existingPlatforms.isEmpty || existingPlatforms.contains('all');
     _selectedPlatforms = _allAffiliatePlatforms
@@ -988,10 +994,9 @@ class _AdminUserPermissionsDialogState
         'permissions': <String, bool>{
           'canGrantPermissions': _canGrantPermissions || _grantAdmin,
           'addAffiliateProducts': _shopRole != 'none' || _grantAdmin,
-          'bulkImportCatalog':
-              _shopRole == 'catalog_editor' ||
-                  _shopRole == 'store_manager' ||
-                  _grantAdmin,
+          'bulkImportCatalog': _shopRole == 'catalog_editor' ||
+              _shopRole == 'store_manager' ||
+              _grantAdmin,
           'reviewVendorApplications':
               _shopRole == 'store_manager' || _grantAdmin,
         },

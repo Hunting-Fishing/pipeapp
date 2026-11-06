@@ -377,8 +377,7 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: MarketplaceDeepLinks.shopStoreRouteName,
           path: MarketplaceDeepLinks.shopStorePath,
           builder: (context, params) => PipeBuyerShopStorePage(
-            initialQuery:
-                params.getParam<String>('q', ParamType.string) ?? '',
+            initialQuery: params.getParam<String>('q', ParamType.string) ?? '',
             initialCategoryCode:
                 params.getParam<String>('category', ParamType.string) ?? '',
             initialBrand:
@@ -391,9 +390,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: MarketplaceDeepLinks.shopVendorApplyRouteName,
           path: MarketplaceDeepLinks.shopVendorApplyPath,
           builder: (context, params) => PipeBuyerShopVendorApplyPage(
-            initialTrack:
-                params.getParam<String>('track', ParamType.string) ??
-                    'industrial_distributor',
+            initialTrack: params.getParam<String>('track', ParamType.string) ??
+                'industrial_distributor',
             initialBrand:
                 params.getParam<String>('brand', ParamType.string) ?? '',
           ),
@@ -402,9 +400,8 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: MarketplaceDeepLinks.shopVendorApplyAliasRouteName,
           path: MarketplaceDeepLinks.shopVendorApplyAliasPath,
           builder: (context, params) => PipeBuyerShopVendorApplyPage(
-            initialTrack:
-                params.getParam<String>('track', ParamType.string) ??
-                    'industrial_distributor',
+            initialTrack: params.getParam<String>('track', ParamType.string) ??
+                'industrial_distributor',
             initialBrand:
                 params.getParam<String>('brand', ParamType.string) ?? '',
           ),

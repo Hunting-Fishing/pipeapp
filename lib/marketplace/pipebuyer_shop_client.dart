@@ -174,7 +174,8 @@ class PipeBuyerShopClient {
           )
           .call(payload);
       if (response.data is! Map) {
-        throw StateError('The PipeBuyer Store service returned an invalid response.');
+        throw StateError(
+            'The PipeBuyer Store service returned an invalid response.');
       }
       return Map<String, dynamic>.from(response.data as Map);
     } on FirebaseFunctionsException catch (error) {
@@ -192,7 +193,8 @@ class PipeBuyerShopClient {
         'not-found' => 'The requested Store item or application was not found.',
         'failed-precondition' =>
           'This Store action is temporarily unavailable.',
-        'invalid-argument' => 'Check the entered product or partner details and try again.',
+        'invalid-argument' =>
+          'Check the entered product or partner details and try again.',
         _ => 'The PipeBuyer Store service is temporarily unavailable.',
       });
     }
@@ -236,7 +238,8 @@ class PipeBuyerShopClient {
         );
       }
 
-      final shopRole = claims['shopRole']?.toString().trim().toLowerCase() ?? '';
+      final shopRole =
+          claims['shopRole']?.toString().trim().toLowerCase() ?? '';
       if (shopRole == 'store_manager' ||
           shopRole == 'catalog_editor' ||
           shopRole == 'affiliate_contributor') {
@@ -656,8 +659,9 @@ class PipeBuyerShopClient {
     final allErrors = <Map<String, dynamic>>[];
 
     for (var offset = 0; offset < items.length; offset += chunkSize) {
-      final end =
-          (offset + chunkSize > items.length) ? items.length : offset + chunkSize;
+      final end = (offset + chunkSize > items.length)
+          ? items.length
+          : offset + chunkSize;
       final slice = items.sublist(offset, end);
       final result = await _call(
         'bulkUpsertShopProducts',

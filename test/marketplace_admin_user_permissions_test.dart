@@ -240,7 +240,8 @@ void main() {
 
     expect(repo.calls, hasLength(1));
     expect(repo.calls.first['shopRole'], 'catalog_editor');
-    expect(repo.calls.first['allowedAffiliatePlatforms'], const <String>['all']);
+    expect(
+        repo.calls.first['allowedAffiliatePlatforms'], const <String>['all']);
     expect(find.text('STORE: CATALOG_EDITOR'), findsOneWidget);
 
     // Restrict the user, then unrestrict them

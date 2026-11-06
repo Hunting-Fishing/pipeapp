@@ -396,7 +396,8 @@ class _Overview extends StatelessWidget {
                   side: BorderSide(color: Colors.red.shade300),
                 ),
                 child: ListTile(
-                  leading: Icon(Icons.block_rounded, color: Colors.red.shade800),
+                  leading:
+                      Icon(Icons.block_rounded, color: Colors.red.shade800),
                   title: Text(
                     'Account Restricted',
                     style: TextStyle(
@@ -470,7 +471,8 @@ class _Overview extends StatelessWidget {
                           OutlinedButton.icon(
                             onPressed: () =>
                                 MarketplaceNavigation.openShopStore(context),
-                            icon: const Icon(Icons.storefront_outlined, size: 17),
+                            icon:
+                                const Icon(Icons.storefront_outlined, size: 17),
                             label: const Text('Open Pipe Buyer Store'),
                           ),
                         ],
