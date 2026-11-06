@@ -39,6 +39,7 @@ class _PipeBuyerContactCenterDashboardState
     ('hidden_disabled', 'Viewing OFF', Icons.visibility_off_outlined),
     ('flagged_prohibited', 'Flagged / Prohibited', Icons.gpp_bad_outlined),
     ('listing_requests', 'List Services Requests', Icons.inbox_outlined),
+    ('email_outreach', 'Email Outreach (pipebuyer2026)', Icons.mark_email_read_outlined),
     ('book_pages', '2015/2016 Book Pages', Icons.menu_book_outlined),
     ('do_not_contact', 'Do Not Contact', Icons.phone_disabled_outlined),
   ];
@@ -66,6 +67,14 @@ class _PipeBuyerContactCenterDashboardState
   List<Map<String, dynamic>> _companies = const <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _listingRequests = const <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _bookPages = const <Map<String, dynamic>>[];
+  Map<String, dynamic>? _outreachStats;
+  final TextEditingController _previewEmailController = TextEditingController();
+  String _outreachCountry = 'CA';
+  String _outreachRegion = 'AB';
+  String _outreachCategory = '';
+  int _outreachBatchSize = 25;
+  bool _outreachBusy = false;
+  String? _outreachLastSummary;
 
   bool get _isSearchActive =>
       _searchController.text.trim().isNotEmpty || _searchFilterState.isNotEmpty;
@@ -82,6 +91,7 @@ class _PipeBuyerContactCenterDashboardState
   void dispose() {
     _searchDebounce?.cancel();
     _searchController.dispose();
+    _previewEmailController.dispose();
     super.dispose();
   }
 
@@ -148,6 +158,15 @@ class _PipeBuyerContactCenterDashboardState
       }
 
       final activeView = access.role == 'agent' ? 'my_queue' : _selectedView;
+      if (activeView == 'email_outreach' && access.isManager) {
+        final stats = await _client.getOutreachStats();
+        if (!mounted) return;
+        setState(() {
+          _outreachStats = stats;
+          _loading = false;
+        });
+        return;
+      }
       final raw = await _client.listDashboardViewRaw(activeView, pageSize: 80);
       if (!mounted) return;
 
@@ -714,6 +733,9 @@ class _PipeBuyerContactCenterDashboardState
     if (!_isSearchActive && _selectedView == 'listing_requests') {
       return _buildListingRequestsList();
     }
+    if (!_isSearchActive && _selectedView == 'email_outreach') {
+      return _buildEmailOutreachView();
+    }
     if (!_isSearchActive && _selectedView == 'book_pages') {
       return _buildBookPagesList();
     }
@@ -764,8 +786,502 @@ class _PipeBuyerContactCenterDashboardState
           onToggleViewing: (visible) => _quickToggleViewing(company, visible),
           onToggleFlag: () => _promptFlagCompany(company),
           onEdit: () => _openUpsertCompanyDialog(existing: company),
+          onSendInviteEmail: _access?.isManager == true
+              ? () => _sendSingleCompanyInvite(company)
+              : null,
         );
       },
+    );
+  }
+
+  Future<void> _sendSingleCompanyInvite(Map<String, dynamic> company) async {
+    final companyId = '${company['id'] ?? ''}'.trim();
+    final companyName = '${company['companyName'] ?? 'Company'}'.trim();
+    final email =
+        '${company['publicEmail'] ?? company['generalEmail'] ?? ''}'.trim();
+    if (companyId.isEmpty || !email.contains('@')) {
+      _showSnack(
+        'No valid email address on file for $companyName.',
+        isError: true,
+      );
+      return;
+    }
+    try {
+      final result = await _client.sendOutreachBatch(
+        limit: 1,
+        companyIds: <String>[companyId],
+      );
+      if (!mounted) return;
+      final sentCount = (result['sentCount'] as num?)?.toInt() ?? 0;
+      if (sentCount > 0) {
+        _showSnack(
+          'Sent pipebuyer2026 (First 6 Months Free) invitation to $companyName ($email).',
+        );
+        await _refreshData();
+      } else {
+        _showSnack(
+          '$companyName was skipped (already invited, claimed, or Do Not Contact).',
+          isError: true,
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack(_cleanError(error), isError: true);
+    }
+  }
+
+  Widget _outreachMetricTile(String label, Object? value, {Color? accent}) {
+    final color = accent ?? PipeBuyerColors.ink;
+    return Container(
+      width: 170,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: PipeBuyerColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${value ?? 0}',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: PipeBuyerColors.slate,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmailOutreachView() {
+    final stats = _outreachStats ?? const <String, dynamic>{};
+    final resendReady = stats['resendConfigured'] == true;
+    final promoCode = '${stats['promoCode'] ?? 'pipebuyer2026'}';
+    final fromEmail =
+        '${stats['fromEmail'] ?? 'PipeBuyer Oilfield Directory <directory@pipebuyer.com>'}';
+    final regions =
+        PipeBuyerYellowPagesTaxonomy.regionsForCountry(_outreachCountry);
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.mark_email_read_outlined,
+                      color: PipeBuyerColors.orange,
+                    ),
+                    const Text(
+                      'Oilfield Directory Email Outreach — First 6 Months Free',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        color: PipeBuyerColors.ink,
+                      ),
+                    ),
+                    _PillBadge(
+                      label: 'Promo: $promoCode (100% Off 6 Mo)',
+                      color: PipeBuyerColors.orange,
+                    ),
+                    _PillBadge(
+                      label: resendReady
+                          ? 'Resend Live'
+                          : 'Awaiting RESEND_API_KEY',
+                      color: resendReady
+                          ? PipeBuyerColors.success
+                          : PipeBuyerColors.warning,
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _outreachBusy
+                          ? null
+                          : () async {
+                              setState(() => _outreachBusy = true);
+                              try {
+                                final fresh = await _client.getOutreachStats(
+                                  forceRefresh: true,
+                                );
+                                if (!mounted) return;
+                                setState(() {
+                                  _outreachStats = fresh;
+                                  _outreachBusy = false;
+                                });
+                              } catch (err) {
+                                if (!mounted) return;
+                                setState(() => _outreachBusy = false);
+                                _showSnack(_cleanError(err), isError: true);
+                              }
+                            },
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Refresh Counts'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Sender: $fromEmail • Includes 1-click CASL/CAN-SPAM Unsubscribe & automatic Do-Not-Contact + Bounce protection.',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: PipeBuyerColors.slate,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _outreachMetricTile(
+                      'Ready to Email Now',
+                      stats['eligibleReadyToSend'],
+                      accent: PipeBuyerColors.success,
+                    ),
+                    _outreachMetricTile(
+                      'Companies w/ Valid Email',
+                      stats['companiesWithValidEmail'],
+                    ),
+                    _outreachMetricTile(
+                      'Website-Enriched Emails',
+                      stats['websiteEnrichedEmails'],
+                      accent: PipeBuyerColors.industrialBlue,
+                    ),
+                    _outreachMetricTile(
+                      'Websites Pending Scan',
+                      stats['websitesPendingEmailEnrichment'],
+                    ),
+                    _outreachMetricTile(
+                      'Invited ($promoCode)',
+                      stats['invitedCount'],
+                      accent: PipeBuyerColors.orange,
+                    ),
+                    _outreachMetricTile(
+                      'Delivered / Opened',
+                      '${stats['deliveredCount'] ?? 0} / ${stats['openedCount'] ?? 0}',
+                    ),
+                    _outreachMetricTile(
+                      'CTA Clicked / Claimed',
+                      '${stats['clickedCount'] ?? 0} / ${stats['claimedOrPaidCount'] ?? 0}',
+                      accent: PipeBuyerColors.success,
+                    ),
+                    _outreachMetricTile(
+                      'Unsubscribed / Bounced',
+                      '${stats['unsubscribedCount'] ?? 0} / ${stats['bouncedCount'] ?? 0}',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '1. Send Test Preview Email',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 320,
+                      child: TextField(
+                        controller: _previewEmailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Destination Test Email',
+                          hintText: 'you@pipebuyer.com',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _outreachBusy
+                          ? null
+                          : () async {
+                              setState(() => _outreachBusy = true);
+                              try {
+                                final res = await _client.sendOutreachPreview(
+                                  toEmail: _previewEmailController.text.trim(),
+                                );
+                                if (!mounted) return;
+                                setState(() {
+                                  _outreachBusy = false;
+                                  _outreachLastSummary =
+                                      'Preview email sent to ${res['toEmail']} (Claim URL: ${res['claimUrl']})';
+                                });
+                                _showSnack(
+                                  'Test preview sent to ${res['toEmail']}!',
+                                );
+                              } catch (err) {
+                                if (!mounted) return;
+                                setState(() => _outreachBusy = false);
+                                _showSnack(_cleanError(err), isError: true);
+                              }
+                            },
+                      icon: const Icon(Icons.send_outlined, size: 16),
+                      label: const Text('Send Live Test Email'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '2. Launch Filtered Campaign Batch (pipebuyer2026)',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    SizedBox(
+                      width: 190,
+                      child: DropdownButtonFormField<String>(
+                        key: ValueKey('outreach-country-$_outreachCountry'),
+                        initialValue: _outreachCountry,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Country Filter',
+                          isDense: true,
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: '',
+                            child: Text('All Payable Countries'),
+                          ),
+                          ...PipeBuyerYellowPagesTaxonomy.countries.map(
+                            (c) => DropdownMenuItem(
+                              value: c.code,
+                              child: Text(
+                                '${c.name} (${c.code})',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val == null) return;
+                          setState(() {
+                            _outreachCountry = val;
+                            _outreachRegion = '';
+                          });
+                        },
+                      ),
+                    ),
+                    if (regions.isNotEmpty)
+                      SizedBox(
+                        width: 190,
+                        child: DropdownButtonFormField<String>(
+                          key: ValueKey(
+                            'outreach-region-$_outreachCountry-$_outreachRegion',
+                          ),
+                          initialValue: regions.any(
+                            (r) => r.regionCode == _outreachRegion,
+                          )
+                              ? _outreachRegion
+                              : '',
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Province / State',
+                            isDense: true,
+                          ),
+                          items: [
+                            const DropdownMenuItem(
+                              value: '',
+                              child: Text('All Regions'),
+                            ),
+                            ...regions.map(
+                              (r) => DropdownMenuItem(
+                                value: r.regionCode,
+                                child: Text(
+                                  r.displayLabel,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val == null) return;
+                            setState(() => _outreachRegion = val);
+                          },
+                        ),
+                      ),
+                    SizedBox(
+                      width: 240,
+                      child: DropdownButtonFormField<String>(
+                        key: ValueKey('outreach-cat-$_outreachCategory'),
+                        initialValue: _outreachCategory,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Oil & Gas Sector',
+                          isDense: true,
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: '',
+                            child: Text('All 30 Sectors'),
+                          ),
+                          ...PipeBuyerYellowPagesTaxonomy.categories.map(
+                            (cat) => DropdownMenuItem(
+                              value: cat.code,
+                              child: Text(
+                                cat.label,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val == null) return;
+                          setState(() => _outreachCategory = val);
+                        },
+                      ),
+                    ),
+                    SizedBox(
+                      width: 140,
+                      child: DropdownButtonFormField<int>(
+                        initialValue: _outreachBatchSize,
+                        decoration: const InputDecoration(
+                          labelText: 'Batch Size',
+                          isDense: true,
+                        ),
+                        items: const [10, 25, 50, 100]
+                            .map(
+                              (n) => DropdownMenuItem(
+                                value: n,
+                                child: Text('$n businesses'),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _outreachBatchSize = val);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _outreachBusy
+                          ? null
+                          : () async {
+                              setState(() => _outreachBusy = true);
+                              try {
+                                final res = await _client.sendOutreachBatch(
+                                  limit: _outreachBatchSize,
+                                  countryCode: _outreachCountry,
+                                  regionCode: _outreachRegion,
+                                  categoryCode: _outreachCategory,
+                                  dryRun: true,
+                                );
+                                if (!mounted) return;
+                                final count = res['candidateCount'] ?? 0;
+                                setState(() {
+                                  _outreachBusy = false;
+                                  _outreachLastSummary =
+                                      'Dry Run: $count eligible businesses ready in current filter.';
+                                });
+                              } catch (err) {
+                                if (!mounted) return;
+                                setState(() => _outreachBusy = false);
+                                _showSnack(_cleanError(err), isError: true);
+                              }
+                            },
+                      icon: const Icon(Icons.fact_check_outlined, size: 16),
+                      label: const Text('Preview Batch (Dry Run)'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _outreachBusy
+                          ? null
+                          : () async {
+                              setState(() => _outreachBusy = true);
+                              try {
+                                final res = await _client.sendOutreachBatch(
+                                  limit: _outreachBatchSize,
+                                  countryCode: _outreachCountry,
+                                  regionCode: _outreachRegion,
+                                  categoryCode: _outreachCategory,
+                                );
+                                final fresh = await _client.getOutreachStats(
+                                  forceRefresh: true,
+                                );
+                                if (!mounted) return;
+                                final sent = res['sentCount'] ?? 0;
+                                final failed = res['failedCount'] ?? 0;
+                                setState(() {
+                                  _outreachStats = fresh;
+                                  _outreachBusy = false;
+                                  _outreachLastSummary =
+                                      'Sent $sent invitations (failed: $failed) with promo code $promoCode.';
+                                });
+                                _showSnack('Sent $sent outreach emails!');
+                              } catch (err) {
+                                if (!mounted) return;
+                                setState(() => _outreachBusy = false);
+                                _showSnack(_cleanError(err), isError: true);
+                              }
+                            },
+                      icon: const Icon(Icons.rocket_launch_outlined, size: 16),
+                      label: Text('Send $_outreachBatchSize Invites Now'),
+                    ),
+                  ],
+                ),
+                if (_outreachLastSummary != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _outreachLastSummary!,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: PipeBuyerColors.industrialBlue,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1008,6 +1524,7 @@ class _AdminCompanyRowCard extends StatelessWidget {
     required this.onToggleViewing,
     required this.onToggleFlag,
     required this.onEdit,
+    this.onSendInviteEmail,
   });
 
   final Map<String, dynamic> company;
@@ -1016,6 +1533,7 @@ class _AdminCompanyRowCard extends StatelessWidget {
   final ValueChanged<bool> onToggleViewing;
   final VoidCallback onToggleFlag;
   final VoidCallback onEdit;
+  final VoidCallback? onSendInviteEmail;
 
   @override
   Widget build(BuildContext context) {
@@ -1252,6 +1770,21 @@ class _AdminCompanyRowCard extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (onSendInviteEmail != null &&
+                            '${company['publicEmail'] ?? company['generalEmail'] ?? ''}'
+                                .contains('@') &&
+                            company['doNotContact'] != true &&
+                            !flagged)
+                          IconButton(
+                            tooltip:
+                                'Email pipebuyer2026 (First 6 Months Free) Invite',
+                            onPressed: onSendInviteEmail,
+                            icon: const Icon(
+                              Icons.forward_to_inbox_outlined,
+                              size: 20,
+                              color: PipeBuyerColors.industrialBlue,
+                            ),
+                          ),
                         IconButton(
                           tooltip: 'Edit Phone History / Regions / Services',
                           onPressed: onEdit,

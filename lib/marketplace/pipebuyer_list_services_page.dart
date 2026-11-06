@@ -35,6 +35,7 @@ class PipeBuyerListServicesPage extends StatefulWidget {
     this.initialPhone = '',
     this.initialTier = 'paid_verified',
     this.initialLogoUrl = '',
+    this.initialPromotionCode = '',
     this.logoUploader,
   });
 
@@ -47,6 +48,7 @@ class PipeBuyerListServicesPage extends StatefulWidget {
   final String initialPhone;
   final String initialTier;
   final String initialLogoUrl;
+  final String initialPromotionCode;
   final PipeBuyerBusinessLogoUploader? logoUploader;
 
   @override
@@ -69,6 +71,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
   final _customRegionController = TextEditingController();
   final _servicesController = TextEditingController();
   final _descriptionController = TextEditingController();
+  late final TextEditingController _promoCodeController;
 
   late String _selectedTier;
   late String _countryCode;
@@ -97,6 +100,11 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
         TextEditingController(text: widget.initialCompanyName);
     _phoneController = TextEditingController(text: widget.initialPhone);
     _cityController = TextEditingController(text: widget.initialCity);
+    final initialPromo = widget.initialPromotionCode.trim();
+    _promoCodeController = TextEditingController(text: initialPromo);
+    if (initialPromo.isNotEmpty) {
+      _annualBilling = false;
+    }
     _selectedTier = widget.initialTier;
     _countryCode =
         widget.initialCountryCode.isNotEmpty ? widget.initialCountryCode : 'CA';
@@ -118,6 +126,71 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
     } catch (_) {
       // Firebase may not be initialized in standalone widget tests.
     }
+
+    final claimedId = widget.claimedCompanyId?.trim() ?? '';
+    if (claimedId.isNotEmpty && widget.initialCompanyName.trim().isEmpty) {
+      _hydrateClaimedCompany(claimedId);
+    }
+  }
+
+  Future<void> _hydrateClaimedCompany(String companyId) async {
+    try {
+      final entry = await _client.getPublicEntry(companyId);
+      if (!mounted) return;
+      setState(() {
+        final name = '${entry['companyName'] ?? ''}'.trim();
+        if (_companyNameController.text.trim().isEmpty && name.isNotEmpty) {
+          _companyNameController.text = name;
+        }
+        final phone = '${entry['phone'] ?? entry['publicPhone'] ?? ''}'.trim();
+        if (_phoneController.text.trim().isEmpty && phone.isNotEmpty) {
+          _phoneController.text = phone;
+        }
+        final tollFree = '${entry['tollFreePhone'] ?? ''}'.trim();
+        if (_tollFreeController.text.trim().isEmpty && tollFree.isNotEmpty) {
+          _tollFreeController.text = tollFree;
+        }
+        final city = '${entry['city'] ?? ''}'.trim();
+        if (_cityController.text.trim().isEmpty && city.isNotEmpty) {
+          _cityController.text = city;
+        }
+        final website = '${entry['website'] ?? ''}'.trim();
+        if (_websiteController.text.trim().isEmpty && website.isNotEmpty) {
+          _websiteController.text = website;
+        }
+        final cc = '${entry['countryCode'] ?? ''}'.trim().toUpperCase();
+        if (cc.isNotEmpty &&
+            PipeBuyerYellowPagesTaxonomy.countryByCode(cc) != null) {
+          _countryCode = cc;
+          final rc = '${entry['regionCode'] ?? ''}'.trim().toUpperCase();
+          final regions = PipeBuyerYellowPagesTaxonomy.regionsForCountry(cc);
+          if (regions.any((r) => r.regionCode == rc)) {
+            _regionCode = rc;
+          } else if (regions.isNotEmpty) {
+            _regionCode = regions.first.regionCode;
+          } else {
+            _regionCode = rc;
+          }
+          _customRegionController.text = _regionCode;
+        }
+        final rawCats = entry['categories'];
+        if (_selectedCategories.isEmpty && rawCats is List) {
+          for (final item in rawCats) {
+            final label = '$item'.trim();
+            if (label.isNotEmpty) _selectedCategories.add(label);
+          }
+        }
+        final rawCodes = entry['categoryCodes'];
+        if (_selectedCategories.isEmpty && rawCodes is List) {
+          for (final code in rawCodes) {
+            final cat = PipeBuyerYellowPagesTaxonomy.byCode('$code'.trim());
+            if (cat != null) _selectedCategories.add(cat.label);
+          }
+        }
+      });
+    } catch (_) {
+      // Non-blocking pre-fill if claim ID is unavailable offline/in tests.
+    }
   }
 
   @override
@@ -132,6 +205,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
     _customRegionController.dispose();
     _servicesController.dispose();
     _descriptionController.dispose();
+    _promoCodeController.dispose();
     super.dispose();
   }
 
@@ -170,9 +244,14 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
           .map((item) => item.trim())
           .where((item) => item.isNotEmpty)
           .toList(growable: false);
+      final promoCode = _selectedTier == 'free_verified'
+          ? ''
+          : _promoCodeController.text.trim();
+      final effectiveAnnual =
+          promoCode.toLowerCase() == 'pipebuyer2026' ? false : _annualBilling;
       final billingInterval = _selectedTier == 'free_verified'
           ? 'none'
-          : (_annualBilling ? 'yearly' : 'monthly');
+          : (effectiveAnnual ? 'yearly' : 'monthly');
 
       final result = await _client.submitServiceListingRequest(
         claimedCompanyId: widget.claimedCompanyId,
@@ -194,6 +273,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
         description: _descriptionController.text.trim(),
         requestedTier: _selectedTier,
         billingInterval: billingInterval,
+        promotionCode: promoCode,
       );
 
       final requestId = result['requestId']?.toString() ?? 'submitted';
@@ -206,6 +286,7 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
             requestId: requestId,
             requestedTier: _selectedTier,
             billingInterval: billingInterval,
+            promotionCode: promoCode,
           );
           final url = checkout['checkoutUrl']?.toString() ?? '';
           if (url.startsWith('https://')) {
@@ -944,6 +1025,80 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
                                   border: OutlineInputBorder(),
                                 ),
                               ),
+                              if (_selectedTier != 'free_verified') ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFFBEB),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: PipeBuyerColors.orange
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.local_offer_outlined,
+                                            size: 18,
+                                            color: PipeBuyerColors.orange,
+                                          ),
+                                          SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'Promo Code (First 6 Months Free Eligible on Monthly Plans)',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 13.5,
+                                                color: PipeBuyerColors.ink,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      TextFormField(
+                                        controller: _promoCodeController,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            if (value.trim().toLowerCase() ==
+                                                'pipebuyer2026') {
+                                              _annualBilling = false;
+                                            }
+                                          });
+                                        },
+                                        decoration: const InputDecoration(
+                                          labelText:
+                                              'Promo Code (Optional — e.g. pipebuyer2026)',
+                                          hintText: 'pipebuyer2026',
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      ),
+                                      if (_promoCodeController.text
+                                              .trim()
+                                              .toLowerCase() ==
+                                          'pipebuyer2026') ...[
+                                        const SizedBox(height: 8),
+                                        const Text(
+                                          '✓ Code pipebuyer2026 active: 100% off for your first 6 months on Monthly billing (Verified Pro or Featured Partner).',
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF15803D),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 20),
                               SizedBox(
                                 width: double.infinity,

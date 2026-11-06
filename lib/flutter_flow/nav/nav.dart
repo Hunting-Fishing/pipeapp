@@ -214,8 +214,10 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: 'dispatchMembership',
           path: '/payments/dispatch',
           requireAuth: true,
-          builder: (context, params) =>
-              const MarketplaceDispatchMembershipPage(),
+          builder: (context, params) => MarketplaceDispatchMembershipPage(
+            initialPromotionCode:
+                params.getParam<String>('promo', ParamType.string) ?? '',
+          ),
         ),
         FFRoute(
           name: 'paymentSuccess',
@@ -286,7 +288,12 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
         FFRoute(
           name: MarketplaceDeepLinks.listServicesRouteName,
           path: MarketplaceDeepLinks.listServicesPath,
-          builder: (context, params) => const PipeBuyerListServicesPage(),
+          builder: (context, params) => PipeBuyerListServicesPage(
+            claimedCompanyId:
+                params.getParam<String>('claim', ParamType.string),
+            initialPromotionCode:
+                params.getParam<String>('promo', ParamType.string) ?? '',
+          ),
         ),
         FFRoute(
           name: MarketplaceDeepLinks.contactCenterRouteName,

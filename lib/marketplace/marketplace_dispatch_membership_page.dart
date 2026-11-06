@@ -56,7 +56,12 @@ String dispatchSubscriptionPriceLabel(
 }
 
 class MarketplaceDispatchMembershipPage extends StatefulWidget {
-  const MarketplaceDispatchMembershipPage({super.key});
+  const MarketplaceDispatchMembershipPage({
+    super.key,
+    this.initialPromotionCode = '',
+  });
+
+  final String initialPromotionCode;
 
   @override
   State<MarketplaceDispatchMembershipPage> createState() =>
@@ -80,6 +85,13 @@ class _MarketplaceDispatchMembershipPageState
   @override
   void initState() {
     super.initState();
+    final initialPromo = widget.initialPromotionCode.trim();
+    if (initialPromo.isNotEmpty) {
+      _checkoutPromoController.text = initialPromo;
+      _checkoutPromoSummary = initialPromo.toLowerCase() == 'pipebuyer2026'
+          ? '100% off for your first 6 months (select Monthly plan)'
+          : 'Promo code pre-filled for checkout';
+    }
     _status = _loadStatus();
     _catalog = dispatchHostedStripeSurfaceAllowed(isWeb: kIsWeb)
         ? _loadCatalog()

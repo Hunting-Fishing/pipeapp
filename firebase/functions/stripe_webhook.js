@@ -235,9 +235,12 @@ function createStripeWebhookHandler(admin, options = {}) {
     if (billingType(session) === "dispatch_subscription") {
       const customerId = typeof session.customer === "string" ?
         session.customer : String(session.customer && session.customer.id || "");
-      await db.collection("subscription_checkout_sessions")
+        const checkoutPaidOrZero =
+          session.payment_status === "paid" ||
+          session.payment_status === "no_payment_required";
+        await db.collection("subscription_checkout_sessions")
           .doc(String(session.id || "")).set({
-            status: session.payment_status === "paid" ? "active" : "processing",
+            status: checkoutPaidOrZero ? "active" : "processing",
             stripeSubscriptionId: typeof session.subscription === "string" ?
               session.subscription :
               String(session.subscription && session.subscription.id || ""),
