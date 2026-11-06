@@ -489,7 +489,6 @@ void main() {
 
       var insuranceTapped = 0;
       var listProviderTapped = 0;
-      var adminTapped = 0;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -503,12 +502,10 @@ void main() {
                     marketplaceEnabled: true,
                     auctionsEnabled: true,
                     dispatchEnabled: true,
-                    isAdmin: false,
                     onDestinationSelected: (_) {},
                     onWanted: () {},
                     onInsuranceHub: () => insuranceTapped += 1,
                     onInsuranceProviderApply: () => listProviderTapped += 1,
-                    onInsuranceAdmin: () => adminTapped += 1,
                   ),
                 ),
                 Expanded(
@@ -541,7 +538,6 @@ void main() {
 
       expect(insuranceTapped, 2);
       expect(listProviderTapped, 0);
-      expect(adminTapped, 0);
       expect(tester.takeException(), isNull);
     },
   );

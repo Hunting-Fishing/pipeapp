@@ -382,14 +382,13 @@ void main() {
   });
 
   testWidgets(
-      'Left sidebar grouped navigation exposes Search for Services, List Services, and Directory Admin controls',
+      'Left sidebar grouped navigation exposes Search for Services and List Services without mixing Directory Admin into customer nav',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(1280, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     var searchTapped = 0;
     var listTapped = 0;
-    var adminTapped = 0;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -402,12 +401,10 @@ void main() {
               marketplaceEnabled: true,
               auctionsEnabled: true,
               dispatchEnabled: true,
-              isAdmin: true,
               onDestinationSelected: (_) {},
               onWanted: () {},
               onSearchServices: () => searchTapped += 1,
               onListServices: () => listTapped += 1,
-              onYellowPagesAdmin: () => adminTapped += 1,
             ),
           ),
         ),
@@ -417,16 +414,16 @@ void main() {
     expect(find.text('SERVICES & DIRECTORY'), findsOneWidget);
     expect(find.text('Search for Services'), findsOneWidget);
     expect(find.text('List Services'), findsOneWidget);
-    expect(find.text('Directory Admin'), findsOneWidget);
+    expect(find.text('Directory Admin'), findsNothing);
+    expect(find.text('Insurance Admin'), findsNothing);
+    expect(find.text('Partner Admin'), findsNothing);
 
     await tester.tap(find.text('Search for Services'));
     await tester.tap(find.text('List Services'));
-    await tester.tap(find.text('Directory Admin'));
     await tester.pump();
 
     expect(searchTapped, 1);
     expect(listTapped, 1);
-    expect(adminTapped, 1);
     expect(tester.takeException(), isNull);
   });
 

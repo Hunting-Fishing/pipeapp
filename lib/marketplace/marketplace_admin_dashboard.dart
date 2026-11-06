@@ -8,6 +8,9 @@ import 'marketplace_admin_transaction_portal.dart';
 import 'marketplace_exp_realty.dart';
 import 'marketplace_navigation.dart';
 import 'marketplace_payment_readiness.dart';
+import 'marketplace_profile_tags.dart';
+import 'marketplace_reporting.dart';
+import 'marketplace_tax_compliance_admin_page.dart';
 
 class MarketplaceAdminDashboard extends StatefulWidget {
   const MarketplaceAdminDashboard({
@@ -95,7 +98,8 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           _auctionsEnabled = data['auctions'] as bool? ?? true;
           _dispatchEnabled = data['dispatch'] as bool? ?? true;
           _paidFeaturesEnabled = data['paidFeatures'] as bool? ?? false;
-          _regulatedListingsEnabled = data['regulatedListings'] as bool? ?? true;
+          _regulatedListingsEnabled =
+              data['regulatedListings'] as bool? ?? true;
         });
       }
     } catch (_) {}
@@ -142,6 +146,22 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             message: 'Save flags failed: $e', tone: PipeStatusTone.error);
       }
     }
+  }
+
+  void _switchToRegularUserView() {
+    setMarketplaceAdminViewAsUserMode(true);
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+    } else {
+      MarketplaceNavigation.goHome(context);
+    }
+    PipeFeedback.show(
+      context,
+      message:
+          'Viewing what everyone else sees. Open your account menu anytime to switch back to Admin.',
+      tone: PipeStatusTone.info,
+    );
   }
 
   @override
@@ -205,8 +225,16 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             ),
           ],
         ),
-        actions: MediaQuery.sizeOf(context).width >= 1080
+        actions: MediaQuery.sizeOf(context).width >= 1220
             ? [
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: OutlinedButton.icon(
+                    onPressed: _switchToRegularUserView,
+                    icon: const Icon(Icons.visibility_outlined, size: 18),
+                    label: const Text('View What Everyone Else Sees'),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: OutlinedButton.icon(
@@ -236,6 +264,11 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 ),
               ]
             : [
+                IconButton(
+                  tooltip: 'View what everyone else sees',
+                  onPressed: _switchToRegularUserView,
+                  icon: const Icon(Icons.visibility_outlined),
+                ),
                 IconButton(
                   tooltip: 'Partner With Us Queue',
                   onPressed: () =>
@@ -1754,6 +1787,43 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 ),
               ),
             ),
+            Card(
+              margin: const EdgeInsets.only(bottom: 14),
+              child: ListTile(
+                leading: const Icon(
+                  Icons.verified_user_outlined,
+                  color: Color(0xFF0878E8),
+                  size: 28,
+                ),
+                title: const Text(
+                  'Verification, Dispatch, Reports & Support Queues',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text(
+                  'Review seller identity verifications, carrier credentials, moderation cases, delivery alerts, and support tickets.',
+                ),
+                trailing: FilledButton.tonalIcon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => Scaffold(
+                        appBar: AppBar(
+                          title: const Text(
+                            'Moderation, Verification & Support Queues',
+                          ),
+                        ),
+                        body: const AdminModerationDashboard(),
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.open_in_new, size: 17),
+                  label: const Text('Open Queues'),
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 14),
+              child: MarketplaceTagModerationPanel(),
+            ),
             _explanationBanner(
               title: 'Trust & Safety Moderation Intake',
               explanation:
@@ -1840,6 +1910,55 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
           title: 'Admin Settings — Master Platform Command Center',
           explanation:
               'Full administrative control over live Marketplace modules, Real Estate & Business listings, eXp Realty & Licensed Realtor integration, Stripe & payout readiness, directories, and administrator roles.',
+        ),
+        const SizedBox(height: 16),
+        Card(
+          color: Colors.purple.shade50,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: Colors.purple.shade200),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 12,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'View What Everyone Else Sees (Regular User Preview)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15.5,
+                          color: Colors.purple.shade900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'All admin tools (Directory Admin, Insurance Admin, Partner Queue, Roles, Billing & eXp Realty) live exclusively inside this Admin Portal. Switch to Regular User View anytime to preview the exact Pipe Buyer interface seen by regular users.',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.purple.shade800,
+                  ),
+                  onPressed: _switchToRegularUserView,
+                  icon: const Icon(Icons.visibility_outlined, size: 18),
+                  label: const Text('View What Everyone Else Sees'),
+                ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: 16),
         Card(
@@ -1963,6 +2082,53 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => MarketplaceNavigation.openPartnerAdmin(context),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(
+                    Icons.gavel_outlined,
+                    color: Colors.deepOrange,
+                  ),
+                  title: const Text(
+                    'Tax & Exemption Compliance Admin',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Review seller tax registrations, exemption claims, and recovery holds.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const MarketplaceTaxComplianceAdminPage(),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(
+                    Icons.verified_user_outlined,
+                    color: Color(0xFF0878E8),
+                  ),
+                  title: const Text(
+                    'Verification, Dispatch & Support Queues',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Review account verifications, carrier credentials, reports, and support cases.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => Scaffold(
+                        appBar: AppBar(
+                          title: const Text(
+                            'Moderation, Verification & Support Queues',
+                          ),
+                        ),
+                        body: const AdminModerationDashboard(),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

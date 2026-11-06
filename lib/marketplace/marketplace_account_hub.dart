@@ -73,7 +73,8 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
   StreamSubscription<User?>? _adminTokenSubscription;
 
   bool get _isAdminUser =>
-      _adminState == MarketplaceAdministratorState.authorized;
+      _adminState == MarketplaceAdministratorState.authorized &&
+      !marketplaceAdminViewAsUserMode.value;
   int _adminCheckGeneration = 0;
 
   @override
@@ -87,9 +88,37 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     _tabs = TabController(length: 7, initialIndex: initialIndex, vsync: this);
     MarketplaceNavigation.accountSubTabRequests
         .addListener(_handleAccountSubTabRequest);
+    marketplaceAdminViewAsUserMode.addListener(_handleViewModeChanged);
     _adminTokenSubscription =
         FirebaseAuth.instance.idTokenChanges().listen((_) => _checkAdmin());
     _checkAdmin(forceRefresh: true);
+  }
+
+  void _handleViewModeChanged() {
+    if (!mounted) return;
+    _rebuildTabsForAdminVisibility(_adminState);
+  }
+
+  void _rebuildTabsForAdminVisibility(MarketplaceAdministratorState nextState) {
+    final shouldShowAdmin =
+        nextState == MarketplaceAdministratorState.authorized &&
+            !marketplaceAdminViewAsUserMode.value;
+    final nextLength = shouldShowAdmin ? 8 : 7;
+    if (_tabs.length == nextLength) {
+      setState(() => _adminState = nextState);
+      return;
+    }
+    final nextIndex = _tabs.index.clamp(0, nextLength - 1);
+    final oldTabs = _tabs;
+    setState(() {
+      _adminState = nextState;
+      _tabs = TabController(
+        length: nextLength,
+        initialIndex: nextIndex,
+        vsync: this,
+      );
+    });
+    oldTabs.dispose();
   }
 
   void _handleAccountSubTabRequest() {
@@ -110,32 +139,14 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
         state == _adminState) {
       return;
     }
-
-    final wasAuthorized = _isAdminUser;
-    final isAuthorized = state == MarketplaceAdministratorState.authorized;
-    if (wasAuthorized == isAuthorized) {
-      setState(() => _adminState = state);
-      return;
-    }
-
-    final nextLength = isAuthorized ? 8 : 7;
-    final nextIndex = _tabs.index.clamp(0, nextLength - 1);
-    final oldTabs = _tabs;
-    setState(() {
-      _adminState = state;
-      _tabs = TabController(
-        length: nextLength,
-        initialIndex: nextIndex,
-        vsync: this,
-      );
-    });
-    oldTabs.dispose();
+    _rebuildTabsForAdminVisibility(state);
   }
 
   @override
   void dispose() {
     MarketplaceNavigation.accountSubTabRequests
         .removeListener(_handleAccountSubTabRequest);
+    marketplaceAdminViewAsUserMode.removeListener(_handleViewModeChanged);
     _adminTokenSubscription?.cancel();
     _tabs.dispose();
     super.dispose();
@@ -185,7 +196,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
       ),
       Expanded(
           child: TabBarView(controller: _tabs, children: [
-        _Overview(onOpen: _tabs.animateTo, showAdminPortal: _isAdminUser),
+        _Overview(onOpen: _tabs.animateTo),
         const MarketplaceProfilePage(),
         const MarketplaceAccountSecurityPage(embedded: true),
         _MyListings(
@@ -207,9 +218,8 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
 }
 
 class _Overview extends StatelessWidget {
-  const _Overview({required this.onOpen, required this.showAdminPortal});
+  const _Overview({required this.onOpen});
   final ValueChanged<int> onOpen;
-  final bool showAdminPortal;
 
   @override
   Widget build(BuildContext context) {
@@ -232,57 +242,6 @@ class _Overview extends StatelessWidget {
           final userScore =
               ((data['userScore'] as num?)?.toInt() ?? 70).clamp(0, 100);
           return ListView(padding: const EdgeInsets.all(18), children: [
-            if (showAdminPortal) ...[
-              Card(
-                color: Colors.purple.shade900,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.stars, color: Colors.amber, size: 36),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'Administrator Portal active',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
-                                color: Colors.white,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Access revenue analytics, escrow overrides, bank accounts, merchant gateways & user controls.',
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.white70),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                            backgroundColor: Colors.amber.shade700),
-                        onPressed: () => onOpen(
-                            MarketplaceAccountHub.adminPortalTabIndex),
-                        icon: const Icon(Icons.launch,
-                            color: Colors.black, size: 16),
-                        label: const Text(
-                          'Open Admin Portal',
-                          style: TextStyle(
-                              color: Colors.black, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-            ],
             Text('Hello, ${user.displayName ?? user.email ?? 'seller'}',
                 style:
                     const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
@@ -357,33 +316,6 @@ class _Overview extends StatelessWidget {
                 onTap: () => launchUrl(
                     Uri.parse('https://www.pipebuyer.com/terms'),
                     mode: LaunchMode.externalApplication)),
-            if (showAdminPortal)
-              Card(
-                color: Colors.purple.shade50,
-                margin: const EdgeInsets.only(top: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.purple.shade200),
-                ),
-                child: ListTile(
-                  leading: Icon(Icons.admin_panel_settings,
-                      color: Colors.purple.shade800, size: 26),
-                  title: Text(
-                    'Administrator Portal',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple.shade900),
-                  ),
-                  subtitle: const Text(
-                      'Analytics, Escrow Overrides, Banking Setup, Users, Moderation & Config.'),
-                  trailing:
-                      const Icon(Icons.chevron_right, color: Colors.purple),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const MarketplaceAdminDashboard()),
-                  ),
-                ),
-              ),
           ]);
         });
   }
@@ -1146,7 +1078,8 @@ class _OwnerListingDetailsState extends State<_OwnerListingDetails> {
                     fallback: const SizedBox(
                         height: 210,
                         child: Center(
-                            child: Icon(Icons.inventory_2_outlined, size: 42))))),
+                            child:
+                                Icon(Icons.inventory_2_outlined, size: 42))))),
           const SizedBox(height: 14),
           Row(children: [
             Chip(
@@ -3201,10 +3134,13 @@ class _AccountSettingsState extends State<_AccountSettings> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => const MarketplacePayoutSettingsPage()))),
-      _AdministratorAccessCard(
-        state: widget.adminState,
-        onRefresh: widget.onRefreshAdmin,
-      ),
+      if ((widget.adminState == MarketplaceAdministratorState.authorized &&
+              !marketplaceAdminViewAsUserMode.value) ||
+          widget.adminState == MarketplaceAdministratorState.mfaRequired)
+        _AdministratorAccessCard(
+          state: widget.adminState,
+          onRefresh: widget.onRefreshAdmin,
+        ),
       const ExpRealtyAccountApplicationCard(),
       ListTile(
           leading: const Icon(Icons.lock_reset_outlined),
