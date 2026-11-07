@@ -108,6 +108,7 @@ class PipeBuyerShopSettings {
     this.priceDisclaimerText =
         'Product prices and availability are accurate as of the time shown on the partner site and are subject to change.',
     this.hiddenStarterIds = const <String>[],
+    this.adminNotificationEmails = const <String>[],
   });
 
   final bool storeEnabled;
@@ -129,6 +130,7 @@ class PipeBuyerShopSettings {
   final String disclosureText;
   final String priceDisclaimerText;
   final List<String> hiddenStarterIds;
+  final List<String> adminNotificationEmails;
 
   factory PipeBuyerShopSettings.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const PipeBuyerShopSettings();
@@ -146,6 +148,14 @@ class PipeBuyerShopSettings {
             .toList(growable: false)
         : const <String>[];
 
+    final rawAdminEmails = json['adminNotificationEmails'];
+    final adminEmails = rawAdminEmails is Iterable
+        ? rawAdminEmails
+            .map((e) => e?.toString().trim().toLowerCase() ?? '')
+            .where((e) => e.contains('@') && e.contains('.'))
+            .toList(growable: false)
+        : const <String>[];
+
     return PipeBuyerShopSettings(
       storeEnabled: json['storeEnabled'] is bool
           ? json['storeEnabled'] as bool
@@ -153,8 +163,10 @@ class PipeBuyerShopSettings {
       vendorApplicationsOpen: json['vendorApplicationsOpen'] is bool
           ? json['vendorApplicationsOpen'] as bool
           : defaults.vendorApplicationsOpen,
-      amazonAssociateTagUs:
-          str('amazonAssociateTagUs', defaults.amazonAssociateTagUs),
+      amazonAssociateTagUs: str(
+        'amazonAssociateTagUs',
+        defaults.amazonAssociateTagUs,
+      ),
       amazonAssociateTagCa: json.containsKey('amazonAssociateTagCa')
           ? (json['amazonAssociateTagCa']?.toString().trim() ?? '')
           : defaults.amazonAssociateTagCa,
@@ -178,9 +190,12 @@ class PipeBuyerShopSettings {
       defaultUtmSource: str('defaultUtmSource', defaults.defaultUtmSource),
       defaultUtmMedium: str('defaultUtmMedium', defaults.defaultUtmMedium),
       disclosureText: str('disclosureText', defaults.disclosureText),
-      priceDisclaimerText:
-          str('priceDisclaimerText', defaults.priceDisclaimerText),
+      priceDisclaimerText: str(
+        'priceDisclaimerText',
+        defaults.priceDisclaimerText,
+      ),
       hiddenStarterIds: hiddenIds,
+      adminNotificationEmails: adminEmails,
     );
   }
 
@@ -204,6 +219,7 @@ class PipeBuyerShopSettings {
         'disclosureText': disclosureText,
         'priceDisclaimerText': priceDisclaimerText,
         'hiddenStarterIds': hiddenStarterIds,
+        'adminNotificationEmails': adminNotificationEmails,
       };
 }
 
@@ -384,8 +400,9 @@ class PipeBuyerShopProduct {
       title: json['title']?.toString().trim() ?? 'Industrial Product',
       brand: json['brand']?.toString().trim() ?? 'Industrial Select',
       vendorName: json['vendorName']?.toString().trim() ?? 'Amazon',
-      sourceType:
-          PipeBuyerShopSourceType.fromCode(json['sourceType']?.toString()),
+      sourceType: PipeBuyerShopSourceType.fromCode(
+        json['sourceType']?.toString(),
+      ),
       categoryCode: cat != null ? catCode : 'pipe_welding_fab',
       destinationUrl: json['destinationUrl']?.toString().trim() ?? '',
       destinationUrlCa: json['destinationUrlCa']?.toString().trim() ?? '',
@@ -678,8 +695,11 @@ abstract final class PipeBuyerShopUrlBuilder {
     if (_hostMatches(h, const <String>['shopee.tw', 's.shopee.tw'])) {
       return const <String>['TW'];
     }
-    if (_hostMatches(h,
-        const <String>['shopee.com.br', 's.shopee.com.br', 'amazon.com.br'])) {
+    if (_hostMatches(h, const <String>[
+      'shopee.com.br',
+      's.shopee.com.br',
+      'amazon.com.br',
+    ])) {
       return const <String>['BR'];
     }
     if (_hostMatches(h, const <String>['shopee.com.mx', 'amazon.com.mx'])) {
@@ -697,8 +717,12 @@ abstract final class PipeBuyerShopUrlBuilder {
     if (_hostMatches(h, const <String>['amazon.sa'])) {
       return const <String>['SA'];
     }
-    if (_hostMatches(h,
-        const <String>['amazon.de', 'amazon.fr', 'amazon.it', 'amazon.es'])) {
+    if (_hostMatches(h, const <String>[
+      'amazon.de',
+      'amazon.fr',
+      'amazon.it',
+      'amazon.es',
+    ])) {
       return const <String>['EU'];
     }
     if (_hostMatches(h, const <String>['amazon.co.jp'])) {
@@ -756,8 +780,12 @@ abstract final class PipeBuyerShopUrlBuilder {
     ])) {
       return const <String>['GLOBAL'];
     }
-    if (_hostMatches(
-        h, const <String>['shope.ee', 'shp.ee', 'shopee.com', 'lazada.com'])) {
+    if (_hostMatches(h, const <String>[
+      'shope.ee',
+      'shp.ee',
+      'shopee.com',
+      'lazada.com',
+    ])) {
       return const <String>['PH', 'SG', 'MY', 'TH', 'ID', 'VN'];
     }
     if (_isAmazonShortHost(h) ||
@@ -828,8 +856,11 @@ abstract final class PipeBuyerShopUrlBuilder {
         isShortLink: true,
       );
     }
-    if (_hostMatches(h,
-        const <String>['aliexpress.com', 'aliexpress.us', 'aliexpress.ru'])) {
+    if (_hostMatches(h, const <String>[
+      'aliexpress.com',
+      'aliexpress.us',
+      'aliexpress.ru',
+    ])) {
       return (
         platformId: 'aliexpress_portals',
         platformName: 'AliExpress',
@@ -929,8 +960,11 @@ abstract final class PipeBuyerShopUrlBuilder {
         isShortLink: isEbayShort,
       );
     }
-    if (_hostMatches(
-        h, const <String>['walmart.com', 'walmart.ca', 'goto.walmart.com'])) {
+    if (_hostMatches(h, const <String>[
+      'walmart.com',
+      'walmart.ca',
+      'goto.walmart.com',
+    ])) {
       return (
         platformId: 'walmart_affiliate',
         platformName: 'Walmart',
@@ -948,8 +982,11 @@ abstract final class PipeBuyerShopUrlBuilder {
         isShortLink: h == 'temu.to' || h.endsWith('.temu.to'),
       );
     }
-    if (_hostMatches(
-        h, const <String>['tiktok.com', 'vt.tiktok.com', 'vm.tiktok.com'])) {
+    if (_hostMatches(h, const <String>[
+      'tiktok.com',
+      'vt.tiktok.com',
+      'vm.tiktok.com',
+    ])) {
       return (
         platformId: 'tiktok_shop_affiliate',
         platformName: 'TikTok Shop',
@@ -962,7 +999,7 @@ abstract final class PipeBuyerShopUrlBuilder {
       'alibaba.com',
       's.click.alibaba.com',
       'dhgate.com',
-      'dhg.to'
+      'dhg.to',
     ])) {
       final dhgate = h.contains('dhg');
       return (
@@ -1039,7 +1076,9 @@ abstract final class PipeBuyerShopUrlBuilder {
   }
 
   static String _resolveTagForHost(
-      String host, PipeBuyerShopSettings settings) {
+    String host,
+    PipeBuyerShopSettings settings,
+  ) {
     final h = host.toLowerCase();
     if (h == 'amazon.ca' || h.endsWith('.amazon.ca')) {
       return settings.amazonAssociateTagCa.isNotEmpty
@@ -1153,9 +1192,10 @@ abstract final class PipeBuyerShopUrlBuilder {
 
     if (detected.platformId == 'shopee_affiliate' ||
         product.sourceType == PipeBuyerShopSourceType.shopeeAffiliate) {
-      final rawSub = settings.shopeeAffiliateSubId
-          .trim()
-          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+      final rawSub = settings.shopeeAffiliateSubId.trim().replaceAll(
+            RegExp(r'[^a-zA-Z0-9]'),
+            '',
+          );
       if (rawSub.isNotEmpty && !params.containsKey('sub_id')) {
         params['sub_id'] = rawSub;
       }
@@ -1331,8 +1371,8 @@ abstract final class PipeBuyerShopUrlBuilder {
     switch (categoryCode) {
       case 'pipe_welding_fab':
         if (RegExp(
-                r'\b(pipe wrench|straight wrench|chain tong|tristand|chain vise)\b')
-            .hasMatch(lower)) {
+          r'\b(pipe wrench|straight wrench|chain tong|tristand|chain vise)\b',
+        ).hasMatch(lower)) {
           return 'Pipe Wrenches, Chain Tongs & Vises';
         }
         if (RegExp(r'\b(threader|threading|bevel|pipe cutter|roll groov)\b')
@@ -1340,13 +1380,13 @@ abstract final class PipeBuyerShopUrlBuilder {
           return 'Pipe Cutting, Threading & Beveling';
         }
         if (RegExp(
-                r'\b(two[- ]hole|flange pin|alignment|pipe jack|fit[- ]up)\b')
-            .hasMatch(lower)) {
+          r'\b(two[- ]hole|flange pin|alignment|pipe jack|fit[- ]up)\b',
+        ).hasMatch(lower)) {
           return 'Pipe Alignment, Jacks & Fit-Up Tools';
         }
         if (RegExp(
-                r'\b(welding rod|electrode|7018|6010|mig wire|flap disc|grinding wheel)\b')
-            .hasMatch(lower)) {
+          r'\b(welding rod|electrode|7018|6010|mig wire|flap disc|grinding wheel)\b',
+        ).hasMatch(lower)) {
           return 'Welding Rods, Wire & Abrasives';
         }
         if (RegExp(r'\b(valve|gasket|thread sealant|teflon|pipe fitting)\b')
@@ -1354,8 +1394,8 @@ abstract final class PipeBuyerShopUrlBuilder {
           return 'Valves, Pipe Fittings, Flanges & Sealants';
         }
         if (RegExp(
-                r'\b(welding helmet|viking|welder|tig|mig|torch|electrode holder)\b')
-            .hasMatch(lower)) {
+          r'\b(welding helmet|viking|welder|tig|mig|torch|electrode holder)\b',
+        ).hasMatch(lower)) {
           return 'Welding Machines, Leads & Torches';
         }
         return fallback;
@@ -1379,8 +1419,8 @@ abstract final class PipeBuyerShopUrlBuilder {
         return fallback;
       case 'rigging_hauling_cargo':
         if (RegExp(
-                r'\b(grade 70|grade 100|binder chain|transport chain|load binder|ratchet binder|chain binder)\b')
-            .hasMatch(lower)) {
+          r'\b(grade 70|grade 100|binder chain|transport chain|load binder|ratchet binder|chain binder)\b',
+        ).hasMatch(lower)) {
           return 'Grade 70/100 Chains & Load Binders';
         }
         if (RegExp(r'\b(shackle|clevis|swivel|eye bolt|grab hook)\b')
@@ -1399,8 +1439,8 @@ abstract final class PipeBuyerShopUrlBuilder {
         return fallback;
       case 'ppe_fr_safety':
         if (RegExp(
-                r'\b(h2s|4[- ]gas|multi[- ]gas|gas detector|gas monitor|microclip|clip4|respirator)\b')
-            .hasMatch(lower)) {
+          r'\b(h2s|4[- ]gas|multi[- ]gas|gas detector|gas monitor|microclip|clip4|respirator)\b',
+        ).hasMatch(lower)) {
           return 'H2S / 4-Gas Monitors & Respiratory';
         }
         if (RegExp(r'\b(glove|rig lizard|cut[- ]resistant)\b')
@@ -1487,9 +1527,10 @@ abstract final class PipeBuyerShopUrlBuilder {
           .replaceFirst(RegExp(r'\.html?$', caseSensitive: false), '')
           .replaceFirst(RegExp(r'-i\.\d+\.\d+$', caseSensitive: false), '')
           .replaceFirst(RegExp(r'-s\d+$', caseSensitive: false), '');
-      if (RegExp(r'^(?:dp|gp|product|products|item|itm|ip|p|e|s|d|c)$',
-              caseSensitive: false)
-          .hasMatch(cleaned)) {
+      if (RegExp(
+        r'^(?:dp|gp|product|products|item|itm|ip|p|e|s|d|c)$',
+        caseSensitive: false,
+      ).hasMatch(cleaned)) {
         continue;
       }
       if (RegExp(r'^\d{6,}$').hasMatch(cleaned)) continue;
@@ -1543,10 +1584,16 @@ abstract final class PipeBuyerShopUrlBuilder {
         isShortLink: false,
         embeddedAssociateTag: '',
         effectiveAssociateTag: settings.amazonAssociateTagUs.trim(),
-        monetizedPreviewUs:
-            buildMonetizedUrl(draft, settings, regionCode: 'US'),
-        monetizedPreviewCa:
-            buildMonetizedUrl(draft, settings, regionCode: 'CA'),
+        monetizedPreviewUs: buildMonetizedUrl(
+          draft,
+          settings,
+          regionCode: 'US',
+        ),
+        monetizedPreviewCa: buildMonetizedUrl(
+          draft,
+          settings,
+          regionCode: 'CA',
+        ),
       );
     }
 
@@ -1656,9 +1703,12 @@ abstract final class PipeBuyerShopUrlBuilder {
         : (surroundingText.isNotEmpty
             ? surroundingText
             : (slugTitle.isNotEmpty ? slugTitle : searchKeywordHint));
-    final hintText = [suggestedTitle, slugTitle, searchKeywordHint, uri.path]
-        .where((s) => s.isNotEmpty)
-        .join(' ');
+    final hintText = [
+      suggestedTitle,
+      slugTitle,
+      searchKeywordHint,
+      uri.path,
+    ].where((s) => s.isNotEmpty).join(' ');
     final suggestedBrand = inferBrand(hintText);
     final suggestedCategory = inferCategoryCode(hintText);
     final suggestedSubcategory = inferSubcategory(hintText, suggestedCategory);
@@ -1879,8 +1929,9 @@ class PipeBuyerParsedAffiliateSubmission {
     return PipeBuyerParsedAffiliateSubmission(
       destinationUrl: json['destinationUrl']?.toString().trim() ?? '',
       asin: json['asin']?.toString().trim() ?? '',
-      sourceType:
-          PipeBuyerShopSourceType.fromCode(json['sourceType']?.toString()),
+      sourceType: PipeBuyerShopSourceType.fromCode(
+        json['sourceType']?.toString(),
+      ),
       platformName: json['platformName']?.toString().trim() ?? 'Partner',
       suggestedVendorName:
           json['suggestedVendorName']?.toString().trim() ?? 'Partner Store',
@@ -2101,7 +2152,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'amazon.com',
         'amazon.ca',
         'amazon.sg',
-        'amzn.to'
+        'amzn.to',
       ],
     ),
     PipeBuyerAffiliatePlatformInfo(
@@ -2134,7 +2185,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'shopee.ph',
         'shopee.sg',
         'shopee.com.my',
-        'shope.ee'
+        'shope.ee',
       ],
     ),
     PipeBuyerAffiliatePlatformInfo(
@@ -2153,7 +2204,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'lazada.com.ph',
         'lazada.sg',
         'lazada.com.my',
-        's.lazada.com.ph'
+        's.lazada.com.ph',
       ],
     ),
     PipeBuyerAffiliatePlatformInfo(
@@ -2225,7 +2276,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'acmetools.com',
         'northerntool.com',
         'zoro.com',
-        'tractorsupply.com'
+        'tractorsupply.com',
       ],
     ),
     PipeBuyerAffiliatePlatformInfo(
@@ -2270,7 +2321,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'temu.com',
         'temu.to',
         'tiktok.com',
-        'vt.tiktok.com'
+        'vt.tiktok.com',
       ],
     ),
     PipeBuyerAffiliatePlatformInfo(
@@ -2287,7 +2338,7 @@ abstract final class PipeBuyerShopTaxonomy {
       sampleDomains: <String>[
         'alibaba.com',
         's.click.alibaba.com',
-        'dhgate.com'
+        'dhgate.com',
       ],
     ),
     PipeBuyerAffiliatePlatformInfo(
@@ -2307,7 +2358,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'sjv.io',
         'shrsl.com',
         'awin1.com',
-        'partnerstack.com'
+        'partnerstack.com',
       ],
     ),
   ];
@@ -2505,6 +2556,211 @@ abstract final class PipeBuyerShopTaxonomy {
     return null;
   }
 
+  static const List<PipeBuyerShopCategory> vendorApplicationExtraCategories =
+      <PipeBuyerShopCategory>[
+    PipeBuyerShopCategory(
+      code: 'heavy_equipment_oem',
+      label: 'Heavy Equipment, Tractors, Pipelayers & Dozers',
+      shortLabel: 'Heavy Equipment & Tractors',
+      subtitle:
+          'Excavators, pipelayers, dozers, skid steers, telehandlers & authorized OEM dealer fleets.',
+      icon: Icons.agriculture_outlined,
+      iconAsset: 'assets/images/logo_transparent.png',
+      accentColor: Color(0xFFD97706),
+      marketplaceCategories: <String>['Heavy Equipment'],
+    ),
+    PipeBuyerShopCategory(
+      code: 'oem_parts_undercarriage',
+      label: 'OEM Replacement Parts, Undercarriage & Attachments',
+      shortLabel: 'OEM Parts & Attachments',
+      subtitle:
+          'Buckets, hydraulic hammers, augers, tracks, undercarriage, filters & genuine OEM wear parts.',
+      icon: Icons.settings_suggest_outlined,
+      iconAsset: 'assets/images/logo_transparent.png',
+      accentColor: Color(0xFF0F766E),
+      marketplaceCategories: <String>['Heavy Equipment'],
+    ),
+    PipeBuyerShopCategory(
+      code: 'diagnostic_service_truck',
+      label: 'Pro Diagnostics, Torque & Mechanics Service Truck Gear',
+      shortLabel: 'Diagnostics & Service Truck',
+      subtitle:
+          'Heavy-duty diesel diagnostics, calibrated torque systems, master mechanics chests & field service tooling.',
+      icon: Icons.build_circle_outlined,
+      iconAsset: 'assets/images/logo_transparent.png',
+      accentColor: Color(0xFFB91C1C),
+      marketplaceCategories: <String>[
+        'Heavy Equipment',
+        'Transport & Hauling',
+      ],
+    ),
+  ];
+
+  static List<PipeBuyerShopCategory> get allVendorApplicationCategories =>
+      <PipeBuyerShopCategory>[
+        ...vendorApplicationExtraCategories,
+        ...categories,
+      ];
+
+  static String vendorCategoryLabel(String code) {
+    final clean = code.trim();
+    for (final cat in allVendorApplicationCategories) {
+      if (cat.code == clean) return cat.shortLabel;
+    }
+    return clean;
+  }
+
+  static const List<
+          ({String code, String title, String subtitle, IconData icon})>
+      vendorPartnershipTracks =
+      <({String code, String title, String subtitle, IconData icon})>[
+    (
+      code: 'oem_heavy_equipment_dealer',
+      title: 'Heavy Equipment OEM / Dealer',
+      subtitle:
+          'Excavators, pipelayers, dozers & dealer fleets (e.g., Caterpillar, Brandt Tractor, John Deere, Komatsu)',
+      icon: Icons.agriculture_outlined,
+    ),
+    (
+      code: 'brand_manufacturer',
+      title: 'Tool & Industrial Brand / OEM',
+      subtitle:
+          'Power tools, diagnostics, welding & industrial OEMs (e.g., Milwaukee, Snap-on, RIDGID, Lincoln Electric)',
+      icon: Icons.precision_manufacturing_outlined,
+    ),
+    (
+      code: 'industrial_distributor',
+      title: 'Authorized Distributor',
+      subtitle:
+          'Regional or national industrial, rigging, welding & oilfield supply houses',
+      icon: Icons.warehouse_outlined,
+    ),
+    (
+      code: 'verified_business_vendor',
+      title: 'Business Vendor Storefront',
+      subtitle:
+          'Businesses selling tools, fabricated parts, consumables, or shop kits',
+      icon: Icons.storefront_outlined,
+    ),
+    (
+      code: 'affiliate_network_partner',
+      title: 'Affiliate / Catalog Feed Partner',
+      subtitle:
+          'Impact, CJ, AvantLink, Rakuten, or automated dealer/SKU catalog feed',
+      icon: Icons.hub_outlined,
+    ),
+  ];
+
+  static const List<({String code, String label, String subtitle})>
+      vendorRequestedPlacements =
+      <({String code, String label, String subtitle})>[
+    (
+      code: 'shop_storefront',
+      label: 'Pipe Buyer Storefront Catalog',
+      subtitle: 'Dedicated product cards in the main Tools & Gear Store',
+    ),
+    (
+      code: 'heavy_equipment_listings',
+      label: 'Heavy Equipment & Dealer Showcase',
+      subtitle: 'Equipment, tractors, attachments & dealer quote links',
+    ),
+    (
+      code: 'brand_spotlight_deals',
+      label: 'Featured Brand Spotlight & Fleet Deals',
+      subtitle: 'Top-of-page brand banner & contractor fleet promos',
+    ),
+    (
+      code: 'contextual_recommendations',
+      label: 'Contextual In-Listing Gear Placement',
+      subtitle: 'Matched alongside relevant pipe, hauling & oilfield listings',
+    ),
+  ];
+
+  static const List<({String code, String label})> vendorAuthorizationLevels =
+      <({String code, String label})>[
+    (code: 'oem_direct', label: 'Direct Manufacturer / Brand Owner (OEM)'),
+    (
+      code: 'authorized_dealer',
+      label: 'Factory-Authorized Dealer / Territory Franchise',
+    ),
+    (
+      code: 'national_distributor',
+      label: 'Regional / National Authorized Distributor',
+    ),
+    (
+      code: 'reseller_affiliate',
+      label: 'Verified Industrial Reseller / Affiliate Partner',
+    ),
+  ];
+
+  static const List<({String code, String label})> vendorIntegrationMethods =
+      <({String code, String label})>[
+    (
+      code: 'direct_dealer_link',
+      label: 'Direct Product / Dealer Quote Links',
+    ),
+    (code: 'csv_spreadsheet', label: 'Spreadsheet / CSV Catalog Import'),
+    (
+      code: 'api_xml_feed',
+      label: 'Automated XML / JSON / Dealer Inventory Feed',
+    ),
+    (
+      code: 'manual_curated',
+      label: 'Curated Featured Lineup with Pipe Buyer Team',
+    ),
+    (
+      code: 'affiliate_network',
+      label: 'Affiliate Network Feed (Impact / CJ / Amazon / eBay)',
+    ),
+  ];
+
+  static const List<String> popularPartnerBrandSuggestions = <String>[
+    'Caterpillar',
+    'Brandt Tractor',
+    'Milwaukee',
+    'Snap-on',
+    'RIDGID',
+    'Lincoln Electric',
+    'John Deere',
+    'Komatsu',
+    'Miller',
+    'DeWalt',
+    'Crosby',
+    'Enerpac',
+  ];
+
+  static String vendorTrackLabel(String? raw) {
+    final code = (raw ?? '').trim();
+    for (final t in vendorPartnershipTracks) {
+      if (t.code == code) return t.title;
+    }
+    return code.isEmpty ? 'Authorized Partner' : code;
+  }
+
+  static String vendorAuthLevelLabel(String? raw) {
+    final code = (raw ?? '').trim();
+    for (final item in vendorAuthorizationLevels) {
+      if (item.code == code) return item.label;
+    }
+    return code;
+  }
+
+  static String vendorPlacementLabel(String? raw) {
+    final code = (raw ?? '').trim();
+    for (final item in vendorRequestedPlacements) {
+      if (item.code == code) return item.label;
+    }
+    return code;
+  }
+
+  static String vendorIntegrationLabel(String? raw) {
+    final code = (raw ?? '').trim();
+    for (final item in vendorIntegrationMethods) {
+      if (item.code == code) return item.label;
+    }
+    return code;
+  }
+
   static PipeBuyerShopCategory categoryForMarketplaceCategory(
     String marketplaceCategory,
   ) {
@@ -2610,18 +2866,9 @@ abstract final class PipeBuyerShopTaxonomy {
         'Lightweight forged aluminum housing',
         'Replaceable alloy steel hook & heel jaws',
       ],
-      tags: <String>[
-        'ridgid',
-        'pipe wrench',
-        'tubular',
-        'casing',
-        'plumbing',
-      ],
+      tags: <String>['ridgid', 'pipe wrench', 'tubular', 'casing', 'plumbing'],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Pipe',
-        'Oilfield Equipment',
-      ],
+      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2658,10 +2905,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'pipefitting',
       ],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Pipe',
-        'Oilfield Equipment',
-      ],
+      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
       fallbackIconAsset:
           'assets/images/industrial_icons/17-pipe-and-materials/11-pipe-threading-equipment.svg',
       isStarterSeed: true,
@@ -2690,18 +2934,9 @@ abstract final class PipeBuyerShopTaxonomy {
         '40% lighter than cast-iron equivalents',
         'Self-cleaning hook jaw threads',
       ],
-      tags: <String>[
-        'ridgid',
-        'pipe wrench',
-        '10 inch',
-        'manifold',
-        'tubing',
-      ],
+      tags: <String>['ridgid', 'pipe wrench', '10 inch', 'manifold', 'tubing'],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Pipe',
-        'Oilfield Equipment',
-      ],
+      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2730,17 +2965,9 @@ abstract final class PipeBuyerShopTaxonomy {
         'Forged aluminum housing',
         'Replaceable hardened alloy jaws',
       ],
-      tags: <String>[
-        'ridgid',
-        'pipe wrench',
-        '14 inch',
-        'pipefitter',
-      ],
+      tags: <String>['ridgid', 'pipe wrench', '14 inch', 'pipefitter'],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Pipe',
-        'Oilfield Equipment',
-      ],
+      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2777,10 +3004,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'flowline',
       ],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Pipe',
-        'Oilfield Equipment',
-      ],
+      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2817,10 +3041,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'flowline',
       ],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Pipe',
-        'Oilfield Equipment',
-      ],
+      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2849,18 +3070,9 @@ abstract final class PipeBuyerShopTaxonomy {
         '18.5 lb aluminum housing saves crew backs',
         'Heavy-duty replaceable heel jaw',
       ],
-      tags: <String>[
-        'ridgid',
-        'pipe wrench',
-        '48 inch',
-        'casing',
-        'header',
-      ],
+      tags: <String>['ridgid', 'pipe wrench', '48 inch', 'casing', 'header'],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Pipe',
-        'Oilfield Equipment',
-      ],
+      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2897,10 +3109,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'rig floor',
       ],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Pipe',
-        'Oilfield Equipment',
-      ],
+      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2967,16 +3176,9 @@ abstract final class PipeBuyerShopTaxonomy {
         'ACME threads for rapid self-centering',
         'Rare-earth magnetic grooved pipe vial level',
       ],
-      tags: <String>[
-        'flange',
-        'pipefitter',
-        'alignment pins',
-        'valves',
-      ],
+      tags: <String>['flange', 'pipefitter', 'alignment pins', 'valves'],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Pipe',
-      ],
+      marketplaceCategories: <String>['Pipe'],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/04-pipe-flange.svg',
       isStarterSeed: true,
@@ -3049,17 +3251,9 @@ abstract final class PipeBuyerShopTaxonomy {
         'Variable speed dial + tool-free shoe adjustment',
         'LED cut-line worklight & integrated hang hook',
       ],
-      tags: <String>[
-        'milwaukee',
-        'bandsaw',
-        'pipe cutting',
-        'm18 fuel',
-      ],
+      tags: <String>['milwaukee', 'bandsaw', 'pipe cutting', 'm18 fuel'],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Pipe',
-        'Oilfield Equipment',
-      ],
+      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -3088,12 +3282,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'No-lock paddle switch required on major sites',
         'Electronic clutch for kickback protection',
       ],
-      tags: <String>[
-        'milwaukee',
-        'grinder',
-        'pipe beveling',
-        'welding prep',
-      ],
+      tags: <String>['milwaukee', 'grinder', 'pipe beveling', 'welding prep'],
       eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Pipe',
@@ -3128,18 +3317,9 @@ abstract final class PipeBuyerShopTaxonomy {
         'Black oxide oil-resistant coating',
         'Heavy-duty stackable service truck case',
       ],
-      tags: <String>[
-        'dewalt',
-        'impact sockets',
-        'sae',
-        'metric',
-        'mechanic',
-      ],
+      tags: <String>['dewalt', 'impact sockets', 'sae', 'metric', 'mechanic'],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Heavy Equipment',
-        'Transport & Hauling',
-      ],
+      marketplaceCategories: <String>['Heavy Equipment', 'Transport & Hauling'],
       fallbackIconAsset:
           'assets/images/industrial_icons/09-software-and-administration/04-maintenance-tools.svg',
       isStarterSeed: true,
@@ -3219,10 +3399,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'dispatch',
       ],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Transport & Hauling',
-        'Heavy Equipment',
-      ],
+      marketplaceCategories: <String>['Transport & Hauling', 'Heavy Equipment'],
       fallbackIconAsset:
           'assets/images/industrial_icons/11-heavy-haul-and-escort/01-lowboy-trailer.svg',
       isStarterSeed: true,
@@ -3250,13 +3427,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'Hot-dip galvanized fatigue-rated body',
         'Forged in North America / ASME B30.26 compliant',
       ],
-      tags: <String>[
-        'crosby',
-        'shackle',
-        'rigging',
-        'crane',
-        'lifting',
-      ],
+      tags: <String>['crosby', 'shackle', 'rigging', 'crane', 'lifting'],
       eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Transport & Hauling',
@@ -3292,13 +3463,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'IP68 waterproof / Class I, Div 1 intrinsically safe',
         '95 dB alarm + high-output strobe + vibration alert',
       ],
-      tags: <String>[
-        'h2s monitor',
-        '4 gas',
-        'ppe',
-        'wellsite',
-        'tank entry',
-      ],
+      tags: <String>['h2s monitor', '4 gas', 'ppe', 'wellsite', 'tank entry'],
       eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Oilfield Equipment',
@@ -3340,10 +3505,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'oilfield',
       ],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Oilfield Equipment',
-        'Pipe',
-      ],
+      marketplaceCategories: <String>['Oilfield Equipment', 'Pipe'],
       fallbackIconAsset:
           'assets/images/industrial_icons/08-safety-and-security/06-safety-hardhat.svg',
       isStarterSeed: true,
@@ -3371,12 +3533,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'ANSI A6 cut-resistant liner for sharp pipe burrs',
         'Hi-vis colors for hand-signal visibility',
       ],
-      tags: <String>[
-        'impact gloves',
-        'rigger gloves',
-        'ppe',
-        'pipe handling',
-      ],
+      tags: <String>['impact gloves', 'rigger gloves', 'ppe', 'pipe handling'],
       eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Pipe',
@@ -3491,12 +3648,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'Explosion-proof UL/cUL listed 1/4 HP motor',
         '2-inch bung mount for truck slip tanks & drums',
       ],
-      tags: <String>[
-        'fill-rite',
-        'diesel pump',
-        'slip tank',
-        'fuel tank',
-      ],
+      tags: <String>['fill-rite', 'diesel pump', 'slip tank', 'fuel tank'],
       eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Tanks & Containers',
@@ -3531,18 +3683,9 @@ abstract final class PipeBuyerShopTaxonomy {
         'Spark-proof clamps + reverse polarity protection',
         'Built-in digital voltmeter & 500-lumen worklight',
       ],
-      tags: <String>[
-        'noco',
-        'jump starter',
-        'diesel',
-        'winter',
-        'fleet',
-      ],
+      tags: <String>['noco', 'jump starter', 'diesel', 'winter', 'fleet'],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Heavy Equipment',
-        'Transport & Hauling',
-      ],
+      marketplaceCategories: <String>['Heavy Equipment', 'Transport & Hauling'],
       fallbackIconAsset:
           'assets/images/industrial_icons/05-commercial-vehicles/04-pickup-flatbed-truck.svg',
       isStarterSeed: true,
@@ -3614,12 +3757,7 @@ abstract final class PipeBuyerShopTaxonomy {
         '4-way forklift skid bolsters for fast yard loading',
         'EZ-Loader anti-tip skid design',
       ],
-      tags: <String>[
-        'jobox',
-        'gang box',
-        'tool storage',
-        'yard security',
-      ],
+      tags: <String>['jobox', 'gang box', 'tool storage', 'yard security'],
       eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Portable Buildings',
@@ -3701,10 +3839,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'inspection',
       ],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Pipe',
-        'Oilfield Equipment',
-      ],
+      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
       fallbackIconAsset:
           'assets/images/industrial_icons/17-pipe-and-materials/05-generic-fittings-assortment.svg',
       isStarterSeed: true,
@@ -3743,10 +3878,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'corral',
       ],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Farm & Ranch',
-        'Pipe',
-      ],
+      marketplaceCategories: <String>['Farm & Ranch', 'Pipe'],
       fallbackIconAsset:
           'assets/images/industrial_icons/18-farm-ranch-listings/04-fence-post.svg',
       isStarterSeed: true,
@@ -3775,17 +3907,9 @@ abstract final class PipeBuyerShopTaxonomy {
         'Built-in grease zerk fitting for smooth swing',
         'Uncoated mild steel welds cleanly to drill pipe',
       ],
-      tags: <String>[
-        'weld on hinges',
-        'pipe gate',
-        'corral',
-        'ranch gate',
-      ],
+      tags: <String>['weld on hinges', 'pipe gate', 'corral', 'ranch gate'],
       eligibleCountries: <String>['US', 'CA'],
-      marketplaceCategories: <String>[
-        'Farm & Ranch',
-        'Pipe',
-      ],
+      marketplaceCategories: <String>['Farm & Ranch', 'Pipe'],
       fallbackIconAsset:
           'assets/images/industrial_icons/12-farm-and-ranch/08-ranch-gate.svg',
       isStarterSeed: true,

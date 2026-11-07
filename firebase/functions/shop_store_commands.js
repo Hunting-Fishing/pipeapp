@@ -1,5 +1,6 @@
 "use strict";
 
+const crypto = require("node:crypto");
 const {HttpsError} = require("firebase-functions/v2/https");
 const {
   AdministratorAuthorizationError,
@@ -10,6 +11,7 @@ const {
   requireAuthenticatedIdentity,
 } = require("./account_security");
 const {enforceUserRateLimit} = require("./abuse_rate_limit");
+const {createVendorPortalNotifier} = require("./vendor_portal_notifications");
 const {
   AFFILIATE_PLATFORMS_DIRECTORY,
   DEFAULT_STORE_SETTINGS,
@@ -357,12 +359,61 @@ async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn, settings =
   return result;
 }
 
-function createShopStoreCommands(admin, {notifyAdministrators, fetchImpl} = {}) {
+function anonymousVendorApplicantBucket(request, emailHint = "") {
+  const rawIp = String(
+      (request &&
+        request.rawRequest &&
+        (request.rawRequest.ip ||
+          (request.rawRequest.headers &&
+            request.rawRequest.headers["x-forwarded-for"]))) ||
+      emailHint ||
+      "public",
+  ).split(",")[0].trim().toLowerCase();
+  const digest = crypto.createHash("sha256")
+      .update(`shop-vendor-intake|${rawIp}`)
+      .digest("hex")
+      .slice(0, 24);
+  return `anon_vendor_${digest}`;
+}
+
+async function enforceVendorApplicationRateLimit({db, admin, request, emailHint = ""}) {
+  if (!db || typeof db.runTransaction !== "function") return;
+  if (request && request.auth && request.auth.uid) {
+    await enforceUserRateLimit({
+      db,
+      admin,
+      request,
+      scope: "account",
+    });
+    return;
+  }
+  const bucketRequest = {
+    ...(request || {}),
+    auth: {uid: anonymousVendorApplicantBucket(request, emailHint)},
+  };
+  await enforceUserRateLimit({
+    db,
+    admin,
+    request: bucketRequest,
+    scope: "account",
+  });
+}
+
+function createShopStoreCommands(admin, {
+  notifyAdministrators,
+  fetchImpl,
+  sendEmailImpl,
+} = {}) {
   const db = () => admin.firestore();
   const auth = () => admin.auth();
   const serverTimestamp = () => admin.firestore.FieldValue.serverTimestamp();
   const increment = (n) => admin.firestore.FieldValue.increment(n);
   const effectiveFetch = fetchImpl || (typeof globalThis.fetch === "function" ? globalThis.fetch.bind(globalThis) : null);
+  const vendorNotifier = createVendorPortalNotifier(admin, {
+    notifyAdministrators,
+    sendEmailImpl,
+    fetchImpl: effectiveFetch,
+  });
 
   async function resolveShopActor(request) {
     if (!request || !request.auth || !request.auth.uid) {
@@ -846,8 +897,14 @@ function createShopStoreCommands(admin, {notifyAdministrators, fetchImpl} = {}) 
   });
 
   const submitShopVendorApplication = wrapCommand(async (request) => {
-    const uid = requireAuthenticatedIdentity(request, {requirePhone: false}).uid;
-    await enforceUserRateLimit({db: db(), admin, request, scope: "account"});
+    const uid = (request && request.auth && request.auth.uid) || null;
+    const rawData = (request && request.data) || {};
+    await enforceVendorApplicationRateLimit({
+      db: db(),
+      admin,
+      request,
+      emailHint: cleanText(rawData.email, 254),
+    });
 
     const settings = await loadEffectiveSettings();
     if (!settings.vendorApplicationsOpen) {
@@ -857,38 +914,103 @@ function createShopStoreCommands(admin, {notifyAdministrators, fetchImpl} = {}) 
       );
     }
 
-    const validated = validateVendorApplicationInput(
-        (request && request.data) || {},
-        uid,
-    );
+    const validated = validateVendorApplicationInput(rawData, uid);
 
     const docRef = db().collection(SHOP_APPLICATIONS_COLLECTION).doc();
     await docRef.set({
       ...validated,
-      schemaVersion: 1,
+      schemaVersion: 2,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
 
-    if (typeof notifyAdministrators === "function") {
-      try {
-        await notifyAdministrators({
-          notificationId: `shop_vendor_app_${docRef.id}`,
-          type: "shop_vendor_application",
-          title: "New Store Vendor / Brand Application",
-          body: `${validated.companyName} (${validated.partnershipTrack}) applied to list in the PipeBuyer Store.`,
+    let notificationSummary = {
+      inAppAdminCount: 0,
+      adminEmailStatus: "skipped",
+      adminEmailsNotifiedCount: 0,
+      applicantConfirmationSent: false,
+    };
+    try {
+      notificationSummary =
+        await vendorNotifier.dispatchVendorApplicationSubmittedNotifications({
           applicationId: docRef.id,
-          read: false,
+          application: validated,
+          settings,
         });
-      } catch (notifyErr) {
-        console.warn("Admin notification for shop vendor application failed", notifyErr);
-      }
+      await docRef.update({
+        notificationSummary,
+        notifiedAt: serverTimestamp(),
+      });
+    } catch (notifyErr) {
+      console.warn("Admin notification for shop vendor application failed", notifyErr);
     }
+
+    await recordAudit(
+        {uid: uid || "public_applicant", role: uid ? "applicant" : "public"},
+        "submit_vendor_application",
+        docRef.id,
+        {
+          companyName: validated.companyName,
+          partnershipTrack: validated.partnershipTrack,
+          brandsCarried: validated.brandsCarried,
+          requestedPlacements: validated.requestedPlacements,
+        },
+    );
 
     return {
       applicationId: docRef.id,
       status: "pending",
+      notificationSummary,
     };
+  });
+
+  const listMyShopVendorApplications = wrapCommand(async (request) => {
+    if (!request || !request.auth || !request.auth.uid) {
+      throw new HttpsError(
+          "unauthenticated",
+          "Sign in to view your submitted Store & Brand applications.",
+      );
+    }
+    const uid = request.auth.uid;
+    const token = request.auth.token || {};
+    const byUidSnap = await db()
+        .collection(SHOP_APPLICATIONS_COLLECTION)
+        .where("submitterUid", "==", uid)
+        .limit(50)
+        .get();
+
+    const mergedById = new Map();
+    for (const doc of byUidSnap.docs || []) {
+      mergedById.set(doc.id, {
+        id: doc.id,
+        ...jsonSafe(doc.data() || {}),
+      });
+    }
+
+    const verifiedEmail =
+      token.email_verified === true && token.email ?
+        cleanText(token.email, 254).toLowerCase() :
+        "";
+    if (verifiedEmail) {
+      const byEmailSnap = await db()
+          .collection(SHOP_APPLICATIONS_COLLECTION)
+          .where("email", "==", verifiedEmail)
+          .limit(50)
+          .get();
+      for (const doc of byEmailSnap.docs || []) {
+        if (!mergedById.has(doc.id)) {
+          mergedById.set(doc.id, {
+            id: doc.id,
+            ...jsonSafe(doc.data() || {}),
+          });
+        }
+      }
+    }
+
+    const applications = Array.from(mergedById.values()).sort((a, b) =>
+      String(b.createdAt || "").localeCompare(String(a.createdAt || "")),
+    );
+    return {applications};
   });
 
   const getShopAdminDashboard = wrapCommand(async (request) => {
@@ -966,6 +1088,9 @@ function createShopStoreCommands(admin, {notifyAdministrators, fetchImpl} = {}) 
         recentSampledClicks: clicksSnap.size,
         activeProductCount: products.filter((p) => p.status === "active").length,
         pendingApplicationCount: applications.filter((a) => a.status === "pending").length,
+        openApplicationCount: applications.filter(
+            (a) => a.status === "pending" || a.status === "under_review",
+        ).length,
         approvedVendorCount: vendors.filter((v) => v.active === true).length,
         activeStaffCount: staff.filter((s) => s.active === true).length,
         clicksBySource,
@@ -1052,6 +1177,9 @@ function createShopStoreCommands(admin, {notifyAdministrators, fetchImpl} = {}) 
       forceOverrideAmazonTag: updated.forceOverrideAmazonTag,
       storeEnabled: updated.storeEnabled,
       vendorApplicationsOpen: updated.vendorApplicationsOpen,
+      adminNotificationEmailsCount: Array.isArray(updated.adminNotificationEmails) ?
+        updated.adminNotificationEmails.length :
+        0,
     });
 
     return {settings: updated};
@@ -1537,10 +1665,19 @@ function createShopStoreCommands(admin, {notifyAdministrators, fetchImpl} = {}) 
         ownerUid: appData.submitterUid || null,
         companyName: appData.companyName,
         contactName: appData.contactName,
+        contactTitle: appData.contactTitle || "",
+        headquartersLocation: appData.headquartersLocation || "",
         email: appData.email,
         phone: appData.phone,
         websiteUrl: appData.websiteUrl || "",
+        sampleCatalogUrl: appData.sampleCatalogUrl || "",
         partnershipTrack: appData.partnershipTrack,
+        authorizationLevel: appData.authorizationLevel || "authorized_dealer",
+        requestedPlacements: Array.isArray(appData.requestedPlacements) ?
+          appData.requestedPlacements :
+          ["shop_storefront"],
+        catalogIntegrationMethod:
+          appData.catalogIntegrationMethod || "direct_dealer_link",
         categories: Array.isArray(appData.categories) ? appData.categories : [],
         brandsCarried: Array.isArray(appData.brandsCarried) ? appData.brandsCarried : [],
         fulfillmentRegions: Array.isArray(appData.fulfillmentRegions) ?
@@ -1556,6 +1693,29 @@ function createShopStoreCommands(admin, {notifyAdministrators, fetchImpl} = {}) 
 
     await batch.commit();
 
+    let applicantNotificationSummary = {
+      inAppApplicantNotified: false,
+      applicantEmailSent: false,
+      emailStatus: "skipped",
+    };
+    try {
+      applicantNotificationSummary =
+        await vendorNotifier.dispatchVendorApplicationDecisionNotifications({
+          applicationId,
+          application: appData,
+          decision,
+          reviewNotes,
+          vendorId,
+          notifyApplicant: payload.notifyApplicant !== false,
+        });
+      await appRef.update({
+        applicantNotificationSummary,
+        lastNotifiedAt: serverTimestamp(),
+      });
+    } catch (notifyErr) {
+      console.warn("Applicant decision notification failed", notifyErr);
+    }
+
     await recordAudit(actor, "review_vendor_application", applicationId, {
       companyName: appData.companyName,
       decision,
@@ -1566,6 +1726,7 @@ function createShopStoreCommands(admin, {notifyAdministrators, fetchImpl} = {}) 
       applicationId,
       status: decision,
       vendorId,
+      applicantNotificationSummary,
     };
   });
 
@@ -1669,6 +1830,7 @@ function createShopStoreCommands(admin, {notifyAdministrators, fetchImpl} = {}) 
     deleteShopProduct,
     getShopAdminDashboard,
     getShopSession,
+    listMyShopVendorApplications,
     listShopStaff,
     listShopStoreCatalog,
     manageShopStaff,

@@ -29,8 +29,9 @@ class MarketplaceNavigation {
   static final ValueNotifier<MarketplaceDestinationRequest?>
       destinationRequests = ValueNotifier<MarketplaceDestinationRequest?>(null);
   static final ValueNotifier<int> wantedRequests = ValueNotifier<int>(0);
-  static final ValueNotifier<int?> accountSubTabRequests =
-      ValueNotifier<int?>(null);
+  static final ValueNotifier<int?> accountSubTabRequests = ValueNotifier<int?>(
+    null,
+  );
 
   static void goHome(BuildContext context) {
     homeRequests.value++;
@@ -201,11 +202,13 @@ class MarketplaceNavigation {
   static Future<void> openShopAdmin(
     BuildContext context, {
     int initialTabIndex = 0,
+    String initialSection = '',
   }) {
     return Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => PipeBuyerShopAdminPage(
           initialTabIndex: initialTabIndex,
+          initialSection: initialSection,
         ),
       ),
     );

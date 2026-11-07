@@ -386,10 +386,56 @@ const SHOP_PRODUCT_STATUSES = new Set([
 ]);
 
 const VENDOR_PARTNERSHIP_TRACKS = new Set([
+  "oem_heavy_equipment_dealer",
   "brand_manufacturer",
   "industrial_distributor",
   "verified_business_vendor",
   "affiliate_network_partner",
+]);
+
+const VENDOR_APPLICATION_EXTRA_CATEGORIES = Object.freeze([
+  {
+    code: "heavy_equipment_oem",
+    label: "Heavy Equipment, Tractors & Attachments",
+    shortLabel: "Heavy Equipment & Tractors",
+  },
+  {
+    code: "oem_parts_undercarriage",
+    label: "OEM Parts, Undercarriage & Wear Components",
+    shortLabel: "OEM Parts & Wear",
+  },
+  {
+    code: "diagnostic_service_truck",
+    label: "Diagnostics, Torque & Service Truck Tooling",
+    shortLabel: "Diagnostics & Fleet Tooling",
+  },
+]);
+
+const VENDOR_APPLICATION_CATEGORY_CODES = new Set([
+  ...SHOP_CATEGORIES.map((category) => category.code),
+  ...VENDOR_APPLICATION_EXTRA_CATEGORIES.map((category) => category.code),
+]);
+
+const VENDOR_REQUESTED_PLACEMENTS = new Set([
+  "shop_storefront",
+  "heavy_equipment_listings",
+  "brand_spotlight_deals",
+  "contextual_recommendations",
+]);
+
+const VENDOR_AUTHORIZATION_LEVELS = new Set([
+  "oem_direct",
+  "authorized_dealer",
+  "national_distributor",
+  "reseller_affiliate",
+]);
+
+const VENDOR_INTEGRATION_METHODS = new Set([
+  "direct_dealer_link",
+  "csv_spreadsheet",
+  "api_xml_feed",
+  "manual_curated",
+  "affiliate_network",
 ]);
 
 const VENDOR_APPLICATION_STATUSES = new Set([
@@ -425,12 +471,20 @@ const ALL_SHOP_ROLES = new Set([
 const KNOWN_INDUSTRIAL_BRANDS = Object.freeze([
   "Lincoln Electric",
   "BW Technologies",
+  "Brandt Tractor",
+  "Caterpillar",
   "Klein Tools",
+  "John Deere",
   "Milwaukee",
+  "Snap-on",
+  "Snap-On",
+  "Komatsu",
   "RIDGID",
   "DeWalt",
   "DEWALT",
   "Miller",
+  "Bobcat",
+  "Brandt",
   "Carhartt",
   "Crosby",
   "Fluke",
@@ -479,6 +533,7 @@ const DEFAULT_STORE_SETTINGS = Object.freeze({
   priceDisclaimerText:
     "Product prices and availability are accurate as of the time shown on the partner site and are subject to change.",
   hiddenStarterIds: Object.freeze([]),
+  adminNotificationEmails: Object.freeze([]),
 });
 
 function cleanText(value, maxLength = 240) {
@@ -2007,6 +2062,31 @@ function normalizeHiddenStarterIds(value) {
   return output;
 }
 
+function normalizeAdminNotificationEmails(value) {
+  const rawList = Array.isArray(value) ?
+    value :
+    typeof value === "string" ?
+      value.split(/[,;\n]+/) :
+      [];
+  const seen = new Set();
+  const output = [];
+  for (const item of rawList) {
+    const email = cleanText(item, 254).toLowerCase();
+    if (!email) continue;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      throw new HttpsError(
+          "invalid-argument",
+          `Admin notification email "${email}" is not a valid email address.`,
+      );
+    }
+    if (seen.has(email)) continue;
+    seen.add(email);
+    output.push(email);
+    if (output.length >= 10) break;
+  }
+  return output;
+}
+
 function normalizeStoreSettings(input = {}, existing = {}) {
   const base = {...DEFAULT_STORE_SETTINGS, ...(existing || {})};
   const next = {
@@ -2078,6 +2158,10 @@ function normalizeStoreSettings(input = {}, existing = {}) {
       input.hiddenStarterIds !== undefined ?
         normalizeHiddenStarterIds(input.hiddenStarterIds) :
         normalizeHiddenStarterIds(base.hiddenStarterIds),
+    adminNotificationEmails:
+      input.adminNotificationEmails !== undefined ?
+        normalizeAdminNotificationEmails(input.adminNotificationEmails) :
+        normalizeAdminNotificationEmails(base.adminNotificationEmails),
   };
   return next;
 }
@@ -2333,10 +2417,21 @@ function buildPublicShopProduct(id, productData, settings = DEFAULT_STORE_SETTIN
   };
 }
 
-function validateVendorApplicationInput(raw = {}, submitterUid) {
-  if (!submitterUid) {
-    throw new HttpsError("unauthenticated", "Sign in to submit a Store partner application.");
+function defaultAuthorizationForTrack(track) {
+  switch (track) {
+    case "brand_manufacturer":
+      return "oem_direct";
+    case "oem_heavy_equipment_dealer":
+      return "authorized_dealer";
+    case "industrial_distributor":
+      return "national_distributor";
+    default:
+      return "reseller_affiliate";
   }
+}
+
+function validateVendorApplicationInput(raw = {}, submitterUid = null) {
+  const resolvedUid = cleanText(submitterUid, 128) || null;
   const companyName = cleanText(raw.companyName, 140);
   if (companyName.length < 2) {
     throw new HttpsError("invalid-argument", "Company or brand name is required.");
@@ -2345,6 +2440,7 @@ function validateVendorApplicationInput(raw = {}, submitterUid) {
   if (contactName.length < 2) {
     throw new HttpsError("invalid-argument", "Primary contact name is required.");
   }
+  const contactTitle = cleanText(raw.contactTitle, 100);
   const email = cleanText(raw.email, 160).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
     throw new HttpsError("invalid-argument", "Enter a valid business email address.");
@@ -2353,6 +2449,7 @@ function validateVendorApplicationInput(raw = {}, submitterUid) {
   if (phone.replace(/\D/g, "").length < 7) {
     throw new HttpsError("invalid-argument", "Enter a valid contact phone number.");
   }
+  const headquartersLocation = cleanText(raw.headquartersLocation, 120);
   const partnershipTrack = cleanText(raw.partnershipTrack, 48) || "industrial_distributor";
   if (!VENDOR_PARTNERSHIP_TRACKS.has(partnershipTrack)) {
     throw new HttpsError("invalid-argument", "Select a valid partnership track.");
@@ -2367,32 +2464,71 @@ function validateVendorApplicationInput(raw = {}, submitterUid) {
     websiteUrl = parseSafeHttpsUrl(withProtocol, "Company website URL").toString();
   }
 
-  const categories = cleanStringList(raw.categories, {maxItems: 8, maxItemLength: 64})
-      .filter((code) => SHOP_CATEGORY_BY_CODE.has(code));
+  const rawSampleCatalog = cleanText(raw.sampleCatalogUrl, 1000);
+  let sampleCatalogUrl = "";
+  if (rawSampleCatalog) {
+    const withProtocol = /^https?:\/\//i.test(rawSampleCatalog) ?
+      rawSampleCatalog.replace(/^http:\/\//i, "https://") :
+      `https://${rawSampleCatalog}`;
+    sampleCatalogUrl = parseSafeHttpsUrl(
+        withProtocol,
+        "Sample catalog or inventory URL",
+    ).toString();
+  }
+
+  const rawAuthLevel = cleanText(raw.authorizationLevel, 48).toLowerCase();
+  const authorizationLevel = VENDOR_AUTHORIZATION_LEVELS.has(rawAuthLevel) ?
+    rawAuthLevel :
+    defaultAuthorizationForTrack(partnershipTrack);
+
+  const requestedPlacementsRaw = cleanStringList(raw.requestedPlacements, {
+    maxItems: 6,
+    maxItemLength: 48,
+  }).filter((code) => VENDOR_REQUESTED_PLACEMENTS.has(code));
+  const requestedPlacements = requestedPlacementsRaw.length > 0 ?
+    requestedPlacementsRaw :
+    (partnershipTrack === "oem_heavy_equipment_dealer" ?
+      ["heavy_equipment_listings", "shop_storefront"] :
+      ["shop_storefront"]);
+
+  const categories = cleanStringList(raw.categories, {maxItems: 12, maxItemLength: 64})
+      .filter((code) => VENDOR_APPLICATION_CATEGORY_CODES.has(code));
   if (categories.length === 0) {
     throw new HttpsError("invalid-argument", "Select at least one Store product category.");
   }
 
-  const brandsCarried = cleanStringList(raw.brandsCarried, {maxItems: 20, maxItemLength: 80});
+  const brandsCarried = cleanStringList(raw.brandsCarried, {maxItems: 25, maxItemLength: 80});
   const fulfillmentRegions = cleanStringList(raw.fulfillmentRegions, {
     maxItems: 10,
     maxItemLength: 40,
   });
-  const estimatedSkuCount = cleanText(raw.estimatedSkuCount, 40) || "1-50 SKUs";
-  const affiliateProgramDetails = cleanText(raw.affiliateProgramDetails, 500);
-  const catalogNotes = cleanText(raw.catalogNotes, 1200);
+
+  const rawIntegration = cleanText(raw.catalogIntegrationMethod, 48).toLowerCase();
+  const catalogIntegrationMethod = VENDOR_INTEGRATION_METHODS.has(rawIntegration) ?
+    rawIntegration :
+    "direct_dealer_link";
+
+  const estimatedSkuCount = cleanText(raw.estimatedSkuCount, 60) || "1-50 SKUs";
+  const affiliateProgramDetails = cleanText(raw.affiliateProgramDetails, 600);
+  const catalogNotes = cleanText(raw.catalogNotes, 1500);
 
   return {
-    submitterUid,
+    submitterUid: resolvedUid,
     companyName,
     contactName,
+    contactTitle,
     email,
     phone,
+    headquartersLocation,
     websiteUrl,
+    sampleCatalogUrl,
     partnershipTrack,
+    authorizationLevel,
+    requestedPlacements,
     categories,
     brandsCarried,
     fulfillmentRegions: fulfillmentRegions.length > 0 ? fulfillmentRegions : ["US", "CA"],
+    catalogIntegrationMethod,
     estimatedSkuCount,
     affiliateProgramDetails,
     catalogNotes,
@@ -2412,8 +2548,13 @@ module.exports = {
   SHOP_PRODUCT_STATUSES,
   SHOP_SOURCE_TYPES,
   SHOP_STAFF_ROLES,
+  VENDOR_APPLICATION_CATEGORY_CODES,
+  VENDOR_APPLICATION_EXTRA_CATEGORIES,
   VENDOR_APPLICATION_STATUSES,
+  VENDOR_AUTHORIZATION_LEVELS,
+  VENDOR_INTEGRATION_METHODS,
   VENDOR_PARTNERSHIP_TRACKS,
+  VENDOR_REQUESTED_PLACEMENTS,
   buildMonetizedDestinationUrl,
   buildProductSearchTokens,
   buildPublicShopProduct,
@@ -2435,6 +2576,7 @@ module.exports = {
   isAmazonSearchPageUrl,
   isAmazonShortHostname,
   isPrivateOrLocalHostname,
+  normalizeAdminNotificationEmails,
   normalizeAssociateTag,
   normalizeEligibleCountries,
   normalizeHiddenStarterIds,

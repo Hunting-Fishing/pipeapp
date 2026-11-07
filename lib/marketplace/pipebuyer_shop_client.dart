@@ -170,14 +170,13 @@ class PipeBuyerShopClient {
       final response = await _resolvedFunctions
           .httpsCallable(
             name,
-            options: HttpsCallableOptions(
-              timeout: const Duration(seconds: 30),
-            ),
+            options: HttpsCallableOptions(timeout: const Duration(seconds: 30)),
           )
           .call(payload);
       if (response.data is! Map) {
         throw StateError(
-            'The PipeBuyer Store service returned an invalid response.');
+          'The PipeBuyer Store service returned an invalid response.',
+        );
       }
       return Map<String, dynamic>.from(response.data as Map);
     } on FirebaseFunctionsException catch (error) {
@@ -195,6 +194,8 @@ class PipeBuyerShopClient {
         'not-found' => 'The requested Store item or application was not found.',
         'failed-precondition' =>
           'This Store action is temporarily unavailable.',
+        'resource-exhausted' =>
+          'Too many requests submitted recently. Please wait a few minutes and try again.',
         'invalid-argument' =>
           'Check the entered product or partner details and try again.',
         _ => 'The PipeBuyer Store service is temporarily unavailable.',
@@ -476,13 +477,10 @@ class PipeBuyerShopClient {
     if (trimmed.isEmpty) return null;
     if (!_firebaseReady && _functions == null) return null;
     try {
-      final result = await _call(
-        'parseShopAffiliateLink',
-        <String, Object?>{
-          'rawInput': trimmed,
-          'fetchMetadata': true,
-        },
-      );
+      final result = await _call('parseShopAffiliateLink', <String, Object?>{
+        'rawInput': trimmed,
+        'fetchMetadata': true,
+      });
       if (result.isEmpty ||
           ((result['destinationUrl']?.toString().trim().isEmpty ?? true) &&
               result['searchCandidates'] is! List)) {
@@ -503,15 +501,13 @@ class PipeBuyerShopClient {
 
     if (_firebaseReady || _functions != null) {
       try {
-        final result = await _call(
-          'parseShopAffiliateLink',
-          <String, Object?>{
-            'searchQuery': trimmed,
-            'fetchMetadata': true,
-          },
+        final result = await _call('parseShopAffiliateLink', <String, Object?>{
+          'searchQuery': trimmed,
+          'fetchMetadata': true,
+        });
+        final parsed = PipeBuyerParsedAffiliateSubmission.fromServerJson(
+          result,
         );
-        final parsed =
-            PipeBuyerParsedAffiliateSubmission.fromServerJson(result);
         if (parsed.searchCandidates.isNotEmpty) {
           return parsed.searchCandidates;
         }
@@ -580,16 +576,13 @@ class PipeBuyerShopClient {
 
     if (_resolvedAuth?.currentUser != null) {
       unawaited(
-        _call(
-          'toggleSavedShopProduct',
-          <String, Object?>{
-            'productId': product.id,
-            'saved': nowSaved,
-            'title': product.title,
-            'categoryCode': product.categoryCode,
-            'brand': product.brand,
-          },
-        ).catchError((_) => const <String, dynamic>{}),
+        _call('toggleSavedShopProduct', <String, Object?>{
+          'productId': product.id,
+          'saved': nowSaved,
+          'title': product.title,
+          'categoryCode': product.categoryCode,
+          'brand': product.brand,
+        }).catchError((_) => const <String, dynamic>{}),
       );
     }
     return next;
@@ -611,10 +604,8 @@ class PipeBuyerShopClient {
     if (uri == null) return false;
 
     final launcher = _urlLauncher ??
-        ((Uri target) => launchUrl(
-              target,
-              mode: LaunchMode.externalApplication,
-            ));
+        ((Uri target) =>
+            launchUrl(target, mode: LaunchMode.externalApplication));
     final opened = await launcher(uri);
 
     if (_firebaseReady || _functions != null) {
@@ -648,26 +639,58 @@ class PipeBuyerShopClient {
     required List<String> brandsCarried,
     required List<String> fulfillmentRegions,
     required String estimatedSkuCount,
+    String contactTitle = '',
+    String headquartersLocation = '',
+    String sampleCatalogUrl = '',
+    String authorizationLevel = 'authorized_dealer',
+    List<String> requestedPlacements = const <String>['shop_storefront'],
+    String catalogIntegrationMethod = 'direct_dealer_link',
     String affiliateProgramDetails = '',
     String catalogNotes = '',
   }) {
     return _call(
-      'submitShopVendorApplication',
-      <String, Object?>{
-        'companyName': companyName,
-        'contactName': contactName,
-        'email': email,
-        'phone': phone,
-        'websiteUrl': websiteUrl,
-        'partnershipTrack': partnershipTrack,
-        'categories': categories,
-        'brandsCarried': brandsCarried,
-        'fulfillmentRegions': fulfillmentRegions,
-        'estimatedSkuCount': estimatedSkuCount,
-        'affiliateProgramDetails': affiliateProgramDetails,
-        'catalogNotes': catalogNotes,
-      },
-    );
+        'submitShopVendorApplication',
+        <String, Object?>{
+          'companyName': companyName,
+          'contactName': contactName,
+          'contactTitle': contactTitle,
+          'headquartersLocation': headquartersLocation,
+          'email': email,
+          'phone': phone,
+          'websiteUrl': websiteUrl,
+          'sampleCatalogUrl': sampleCatalogUrl,
+          'partnershipTrack': partnershipTrack,
+          'authorizationLevel': authorizationLevel,
+          'requestedPlacements': requestedPlacements,
+          'categories': categories,
+          'brandsCarried': brandsCarried,
+          'fulfillmentRegions': fulfillmentRegions,
+          'catalogIntegrationMethod': catalogIntegrationMethod,
+          'estimatedSkuCount': estimatedSkuCount,
+          'affiliateProgramDetails': affiliateProgramDetails,
+          'catalogNotes': catalogNotes,
+        },
+        requiresAuthentication: false);
+  }
+
+  Future<List<Map<String, dynamic>>> listMyVendorApplications() async {
+    if (_resolvedAuth?.currentUser == null) {
+      return const <Map<String, dynamic>>[];
+    }
+    try {
+      final result = await _call(
+        'listMyShopVendorApplications',
+        const <String, Object?>{},
+      );
+      final raw = result['applications'];
+      if (raw is! List) return const <Map<String, dynamic>>[];
+      return raw
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+    } catch (_) {
+      return const <Map<String, dynamic>>[];
+    }
   }
 
   Future<PipeBuyerShopAdminSnapshot> getAdminDashboard() async {
@@ -773,10 +796,9 @@ class PipeBuyerShopClient {
           ? items.length
           : offset + chunkSize;
       final slice = items.sublist(offset, end);
-      final result = await _call(
-        'bulkUpsertShopProducts',
-        <String, Object?>{'items': slice},
-      );
+      final result = await _call('bulkUpsertShopProducts', <String, Object?>{
+        'items': slice,
+      });
       totalImported += (result['importedCount'] as num?)?.toInt() ?? 0;
       totalSkipped += (result['skippedBlankCount'] as num?)?.toInt() ?? 0;
       totalFailed += (result['failedCount'] as num?)?.toInt() ?? 0;
@@ -805,16 +827,13 @@ class PipeBuyerShopClient {
     bool? featured,
     PipeBuyerShopProduct? starterProduct,
   }) {
-    return _call(
-      'setShopProductVisibility',
-      <String, Object?>{
-        'productId': productId,
-        if (status != null) 'status': status,
-        if (featured != null) 'featured': featured,
-        if (starterProduct != null)
-          'starterProduct': starterProduct.toUpsertPayload(),
-      },
-    );
+    return _call('setShopProductVisibility', <String, Object?>{
+      'productId': productId,
+      if (status != null) 'status': status,
+      if (featured != null) 'featured': featured,
+      if (starterProduct != null)
+        'starterProduct': starterProduct.toUpsertPayload(),
+    });
   }
 
   Future<Map<String, dynamic>> deleteProduct({
@@ -822,35 +841,26 @@ class PipeBuyerShopClient {
     String title = '',
     bool hideStarterFallback = true,
   }) {
-    return _call(
-      'deleteShopProduct',
-      <String, Object?>{
-        'productId': productId,
-        'title': title,
-        'hideStarterFallback': hideStarterFallback,
-      },
-    );
+    return _call('deleteShopProduct', <String, Object?>{
+      'productId': productId,
+      'title': title,
+      'hideStarterFallback': hideStarterFallback,
+    });
   }
 
   Future<Map<String, dynamic>> restoreStarterProducts({String? productId}) {
-    return _call(
-      'restoreStarterShopProducts',
-      <String, Object?>{
-        'mode': 'restore',
-        if (productId != null && productId.trim().isNotEmpty)
-          'productId': productId.trim(),
-      },
-    );
+    return _call('restoreStarterShopProducts', <String, Object?>{
+      'mode': 'restore',
+      if (productId != null && productId.trim().isNotEmpty)
+        'productId': productId.trim(),
+    });
   }
 
   Future<Map<String, dynamic>> hideStarterProducts(List<String> productIds) {
-    return _call(
-      'restoreStarterShopProducts',
-      <String, Object?>{
-        'mode': 'hide',
-        'productIds': productIds,
-      },
-    );
+    return _call('restoreStarterShopProducts', <String, Object?>{
+      'mode': 'hide',
+      'productIds': productIds,
+    });
   }
 
   Future<int> seedStarterCatalogToFirestore() async {
@@ -866,15 +876,14 @@ class PipeBuyerShopClient {
     required String applicationId,
     required String status,
     String reviewNotes = '',
+    bool notifyApplicant = true,
   }) {
-    return _call(
-      'reviewShopVendorApplication',
-      <String, Object?>{
-        'applicationId': applicationId,
-        'status': status,
-        'reviewNotes': reviewNotes,
-      },
-    );
+    return _call('reviewShopVendorApplication', <String, Object?>{
+      'applicationId': applicationId,
+      'status': status,
+      'reviewNotes': reviewNotes,
+      'notifyApplicant': notifyApplicant,
+    });
   }
 
   Future<List<Map<String, dynamic>>> listShopStaff() async {
@@ -893,15 +902,12 @@ class PipeBuyerShopClient {
     required bool active,
     List<String>? allowedPlatforms,
   }) {
-    return _call(
-      'manageShopStaff',
-      <String, Object?>{
-        'email': email.trim().toLowerCase(),
-        'role': role.trim().toLowerCase(),
-        'active': active,
-        if (allowedPlatforms != null) 'allowedPlatforms': allowedPlatforms,
-      },
-    );
+    return _call('manageShopStaff', <String, Object?>{
+      'email': email.trim().toLowerCase(),
+      'role': role.trim().toLowerCase(),
+      'active': active,
+      if (allowedPlatforms != null) 'allowedPlatforms': allowedPlatforms,
+    });
   }
 
   String get currentUserDisplayName =>
@@ -932,7 +938,8 @@ class PipeBuyerShopClient {
       }
       if (!PipeBuyerShopUrlBuilder.isSafeHttpsUrl(trimmedUrl)) {
         throw StateError(
-            'Please enter a valid https:// product link or leave it blank.');
+          'Please enter a valid https:// product link or leave it blank.',
+        );
       }
     }
     if (!_firebaseReady) {
@@ -975,9 +982,7 @@ class PipeBuyerShopClient {
           .limit(100)
           .get();
       return snap.docs
-          .map(
-            (doc) => PipeBuyerProductSuggestion.fromJson(doc.id, doc.data()),
-          )
+          .map((doc) => PipeBuyerProductSuggestion.fromJson(doc.id, doc.data()))
           .toList(growable: false);
     } catch (_) {
       return const <PipeBuyerProductSuggestion>[];

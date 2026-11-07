@@ -44,7 +44,8 @@ class MarketplaceNotificationService {
   bool _navigationReady = false;
   String? _activeUid;
 
-  bool get _supportedPlatform => kIsWeb ||
+  bool get _supportedPlatform =>
+      kIsWeb ||
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
 
@@ -64,8 +65,9 @@ class MarketplaceNotificationService {
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
         return MarketplaceNotificationStatus.denied;
       }
-      final enabled = settings.authorizationStatus == AuthorizationStatus.authorized ||
-          settings.authorizationStatus == AuthorizationStatus.provisional;
+      final enabled =
+          settings.authorizationStatus == AuthorizationStatus.authorized ||
+              settings.authorizationStatus == AuthorizationStatus.provisional;
       return enabled
           ? MarketplaceNotificationStatus.enabled
           : MarketplaceNotificationStatus.notEnabled;
@@ -83,9 +85,12 @@ class MarketplaceNotificationService {
 
   Future<MarketplaceNotificationStatus> enable() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw StateError('Sign in to enable device notifications.');
+    if (user == null)
+      throw StateError('Sign in to enable device notifications.');
     if (!user.emailVerified) {
-      throw StateError('Verify your email before enabling device notifications.');
+      throw StateError(
+        'Verify your email before enabling device notifications.',
+      );
     }
     if (!_supportedPlatform) {
       return MarketplaceNotificationStatus.unsupported;
@@ -166,7 +171,9 @@ class MarketplaceNotificationService {
   Future<void> initializeNavigation() async {
     if (_navigationReady || !_supportedPlatform) return;
     _navigationReady = true;
-    _authState = FirebaseAuth.instance.authStateChanges().listen(_handleAuthState);
+    _authState = FirebaseAuth.instance.authStateChanges().listen(
+          _handleAuthState,
+        );
     _openedMessage = FirebaseMessaging.onMessageOpenedApp.listen(_openMessage);
     _foregroundMessage = FirebaseMessaging.onMessage.listen((message) {
       final context = appNavigatorKey.currentContext;
@@ -181,7 +188,9 @@ class MarketplaceNotificationService {
     });
     final initial = await _messaging.getInitialMessage();
     if (initial != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _openMessage(initial));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _openMessage(initial),
+      );
     }
     await _handleAuthState(FirebaseAuth.instance.currentUser);
   }
@@ -272,9 +281,20 @@ class MarketplaceNotificationService {
     if (context != null) GoRouter.of(context).go(route);
   }
 
+  static const Set<String> _allowedPortalRoutes = <String>{
+    '/admin/shop',
+    '/admin/shop?tab=applications',
+    '/admin/partners',
+    '/admin/insurance',
+    '/shop/apply',
+    '/shop/vendors/apply',
+  };
+
   bool _safeRoute(String route) =>
-      RegExp(r'^/(listings|auctions|profiles|conversations)/[A-Za-z0-9_-]{1,160}$')
-          .hasMatch(route) ||
+      _allowedPortalRoutes.contains(route) ||
+      RegExp(
+        r'^/(listings|auctions|profiles|conversations)/[A-Za-z0-9_-]{1,160}$',
+      ).hasMatch(route) ||
       RegExp(r'^/dispatch/jobs/[A-Za-z0-9_-]{1,160}$').hasMatch(route);
 
   Future<void> dispose() async {

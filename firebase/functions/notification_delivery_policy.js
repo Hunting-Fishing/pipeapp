@@ -9,11 +9,25 @@ const criticalTypes = new Set([
   "auction_settlement",
   "dispatch",
   "dispatch_award",
+  "insurance_provider_application",
   "message",
   "moderation_decision",
   "offer",
+  "partner_deal_lead",
+  "partner_program_inquiry",
+  "shop_vendor_application",
+  "shop_vendor_application_status",
   "support_response",
   "transaction",
+]);
+
+const recognizedPortalRoutes = new Set([
+  "/admin/shop",
+  "/admin/shop?tab=applications",
+  "/admin/partners",
+  "/admin/insurance",
+  "/shop/apply",
+  "/shop/vendors/apply",
 ]);
 
 class NotificationDeliveryError extends Error {
@@ -72,17 +86,27 @@ function safeIdentifier(value) {
 
 function routeForNotification(data = {}) {
   const explicit = String(data.route || "").trim();
+  if (recognizedPortalRoutes.has(explicit)) {
+    return explicit;
+  }
   if (/^\/(listings|auctions|profiles|conversations)\/[A-Za-z0-9_-]{1,160}$/.test(explicit) ||
       /^\/dispatch\/jobs\/[A-Za-z0-9_-]{1,160}$/.test(explicit)) {
     return explicit;
   }
+  const type = String(data.type || "").trim().toLowerCase();
+  if (type === "shop_vendor_application") return "/admin/shop?tab=applications";
+  if (type === "shop_vendor_application_status") return "/shop/apply";
+  if (type === "partner_program_inquiry" || type === "partner_deal_lead") {
+    return "/admin/partners";
+  }
+  if (type === "insurance_provider_application") return "/admin/insurance";
+
   const conversationId = safeIdentifier(data.conversationId);
   if (conversationId) return `/conversations/${conversationId}`;
   const jobId = safeIdentifier(data.jobId || data.dispatchJobId);
   if (jobId) return `/dispatch/jobs/${jobId}`;
   const listingId = safeIdentifier(data.listingId);
   if (listingId) {
-    const type = String(data.type || "").toLowerCase();
     return type.includes("auction") ?
       `/auctions/${listingId}` : `/listings/${listingId}`;
   }
@@ -109,6 +133,26 @@ function deliveryCopy(data = {}) {
     wanted_interest: ["Possible buyer interest", "A wanted ad may match one of your listings."],
     wanted_contact: ["Wanted match contact", "A match participant wants to continue the conversation."],
     seller_new_listing: ["Saved seller posted", "A seller you follow added a new listing."],
+    shop_vendor_application: [
+      "New Brand / Vendor Request",
+      "A brand, OEM, or distributor requested to list products on Pipe Buyer.",
+    ],
+    shop_vendor_application_status: [
+      "Vendor application update",
+      "Open Pipe Buyer to review your Store partner application status.",
+    ],
+    partner_program_inquiry: [
+      "New Partner Inquiry",
+      "A company submitted a Partner With Us inquiry.",
+    ],
+    partner_deal_lead: [
+      "New Partner Deal Lead",
+      "A buyer submitted interest in a Partner Showcase offer.",
+    ],
+    insurance_provider_application: [
+      "New Insurance Carrier Request",
+      "An insurance provider applied to list on Pipe Buyer.",
+    ],
   }[type] || ["Pipe Buyer update", "Open Pipe Buyer to review your latest activity."];
   const title = String(data.pushTitle || copy[0]).trim().slice(0, 80) || copy[0];
   const body = String(data.pushBody || copy[1]).trim().slice(0, 160) || copy[1];
