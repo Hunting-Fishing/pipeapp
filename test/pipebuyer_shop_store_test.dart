@@ -1059,4 +1059,109 @@ void main() {
     expect(launched, hasLength(1));
     expect(launched.first.toString(), 'https://shope.ee/9pShopeeDrill');
   });
+
+  test(
+      'All 30 starterCatalog SKUs carry verified direct /dp/ links, high-res photos, and OneLink CA support',
+      () {
+    expect(PipeBuyerShopTaxonomy.starterCatalog, hasLength(30));
+    for (final item in PipeBuyerShopTaxonomy.starterCatalog) {
+      expect(
+        RegExp(r'^[A-Z0-9]{10}$').hasMatch(item.asin),
+        isTrue,
+        reason: 'Missing 10-char ASIN on ${item.id}',
+      );
+      expect(
+        item.destinationUrl,
+        'https://www.amazon.com/dp/${item.asin}?linkCode=ll1',
+      );
+      expect(item.destinationUrl.contains('/s?k='), isFalse);
+      expect(
+        item.imageUrl.startsWith('https://m.media-amazon.com/images/I/'),
+        isTrue,
+        reason: 'Missing Amazon CDN photo on ${item.id}',
+      );
+      expect(item.priceDisplay.startsWith(r'$'), isTrue);
+      expect(item.subcategory, isNotEmpty);
+    }
+
+    // Explicit blank CA tag preserves OneLink routing via amazon.com + US Store ID
+    final oneLinkSettings = PipeBuyerShopSettings.fromJson(
+      const <String, dynamic>{
+        'amazonAssociateTagUs': '366industri09-20',
+        'amazonAssociateTagCa': '',
+        'forceOverrideAmazonTag': true,
+      },
+    );
+    expect(oneLinkSettings.amazonAssociateTagUs, '366industri09-20');
+    expect(oneLinkSettings.amazonAssociateTagCa, '');
+
+    final ridgid36 = PipeBuyerShopTaxonomy.starterCatalog.firstWhere(
+      (item) => item.id == 'ridgid-36-aluminum-pipe-wrench',
+    );
+    final caOneLink = Uri.parse(
+      PipeBuyerShopUrlBuilder.buildMonetizedUrl(
+        ridgid36,
+        oneLinkSettings,
+        regionCode: 'CA',
+      ),
+    );
+    expect(caOneLink.host, 'www.amazon.com');
+    expect(caOneLink.path, '/dp/B0000224JH');
+    expect(caOneLink.queryParameters['tag'], '366industri09-20');
+    expect(caOneLink.queryParameters['linkCode'], 'll1');
+  });
+
+  testWidgets(
+      'SiteStripe Product Finder searches Amazon SKUs and auto-populates direct /dp/ link, photo, category, and subcategory',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final fakeClient = _FakeAdminShopClient();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: PipeBuyerTheme.light(),
+        home: PipeBuyerShopAdminPage(
+          client: fakeClient,
+          sessionOverride: () async =>
+              const PipeBuyerShopRoleSession.authorizedAdmin(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add Affiliate Product'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('amazon_product_finder_field')),
+      'RIDGID 31110',
+    );
+    await tester.tap(find.byKey(const Key('amazon_product_finder_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Select SKU'), findsWidgets);
+    await tester.tap(find.text('Select SKU').first);
+    await tester.pump(const Duration(milliseconds: 450));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ASIN: B0000224JH'), findsOneWidget);
+
+    await tester.tap(find.text('Publish Affiliate Link'));
+    await tester.pumpAndSettle();
+
+    expect(fakeClient.upsertedPayloads, hasLength(1));
+    final saved = fakeClient.upsertedPayloads.first;
+    expect(saved['asin'], 'B0000224JH');
+    expect(
+      saved['destinationUrl'].toString(),
+      contains('https://www.amazon.com/dp/B0000224JH'),
+    );
+    expect(
+      saved['imageUrl'].toString(),
+      startsWith('https://m.media-amazon.com/images/I/'),
+    );
+    expect(saved['categoryCode'], 'pipe_welding_fab');
+    expect(saved['subcategory'], 'Pipe Wrenches, Chain Tongs & Vises');
+  });
 }

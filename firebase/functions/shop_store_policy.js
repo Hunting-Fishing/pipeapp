@@ -866,10 +866,40 @@ function toValidProductImageUrl(candidate, baseUrlStr = "") {
   }
 }
 
+function upgradeAmazonCdnImageResolution(urlStr) {
+  if (!urlStr || !/m\.media-amazon\.com\/images\/I\//i.test(urlStr)) {
+    return urlStr;
+  }
+  return urlStr.replace(/\._AC_[A-Z0-9,_]+_\./i, "._AC_SL1000_.");
+}
+
+function isAmazonSearchPageUrl(rawUrl) {
+  const text = cleanText(rawUrl, 2000);
+  if (!text) return false;
+  try {
+    const parsed = new URL(text);
+    if (!isAmazonFullHostname(parsed.hostname)) return false;
+    if (/^\/s(?:\/|$)/i.test(parsed.pathname)) return true;
+    if (parsed.searchParams.has("k") || parsed.searchParams.has("field-keywords")) return true;
+    if (String(parsed.searchParams.get("ar_mt") || "").toUpperCase() === "SEARCH_PAGE") return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function extractHtmlProductMetadata(html, finalUrlStr = "") {
   const source = String(html || "");
   if (!source) {
-    return {title: "", imageUrl: "", brand: "", priceDisplay: ""};
+    return {
+      asin: "",
+      title: "",
+      imageUrl: "",
+      brand: "",
+      priceDisplay: "",
+      breadcrumbs: [],
+      highlights: [],
+    };
   }
 
   let ldTitle = "";
@@ -932,7 +962,9 @@ function extractHtmlProductMetadata(html, finalUrlStr = "") {
     source.match(/data-old-hires=["'](https:[^"']+)["']/i) ||
     source.match(/id=["']landingImage["'][^>]*src=["'](https:[^"']+)["']/i);
   const amzImg = amzHiResMatch && amzHiResMatch[1] ?
-    toValidProductImageUrl(amzHiResMatch[1].replace(/\\u0026/g, "&"), finalUrlStr) :
+    upgradeAmazonCdnImageResolution(
+        toValidProductImageUrl(amzHiResMatch[1].replace(/\\u0026/g, "&"), finalUrlStr),
+    ) :
     "";
   const ogImg = toValidProductImageUrl(
       extractMetaContent(source, "og:image:secure_url|og:image|twitter:image:src|twitter:image"),
@@ -946,18 +978,144 @@ function extractHtmlProductMetadata(html, finalUrlStr = "") {
     const sym = metaPriceCur === "PHP" ? "₱" : metaPriceCur === "CAD" ? "CA$" : metaPriceCur === "SGD" ? "S$" : (metaPriceCur && metaPriceCur !== "USD" ? `${metaPriceCur} ` : "$");
     metaPrice = cleanText(`${sym}${metaPriceAmt}`, 48);
   }
+  const amzOffscreenPriceMatch = source.match(
+      /class=["'][^"']*a-price[^"']*["'][^>]*>\s*<span[^>]*class=["'][^"']*a-offscreen[^"']*["'][^>]*>(\$[0-9,]+(?:\.[0-9]{2})?)<\/span>/i,
+  );
+  const amzDomPrice = amzOffscreenPriceMatch && amzOffscreenPriceMatch[1] ?
+    cleanText(decodeHtmlEntities(amzOffscreenPriceMatch[1]), 48) :
+    "";
+
+  const bylineMatch = source.match(/id=["']bylineInfo["'][^>]*>([\s\S]*?)<\/a>/i);
+  let amzBylineBrand = "";
+  if (bylineMatch && bylineMatch[1]) {
+    amzBylineBrand = cleanText(
+        decodeHtmlEntities(bylineMatch[1].replace(/<[^>]+>/g, " "))
+            .replace(/^visit the\s+/i, "")
+            .replace(/\s+store$/i, "")
+            .replace(/^brand:\s*/i, ""),
+        80,
+    );
+  }
+
+  const asinInputMatch =
+    source.match(/<input[^>]+(?:id|name)=["']ASIN["'][^>]+value=["']([A-Z0-9]{10})["']/i) ||
+    source.match(/<link[^>]+rel=["']canonical["'][^>]+href=["'][^"']*\/dp\/([A-Z0-9]{10})(?:[/?#"']|$)/i);
+  const htmlAsin = asinInputMatch && asinInputMatch[1] ? asinInputMatch[1].toUpperCase() : "";
+
+  const breadcrumbs = [];
+  const crumbBlockMatch = source.match(
+      /id=["']wayfinding-breadcrumbs_feature_div["'][\s\S]*?<\/ul>/i,
+  );
+  if (crumbBlockMatch && crumbBlockMatch[0]) {
+    const crumbLinkRegex = /<a[^>]*>([\s\S]*?)<\/a>/gi;
+    let cMatch;
+    while ((cMatch = crumbLinkRegex.exec(crumbBlockMatch[0])) !== null) {
+      const label = cleanText(decodeHtmlEntities(cMatch[1].replace(/<[^>]+>/g, " ")), 80);
+      if (label && breadcrumbs.length < 8) {
+        breadcrumbs.push(label);
+      }
+    }
+  }
+
+  const highlights = [];
+  const bulletsBlockMatch = source.match(
+      /id=["']feature-bullets["'][\s\S]*?<\/ul>/i,
+  );
+  if (bulletsBlockMatch && bulletsBlockMatch[0]) {
+    const bulletRegex = /<span[^>]+class=["'][^"']*a-list-item[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi;
+    let bMatch;
+    while ((bMatch = bulletRegex.exec(bulletsBlockMatch[0])) !== null) {
+      const bullet = cleanText(decodeHtmlEntities(bMatch[1].replace(/<[^>]+>/g, " ")), 100);
+      if (
+        bullet.length >= 12 &&
+        !/^(?:make sure this fits|enter your model number)/i.test(bullet) &&
+        highlights.length < 4
+      ) {
+        highlights.push(bullet);
+      }
+    }
+  }
 
   const bestTitle = amzProductTitle || ldTitle || ogTitle || docTitle;
   const bestImage = amzImg || ogImg || ldImage;
-  const bestBrand = ldBrand || inferBrandFromText(bestTitle);
-  const bestPrice = ldPrice || metaPrice;
+  const bestBrand = ldBrand || inferBrandFromText(bestTitle) || amzBylineBrand;
+  const bestPrice = ldPrice || metaPrice || amzDomPrice;
 
   return {
+    asin: htmlAsin,
     title: bestTitle,
     imageUrl: bestImage,
     brand: bestBrand,
     priceDisplay: bestPrice,
+    breadcrumbs,
+    highlights,
   };
+}
+
+function extractAmazonSearchCandidates(html, settings = DEFAULT_STORE_SETTINGS) {
+  const source = String(html || "");
+  if (!source) return [];
+  const mergedSettings = {...DEFAULT_STORE_SETTINGS, ...(settings || {})};
+  const cardRegex = /<div[^>]+data-asin=["']([A-Z0-9]{10})["'][^>]*data-component-type=["']s-search-result["'][^>]*>|<div[^>]+data-component-type=["']s-search-result["'][^>]*data-asin=["']([A-Z0-9]{10})["'][^>]*>/gi;
+  const matches = [];
+  let m;
+  while ((m = cardRegex.exec(source)) !== null) {
+    matches.push({asin: (m[1] || m[2] || "").toUpperCase(), start: m.index});
+  }
+
+  const seen = new Set();
+  const candidates = [];
+  for (let i = 0; i < matches.length; i++) {
+    const {asin, start} = matches[i];
+    if (!asin || seen.has(asin)) continue;
+    const end = i + 1 < matches.length ?
+      Math.min(matches[i + 1].start, start + 24000) :
+      Math.min(source.length, start + 24000);
+    const block = source.slice(start, end);
+
+    const h2Match = block.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i);
+    const imgAltMatch = block.match(/<img[^>]+class=["'][^"']*s-image[^"']*["'][^>]+alt=["']([^"']+)["']/i);
+    const rawTitle = h2Match && h2Match[1] ?
+      h2Match[1].replace(/<[^>]+>/g, " ") :
+      (imgAltMatch && imgAltMatch[1] ? imgAltMatch[1] : "");
+    const title = cleanMarketplaceTitle(rawTitle.replace(/^Sponsored Ad\s*[-–—:]?\s*/i, ""));
+    if (!title || title.length < 4) continue;
+
+    const imgSrcMatch =
+      block.match(/<img[^>]+class=["'][^"']*s-image[^"']*["'][^>]+src=["'](https:\/\/m\.media-amazon\.com\/images\/I\/[^"']+)["']/i) ||
+      block.match(/src=["'](https:\/\/m\.media-amazon\.com\/images\/I\/[^"']+)["']/i);
+    const rawImg = imgSrcMatch && imgSrcMatch[1] ? imgSrcMatch[1] : "";
+    const imageUrl = upgradeAmazonCdnImageResolution(toValidProductImageUrl(rawImg, "https://www.amazon.com"));
+
+    const priceMatch = block.match(
+        /class=["'][^"']*a-price[^"']*["'][^>]*>\s*<span[^>]*class=["'][^"']*a-offscreen[^"']*["'][^>]*>(\$[0-9,]+(?:\.[0-9]{2})?)<\/span>/i,
+    );
+    const priceDisplay = priceMatch && priceMatch[1] ? cleanText(decodeHtmlEntities(priceMatch[1]), 32) : "";
+
+    const brand = inferBrandFromText(title);
+    const categoryCode = inferCategoryCodeFromText(`${title} ${brand}`);
+    const subcategory = inferSubcategoryFromText(`${title} ${brand}`, categoryCode);
+    const baseDpUrl = `https://www.amazon.com/dp/${asin}?linkCode=ll1`;
+    const destinationUrl = buildMonetizedDestinationUrl(
+        {sourceType: "amazon_affiliate", asin, categoryCode, destinationUrl: baseDpUrl},
+        mergedSettings,
+        {regionCode: "US"},
+    );
+
+    seen.add(asin);
+    candidates.push({
+      asin,
+      title,
+      brand,
+      categoryCode,
+      subcategory,
+      imageUrl,
+      priceDisplay,
+      destinationUrl,
+    });
+    if (candidates.length >= 6) break;
+  }
+  return candidates;
 }
 
 function hostMatches(hostname, candidates) {
@@ -1268,7 +1426,11 @@ function buildMonetizedDestinationUrl(product, settings = DEFAULT_STORE_SETTINGS
   if (regionCode === "CA" && rawCaDestination) {
     effectiveRawUrl = rawCaDestination;
   } else if (!effectiveRawUrl && asin) {
-    effectiveRawUrl = `https://${resolveAmazonHostForRegion(regionCode)}/dp/${asin}`;
+    const effectiveRegion =
+      regionCode === "CA" && !cleanText(mergedSettings.amazonAssociateTagCa, 64) ?
+        "US" :
+        regionCode;
+    effectiveRawUrl = `https://${resolveAmazonHostForRegion(effectiveRegion)}/dp/${asin}`;
   }
 
   const parsed = parseSafeHttpsUrl(effectiveRawUrl, "Product destination URL");
@@ -1279,7 +1441,12 @@ function buildMonetizedDestinationUrl(product, settings = DEFAULT_STORE_SETTINGS
   }
 
   if (sourceType === "amazon_affiliate" || isAmazonFullHostname(parsed.hostname)) {
-    if (regionCode === "CA" && !rawCaDestination && parsed.hostname.endsWith("amazon.com")) {
+    if (
+      regionCode === "CA" &&
+      !rawCaDestination &&
+      parsed.hostname.endsWith("amazon.com") &&
+      cleanText(mergedSettings.amazonAssociateTagCa, 64)
+    ) {
       parsed.hostname = "www.amazon.ca";
     }
     const associateTag = resolveAmazonAssociateTag(parsed.hostname, mergedSettings);
@@ -1416,7 +1583,7 @@ function inferCategoryCodeFromText(rawText) {
   if (/\b(grease gun|transfer pump|diesel|fuel|hydraulic|hose|jump starter|oil filter|lubricat)\b/.test(text)) {
     return "hydraulics_fleet_shop";
   }
-  if (/\b(work light|floodlight|lantern|headlamp|generator|inverter|extension cord|radio|jobsite box)\b/.test(text)) {
+  if (/\b(work light|floodlight|lantern|headlamp|generator|inverter|extension cord|radio|jobsite box|gang box|site[- ]vault)\b/.test(text)) {
     return "lighting_power_jobsite";
   }
   if (/\b(ultrasonic|thickness gauge|caliper|micrometer|laser level|thermal|multimeter|clamp meter|pressure test|thread gauge)\b/.test(text)) {
@@ -1426,6 +1593,159 @@ function inferCategoryCodeFromText(rawText) {
     return "ranch_fencing_ag";
   }
   return "power_hand_tools";
+}
+
+function inferSubcategoryFromText(rawText, categoryCode = "") {
+  const text = String(rawText || "").toLowerCase();
+  const effectiveCategory = SHOP_CATEGORY_BY_CODE.has(categoryCode) ?
+    categoryCode :
+    inferCategoryCodeFromText(text);
+  const category = SHOP_CATEGORY_BY_CODE.get(effectiveCategory);
+  if (!category || !Array.isArray(category.subcategories) || category.subcategories.length === 0) {
+    return "";
+  }
+  if (!text) return category.subcategories[0];
+
+  switch (effectiveCategory) {
+    case "pipe_welding_fab":
+      if (/\b(bevel|cutter|cutting|threader|threading|die head|reamer)\b/.test(text)) {
+        return "Pipe Cutting, Threading & Beveling";
+      }
+      if (/\b(flange|two[- ]hole|alignment|jack stand|pipe stand|fit[- ]up|center punch)\b/.test(text)) {
+        return "Pipe Alignment, Jacks & Fit-Up Tools";
+      }
+      if (/\b(weld.*helmet|viking|auto[- ]darkening|welder|tig|mig|stick|electrode|ground clamp|torch)\b/.test(text)) {
+        return "Welding Machines, Leads & Torches";
+      }
+      if (/\b(rod|7018|6010|flux|mig wire|flap disc|grinding wheel|wire wheel|abrasive)\b/.test(text)) {
+        return "Welding Rods, Wire & Abrasives";
+      }
+      if (/\b(valve|gasket|ptfe|sealant|dope|fitting|nipple|union)\b/.test(text)) {
+        return "Valves, Pipe Fittings, Flanges & Sealants";
+      }
+      return "Pipe Wrenches, Chain Tongs & Vises";
+    case "power_hand_tools":
+      if (/\b(grinder|band\s*saw|bandsaw|mag\s*drill|cut[- ]off|chop saw|reciprocating|sawzall)\b/.test(text)) {
+        return "Angle Grinders, Bandsaws & Mag Drills";
+      }
+      if (/\b(torque wrench|breaker bar|ratchet|combination wrench|adjustable wrench)\b/.test(text)) {
+        return "Heavy Wrenches, Ratchets & Torque Tools";
+      }
+      if (/\b(plier|knipex|hammer|sledge|spud|pry bar|chisel|punch)\b/.test(text)) {
+        return "Pliers, Hammers, Spuds & Pry Bars";
+      }
+      if (/\b(tap.*die|mechanic.*set|electrician|crimper|stripper|bit set)\b/.test(text)) {
+        return "Mechanics, Electrician & Tap/Die Kits";
+      }
+      if (/\b(battery|charger|packout|redlithium|flexvolt)\b/.test(text)) {
+        return "Cordless Batteries, Chargers & Packout";
+      }
+      return "Cordless Impact Wrenches & Socket Sets";
+    case "rigging_hauling_cargo":
+      if (/\b(shackle|crosby|clevis hook|eye hook|swivel|turnbuckle|thimble|wire rope clip)\b/.test(text)) {
+        return "Shackles, Hooks, Swivels & Hardware";
+      }
+      if (/\b(sling|round sling|web sling|choker|lifting strap)\b/.test(text)) {
+        return "Web Slings, Round Slings & Wire Chokers";
+      }
+      if (/\b(hoist|come[- ]along|lever puller|chain block|plate clamp|beam clamp)\b/.test(text)) {
+        return "Chain Hoists, Lever Pullers & Clamps";
+      }
+      if (/\b(winch strap|ratchet strap|tarp|bungee|corner protector|stake pocket)\b/.test(text)) {
+        return "Flatbed Winch Straps, Tarps & Stakes";
+      }
+      if (/\b(oversize|wide load|beacon|strobe|safety flag|wheel chock)\b/.test(text)) {
+        return "Oversize Load Banners, Beacons & Safety";
+      }
+      return "Grade 70/100 Chains & Load Binders";
+    case "ppe_fr_safety":
+      if (/\b(boot|steel toe|composite toe|metatarsal|muck)\b/.test(text)) {
+        return "Pipeline & Oilfield Safety Work Boots";
+      }
+      if (/\b(hard\s*hat|safety glass|goggle|face shield)\b/.test(text)) {
+        return "Hard Hats, Welding Shields & Safety Glasses";
+      }
+      if (/\b(glove|rig lizard|cut[- ]resistant)\b/.test(text)) {
+        return "ANSI Impact, Rigging & Cut Gloves";
+      }
+      if (/\b(h2s|gas monitor|gas detector|clip4|multi[- ]gas|respirator|half[- ]mask)\b/.test(text)) {
+        return "H2S / 4-Gas Monitors & Respiratory";
+      }
+      if (/\b(harness|lanyard|srl|fall protection|spill kit|absorbent|first aid|eyewash)\b/.test(text)) {
+        return "Fall Protection, Spill Kits & First Aid";
+      }
+      return "FR Shirts, Coveralls & Winter Outerwear";
+    case "hydraulics_fleet_shop":
+      if (/\b(grease gun|grease coupler|zerk|hose reel|lubricat|oil drain)\b/.test(text)) {
+        return "Grease Guns, Hose Reels & Lubrication";
+      }
+      if (/\b(bottle jack|hydraulic ram|porta[- ]power|enerpac|hydraulic coupler)\b/.test(text)) {
+        return "Hydraulic Jacks, Rams, Pumps & Couplers";
+      }
+      if (/\b(air compressor|air hose|air impact|inflator|blow gun)\b/.test(text)) {
+        return "Service Truck Compressors & Air Tools";
+      }
+      if (/\b(jump starter|jump pack|noco|battery charger|obd|scanner)\b/.test(text)) {
+        return "12V/24V Jump Packs, Chargers & HD Scanners";
+      }
+      if (/\b(tire|mud flap|shop towel|degreaser|brake cleaner)\b/.test(text)) {
+        return "Tire Service, Mud Flaps & Shop Consumables";
+      }
+      return "Diesel Transfer Pumps, Meters & Filters";
+    case "lighting_power_jobsite":
+      if (/\b(headlamp|flashlight|intrinsically safe|penlight)\b/.test(text)) {
+        return "Intrinsically Safe Flashlights & Headlamps";
+      }
+      if (/\b(generator|inverter|power station|spider box)\b/.test(text)) {
+        return "Generators, Power Stations & Spider Boxes";
+      }
+      if (/\b(extension cord|soow|sjoow|welding adapter)\b/.test(text)) {
+        return "Heavy Cold-Weather Cords & Welding Adapters";
+      }
+      if (/\b(jobox|gang box|site[- ]vault|truck chest|weather guard|pelican|tool chest)\b/.test(text)) {
+        return "Jobsite Gang Boxes, Truck Chests & Cases";
+      }
+      if (/\b(two[- ]way radio|walkie|cooler|heater|fan)\b/.test(text)) {
+        return "Two-Way Radios, Coolers & Jobsite Heaters";
+      }
+      return "Cordless Tower, Magnetic & Flood Lights";
+    case "measuring_inspection":
+      if (/\b(pressure gauge|hydrotest|deadweight|test manifold)\b/.test(text)) {
+        return "Liquid-Filled Pressure Gauges & Hydrotest";
+      }
+      if (/\b(caliper|mitutoyo|micrometer|tally|pi tape|thread gauge|feeler)\b/.test(text)) {
+        return "Pipe Calipers, Tally Tapes & Thread Gauges";
+      }
+      if (/\b(borescope|endoscope|sewer camera|inspection camera|pipe locator)\b/.test(text)) {
+        return "Borescopes, Sewer Cameras & Pipe Locators";
+      }
+      if (/\b(thermal|flir|infrared|pyrometer|temp gun|leak detector)\b/.test(text)) {
+        return "Thermal Imagers, Pyrometers & Leak Detectors";
+      }
+      if (/\b(laser level|rotary laser|digital level|torpedo level|multimeter|fluke|clamp meter)\b/.test(text)) {
+        return "Rotary Lasers, Digital Levels & Multimeters";
+      }
+      return "Ultrasonic Wall Thickness & NDT Kits";
+    case "ranch_fencing_ag":
+      if (/\b(notcher|coping|pipe saddle|template)\b/.test(text)) {
+        return "Pipe Fence Coping, Saddles & Notchers";
+      }
+      if (/\b(hinge|barrel hinge|gate latch|bulldog|cane bolt|gate wheel)\b/.test(text)) {
+        return "Weld-On Hinges, Latches & Gate Hardware";
+      }
+      if (/\b(solar.*fence|energizer|barbed wire|wire strainer|wire stretcher)\b/.test(text)) {
+        return "Solar Fence Chargers, Wire & Strainers";
+      }
+      if (/\b(stock tank|float valve|waterer|trough|trash pump)\b/.test(text)) {
+        return "Stock Tank Valves, Waterers & Ag Pumps";
+      }
+      if (/\b(chute|headgate|cattle|ear tag|livestock)\b/.test(text)) {
+        return "Livestock Chute, Trailer & Ranch Hardware";
+      }
+      return "Gas Post Drivers, Augers & T-Post Tools";
+    default:
+      return category.subcategories[0];
+  }
 }
 
 function extractTitleFromAmazonSlug(urlObject) {
@@ -1503,10 +1823,13 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
       suggestedTitle: "",
       suggestedBrand: "",
       suggestedCategoryCode: "power_hand_tools",
+      suggestedSubcategory: "Cordless Impact Wrenches & Socket Sets",
+      suggestedHighlights: [],
       imageUrl: "",
       eligibleCountries: ["US", "CA"],
       isAmazonLink: true,
       isShortLink: false,
+      isSearchPageLink: false,
       embeddedAssociateTag: "",
       effectiveAssociateTag: mergedSettings.amazonAssociateTagUs || "",
       monetizedPreviewUs: monetizedUs,
@@ -1593,7 +1916,9 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
   const combinedHint = [suggestedTitle, slugTitle, parsedUrl.pathname].filter(Boolean).join(" ");
   const suggestedBrand = inferBrandFromText(combinedHint);
   const suggestedCategoryCode = inferCategoryCodeFromText(combinedHint);
+  const suggestedSubcategory = inferSubcategoryFromText(combinedHint, suggestedCategoryCode);
   const eligibleCountries = inferEligibleCountries(parsedUrl.hostname, sourceType, asin);
+  const isSearchPage = isAmazonSearchPageUrl(parsedUrl.toString());
 
   const embeddedTag = isAmazon ?
     cleanText(parsedUrl.searchParams.get("tag"), 64) :
@@ -1631,6 +1956,11 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
   if (isFullAmazon && !embeddedTag && !storeTag) {
     warnings.push("No Amazon Associate tag is set yet. Enter your Tracking ID in Store Settings.");
   }
+  if (isSearchPage) {
+    warnings.push(
+        "This link opens an Amazon search results page instead of a direct product page. Select a matched SKU below to auto-fill its photo and direct Buy link.",
+    );
+  }
 
   return {
     destinationUrl: parsedUrl.toString(),
@@ -1643,10 +1973,13 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
     suggestedTitle,
     suggestedBrand,
     suggestedCategoryCode,
+    suggestedSubcategory,
+    suggestedHighlights: [],
     imageUrl: extractedImg,
     eligibleCountries,
     isAmazonLink: isAmazon,
     isShortLink: isShort,
+    isSearchPageLink: isSearchPage,
     embeddedAssociateTag: embeddedTag,
     effectiveAssociateTag: effectiveTag,
     monetizedPreviewUs,
@@ -1885,7 +2218,12 @@ function validateShopProductInput(raw = {}, existing = null) {
       "View on Amazon" :
       (detectedDestination.ctaLabel || `Shop ${vendorName}`));
   const description = cleanText(raw.description ?? base.description, 1200);
-  const subcategory = cleanText(raw.subcategory ?? base.subcategory, 80);
+  const subcategory = cleanText(
+      raw.subcategory ??
+      (parsedSubmission && parsedSubmission.suggestedSubcategory) ??
+      base.subcategory,
+      80,
+  ) || inferSubcategoryFromText(`${title} ${brand}`, categoryCode);
   const sku = cleanText(raw.sku ?? base.sku, 80);
   const vendorId = cleanText(raw.vendorId ?? base.vendorId, 80);
   const featured =
@@ -2085,13 +2423,16 @@ module.exports = {
   detectAffiliatePlatform,
   doesProductShipToCountry,
   extractAmazonAsin,
+  extractAmazonSearchCandidates,
   extractHtmlProductMetadata,
   extractTitleFromAmazonSlug,
   extractTitleFromGenericSlug,
   inferBrandFromText,
   inferCategoryCodeFromText,
   inferEligibleCountries,
+  inferSubcategoryFromText,
   isAmazonFullHostname,
+  isAmazonSearchPageUrl,
   isAmazonShortHostname,
   isPrivateOrLocalHostname,
   normalizeAssociateTag,
@@ -2103,6 +2444,7 @@ module.exports = {
   parseSafeHttpsUrl,
   resolveAmazonAssociateTag,
   resolveAmazonHostForRegion,
+  upgradeAmazonCdnImageResolution,
   validateShopProductInput,
   validateVendorApplicationInput,
 };

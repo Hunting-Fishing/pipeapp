@@ -155,8 +155,9 @@ class PipeBuyerShopSettings {
           : defaults.vendorApplicationsOpen,
       amazonAssociateTagUs:
           str('amazonAssociateTagUs', defaults.amazonAssociateTagUs),
-      amazonAssociateTagCa:
-          str('amazonAssociateTagCa', defaults.amazonAssociateTagCa),
+      amazonAssociateTagCa: json.containsKey('amazonAssociateTagCa')
+          ? (json['amazonAssociateTagCa']?.toString().trim() ?? '')
+          : defaults.amazonAssociateTagCa,
       amazonAssociateTagUk:
           json['amazonAssociateTagUk']?.toString().trim() ?? '',
       amazonAssociateTagAu:
@@ -1070,7 +1071,10 @@ abstract final class PipeBuyerShopUrlBuilder {
     if (upperRegion == 'CA' && product.destinationUrlCa.trim().isNotEmpty) {
       rawUrl = product.destinationUrlCa.trim();
     } else if (rawUrl.isEmpty && asin.isNotEmpty) {
-      final host = upperRegion == 'CA' ? 'www.amazon.ca' : 'www.amazon.com';
+      final host = (upperRegion == 'CA' &&
+              settings.amazonAssociateTagCa.trim().isNotEmpty)
+          ? 'www.amazon.ca'
+          : 'www.amazon.com';
       rawUrl = 'https://$host/dp/$asin';
     }
 
@@ -1087,6 +1091,7 @@ abstract final class PipeBuyerShopUrlBuilder {
       var targetHost = uri.host;
       if (upperRegion == 'CA' &&
           product.destinationUrlCa.trim().isEmpty &&
+          settings.amazonAssociateTagCa.trim().isNotEmpty &&
           targetHost.toLowerCase().endsWith('amazon.com')) {
         targetHost = 'www.amazon.ca';
       }
@@ -1212,6 +1217,8 @@ abstract final class PipeBuyerShopUrlBuilder {
   static const List<String> _knownBrands = <String>[
     'Lincoln Electric',
     'BW Technologies',
+    'Crescent JOBOX',
+    'Flange Wizard',
     'Klein Tools',
     'Milwaukee',
     'RIDGID',
@@ -1220,6 +1227,9 @@ abstract final class PipeBuyerShopUrlBuilder {
     'Miller',
     'Carhartt',
     'Crosby',
+    'HexArmor',
+    'Mitutoyo',
+    'iGaging',
     'Fluke',
     'Ariat',
     'Honeywell',
@@ -1231,6 +1241,7 @@ abstract final class PipeBuyerShopUrlBuilder {
     'Proto',
     'Enerpac',
     'Fill-Rite',
+    'NOCO',
     'Honda',
     'Pelican',
     'Midland',
@@ -1289,7 +1300,7 @@ abstract final class PipeBuyerShopUrlBuilder {
       return 'hydraulics_fleet_shop';
     }
     if (RegExp(
-      r'\b(work light|floodlight|lantern|headlamp|generator|inverter|extension cord|radio|jobsite box)\b',
+      r'\b(work light|floodlight|lantern|headlamp|generator|inverter|extension cord|radio|jobsite box|gang box|site[- ]vault)\b',
     ).hasMatch(lower)) {
       return 'lighting_power_jobsite';
     }
@@ -1304,6 +1315,147 @@ abstract final class PipeBuyerShopUrlBuilder {
       return 'ranch_fencing_ag';
     }
     return 'power_hand_tools';
+  }
+
+  static String inferSubcategory(String text, String categoryCode) {
+    final lower = text.toLowerCase();
+    final subs = PipeBuyerShopTaxonomy.subcategoriesForCategory(categoryCode);
+    final fallback = subs.isNotEmpty ? subs.first : '';
+    switch (categoryCode) {
+      case 'pipe_welding_fab':
+        if (RegExp(
+                r'\b(pipe wrench|straight wrench|chain tong|tristand|chain vise)\b')
+            .hasMatch(lower)) {
+          return 'Pipe Wrenches, Chain Tongs & Vises';
+        }
+        if (RegExp(r'\b(threader|threading|bevel|pipe cutter|roll groov)\b')
+            .hasMatch(lower)) {
+          return 'Pipe Cutting, Threading & Beveling';
+        }
+        if (RegExp(
+                r'\b(two[- ]hole|flange pin|alignment|pipe jack|fit[- ]up)\b')
+            .hasMatch(lower)) {
+          return 'Pipe Alignment, Jacks & Fit-Up Tools';
+        }
+        if (RegExp(
+                r'\b(welding rod|electrode|7018|6010|mig wire|flap disc|grinding wheel)\b')
+            .hasMatch(lower)) {
+          return 'Welding Rods, Wire & Abrasives';
+        }
+        if (RegExp(r'\b(valve|gasket|thread sealant|teflon|pipe fitting)\b')
+            .hasMatch(lower)) {
+          return 'Valves, Pipe Fittings, Flanges & Sealants';
+        }
+        if (RegExp(
+                r'\b(welding helmet|viking|welder|tig|mig|torch|electrode holder)\b')
+            .hasMatch(lower)) {
+          return 'Welding Machines, Leads & Torches';
+        }
+        return fallback;
+      case 'power_hand_tools':
+        if (RegExp(r'\b(impact wrench|impact socket|socket set|2767)\b')
+            .hasMatch(lower)) {
+          return 'Cordless Impact Wrenches & Socket Sets';
+        }
+        if (RegExp(r'\b(grinder|band ?saw|bandsaw|mag drill|chop saw)\b')
+            .hasMatch(lower)) {
+          return 'Angle Grinders, Bandsaws & Mag Drills';
+        }
+        if (RegExp(r'\b(torque wrench|breaker bar|combination wrench)\b')
+            .hasMatch(lower)) {
+          return 'Heavy Wrenches, Ratchets & Torque Tools';
+        }
+        if (RegExp(r'\b(battery|charger|packout|redlithium|flexvolt)\b')
+            .hasMatch(lower)) {
+          return 'Cordless Batteries, Chargers & Packout';
+        }
+        return fallback;
+      case 'rigging_hauling_cargo':
+        if (RegExp(
+                r'\b(grade 70|grade 100|binder chain|transport chain|load binder|ratchet binder|chain binder)\b')
+            .hasMatch(lower)) {
+          return 'Grade 70/100 Chains & Load Binders';
+        }
+        if (RegExp(r'\b(shackle|clevis|swivel|eye bolt|grab hook)\b')
+            .hasMatch(lower)) {
+          return 'Shackles, Hooks, Swivels & Hardware';
+        }
+        if (RegExp(r'\b(sling|choker)\b').hasMatch(lower)) {
+          return 'Web Slings, Round Slings & Wire Chokers';
+        }
+        if (RegExp(r'\b(hoist|come[- ]along|lever puller)\b').hasMatch(lower)) {
+          return 'Chain Hoists, Lever Pullers & Clamps';
+        }
+        if (RegExp(r'\b(winch strap|ratchet strap|tarp)\b').hasMatch(lower)) {
+          return 'Flatbed Winch Straps, Tarps & Stakes';
+        }
+        return fallback;
+      case 'ppe_fr_safety':
+        if (RegExp(
+                r'\b(h2s|4[- ]gas|multi[- ]gas|gas detector|gas monitor|microclip|clip4|respirator)\b')
+            .hasMatch(lower)) {
+          return 'H2S / 4-Gas Monitors & Respiratory';
+        }
+        if (RegExp(r'\b(glove|rig lizard|cut[- ]resistant)\b')
+            .hasMatch(lower)) {
+          return 'ANSI Impact, Rigging & Cut Gloves';
+        }
+        if (RegExp(r'\b(spill kit|harness|lanyard|fall protection|first aid)\b')
+            .hasMatch(lower)) {
+          return 'Fall Protection, Spill Kits & First Aid';
+        }
+        if (RegExp(r'\b(boot|toe)\b').hasMatch(lower)) {
+          return 'Pipeline & Oilfield Safety Work Boots';
+        }
+        if (RegExp(r'\b(hard ?hat|safety glasses|face shield)\b')
+            .hasMatch(lower)) {
+          return 'Hard Hats, Welding Shields & Safety Glasses';
+        }
+        return 'FR Shirts, Coveralls & Winter Outerwear';
+      case 'hydraulics_fleet_shop':
+        if (RegExp(r'\b(transfer pump|fuel pump|fill[- ]rite|diesel|nozzle)\b')
+            .hasMatch(lower)) {
+          return 'Diesel Transfer Pumps, Meters & Filters';
+        }
+        if (RegExp(r'\b(grease gun|grease|hose reel|lubricat)\b')
+            .hasMatch(lower)) {
+          return 'Grease Guns, Hose Reels & Lubrication';
+        }
+        if (RegExp(r'\b(jump starter|noco|booster|charger|scanner)\b')
+            .hasMatch(lower)) {
+          return '12V/24V Jump Packs, Chargers & HD Scanners';
+        }
+        return fallback;
+      case 'lighting_power_jobsite':
+        if (RegExp(r'\b(gang box|jobox|site[- ]vault|chest|tool box)\b')
+            .hasMatch(lower)) {
+          return 'Jobsite Gang Boxes, Truck Chests & Cases';
+        }
+        if (RegExp(r'\b(generator|inverter|power station)\b').hasMatch(lower)) {
+          return 'Generators, Power Stations & Spider Boxes';
+        }
+        return 'Cordless Tower, Magnetic & Flood Lights';
+      case 'measuring_inspection':
+        if (RegExp(r'\b(ultrasonic|thickness gauge|ndt)\b').hasMatch(lower)) {
+          return 'Ultrasonic Wall Thickness & NDT Kits';
+        }
+        if (RegExp(r'\b(caliper|micrometer|tally|thread gauge)\b')
+            .hasMatch(lower)) {
+          return 'Pipe Calipers, Tally Tapes & Thread Gauges';
+        }
+        return fallback;
+      case 'ranch_fencing_ag':
+        if (RegExp(r'\b(post driver|t[- ]post|auger|pile driver)\b')
+            .hasMatch(lower)) {
+          return 'Gas Post Drivers, Augers & T-Post Tools';
+        }
+        if (RegExp(r'\b(hinge|barrel hinge|gate latch)\b').hasMatch(lower)) {
+          return 'Weld-On Hinges, Latches & Gate Hardware';
+        }
+        return fallback;
+      default:
+        return fallback;
+    }
   }
 
   static String _extractSlugTitle(Uri uri) {
@@ -1480,15 +1632,29 @@ abstract final class PipeBuyerShopUrlBuilder {
     final isAmazon = _isAmazonShortHost(uri.host) || isFullAmazon;
     final sourceType = detected.sourceType;
     final asin = isAmazon ? extractAmazonAsin(uri.toString()) : '';
+    final isSearchPageLink = isAmazon &&
+        asin.isEmpty &&
+        (RegExp(r'^/s(?:/|$)', caseSensitive: false).hasMatch(uri.path) ||
+            uri.queryParameters.containsKey('k') ||
+            uri.queryParameters.containsKey('field-keywords') ||
+            (uri.queryParameters['ar_mt'] ?? '').toUpperCase() ==
+                'SEARCH_PAGE');
+    final searchKeywordHint = (uri.queryParameters['k'] ??
+            uri.queryParameters['field-keywords'] ??
+            '')
+        .trim();
     final slugTitle = !isShort ? _extractSlugTitle(uri) : '';
     final suggestedTitle = anchorTitle.isNotEmpty
         ? anchorTitle
-        : (surroundingText.isNotEmpty ? surroundingText : slugTitle);
-    final hintText = [suggestedTitle, slugTitle, uri.path]
+        : (surroundingText.isNotEmpty
+            ? surroundingText
+            : (slugTitle.isNotEmpty ? slugTitle : searchKeywordHint));
+    final hintText = [suggestedTitle, slugTitle, searchKeywordHint, uri.path]
         .where((s) => s.isNotEmpty)
         .join(' ');
     final suggestedBrand = inferBrand(hintText);
     final suggestedCategory = inferCategoryCode(hintText);
+    final suggestedSubcategory = inferSubcategory(hintText, suggestedCategory);
     final inferredCountries = inferEligibleCountries(
       uri.host,
       sourceType: sourceType,
@@ -1527,6 +1693,7 @@ abstract final class PipeBuyerShopUrlBuilder {
       vendorName: suggestedVendor,
       sourceType: sourceType,
       categoryCode: suggestedCategory,
+      subcategory: suggestedSubcategory,
       asin: asin,
       destinationUrl: uri.toString(),
     );
@@ -1540,14 +1707,73 @@ abstract final class PipeBuyerShopUrlBuilder {
       suggestedTitle: suggestedTitle,
       suggestedBrand: suggestedBrand,
       suggestedCategoryCode: suggestedCategory,
+      suggestedSubcategory: suggestedSubcategory,
       imageUrl: extractedImg,
       eligibleCountries: inferredCountries,
       isAmazonLink: isAmazon,
       isShortLink: isShort,
+      isSearchPageLink: isSearchPageLink,
       embeddedAssociateTag: embeddedTag,
       effectiveAssociateTag: effectiveTag,
       monetizedPreviewUs: buildMonetizedUrl(draft, settings, regionCode: 'US'),
       monetizedPreviewCa: buildMonetizedUrl(draft, settings, regionCode: 'CA'),
+      complianceWarnings: isSearchPageLink
+          ? const <String>[
+              'This Amazon URL points to a search results page (/s?k=...) instead of a direct product (/dp/ASIN). Pick the exact SKU below to auto-build a direct SiteStripe product link and load its photo.',
+            ]
+          : const <String>[],
+    );
+  }
+}
+
+@immutable
+class PipeBuyerAmazonSearchCandidate {
+  const PipeBuyerAmazonSearchCandidate({
+    required this.asin,
+    required this.title,
+    this.brand = '',
+    this.categoryCode = 'power_hand_tools',
+    this.subcategory = '',
+    this.imageUrl = '',
+    this.priceDisplay = '',
+    this.destinationUrl = '',
+  });
+
+  final String asin;
+  final String title;
+  final String brand;
+  final String categoryCode;
+  final String subcategory;
+  final String imageUrl;
+  final String priceDisplay;
+  final String destinationUrl;
+
+  factory PipeBuyerAmazonSearchCandidate.fromJson(Map<String, dynamic> json) {
+    final asin = json['asin']?.toString().trim() ?? '';
+    final title = json['title']?.toString().trim() ?? '';
+    final rawCat = json['categoryCode']?.toString().trim() ?? '';
+    final cat = rawCat.isNotEmpty
+        ? rawCat
+        : PipeBuyerShopUrlBuilder.inferCategoryCode(title);
+    final rawSub = json['subcategory']?.toString().trim() ?? '';
+    final sub = rawSub.isNotEmpty
+        ? rawSub
+        : PipeBuyerShopUrlBuilder.inferSubcategory(title, cat);
+    final rawUrl = json['destinationUrl']?.toString().trim() ?? '';
+    return PipeBuyerAmazonSearchCandidate(
+      asin: asin,
+      title: title,
+      brand: json['brand']?.toString().trim() ??
+          PipeBuyerShopUrlBuilder.inferBrand(title),
+      categoryCode: cat,
+      subcategory: sub,
+      imageUrl: json['imageUrl']?.toString().trim() ?? '',
+      priceDisplay: json['priceDisplay']?.toString().trim() ?? '',
+      destinationUrl: rawUrl.isNotEmpty
+          ? rawUrl
+          : (asin.isNotEmpty
+              ? 'https://www.amazon.com/dp/$asin?linkCode=ll1'
+              : ''),
     );
   }
 }
@@ -1568,12 +1794,18 @@ class PipeBuyerParsedAffiliateSubmission {
     required this.effectiveAssociateTag,
     required this.monetizedPreviewUs,
     required this.monetizedPreviewCa,
+    this.suggestedSubcategory = '',
+    this.suggestedHighlights = const <String>[],
     this.platformName = 'Amazon',
     this.suggestedVendorName = 'Amazon',
     this.eligibleCountries = const <String>['GLOBAL'],
     this.suggestedPriceDisplay = '',
     this.resolvedUrl = '',
+    this.canonicalProductUrl = '',
     this.metadataFetched = false,
+    this.isSearchPageLink = false,
+    this.searchCandidates = const <PipeBuyerAmazonSearchCandidate>[],
+    this.complianceWarnings = const <String>[],
   });
 
   final String destinationUrl;
@@ -1584,17 +1816,23 @@ class PipeBuyerParsedAffiliateSubmission {
   final String suggestedTitle;
   final String suggestedBrand;
   final String suggestedCategoryCode;
+  final String suggestedSubcategory;
+  final List<String> suggestedHighlights;
   final String imageUrl;
   final List<String> eligibleCountries;
   final String suggestedPriceDisplay;
   final String resolvedUrl;
+  final String canonicalProductUrl;
   final bool metadataFetched;
   final bool isAmazonLink;
   final bool isShortLink;
+  final bool isSearchPageLink;
   final String embeddedAssociateTag;
   final String effectiveAssociateTag;
   final String monetizedPreviewUs;
   final String monetizedPreviewCa;
+  final List<PipeBuyerAmazonSearchCandidate> searchCandidates;
+  final List<String> complianceWarnings;
 
   factory PipeBuyerParsedAffiliateSubmission.fromServerJson(
     Map<String, dynamic> json,
@@ -1605,6 +1843,32 @@ class PipeBuyerParsedAffiliateSubmission {
             rawCountries.map((e) => e?.toString() ?? ''),
           )
         : const <String>['GLOBAL'];
+    final rawHighlights = json['suggestedHighlights'];
+    final highlights = rawHighlights is Iterable
+        ? rawHighlights
+            .map((e) => e?.toString().trim() ?? '')
+            .where((e) => e.isNotEmpty)
+            .toList(growable: false)
+        : const <String>[];
+    final rawCandidates = json['searchCandidates'];
+    final candidates = rawCandidates is Iterable
+        ? rawCandidates
+            .whereType<Map>()
+            .map(
+              (e) => PipeBuyerAmazonSearchCandidate.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
+            .where((c) => c.asin.isNotEmpty)
+            .toList(growable: false)
+        : const <PipeBuyerAmazonSearchCandidate>[];
+    final rawWarnings = json['complianceWarnings'];
+    final warnings = rawWarnings is Iterable
+        ? rawWarnings
+            .map((e) => e?.toString().trim() ?? '')
+            .where((e) => e.isNotEmpty)
+            .toList(growable: false)
+        : const <String>[];
     return PipeBuyerParsedAffiliateSubmission(
       destinationUrl: json['destinationUrl']?.toString().trim() ?? '',
       asin: json['asin']?.toString().trim() ?? '',
@@ -1617,20 +1881,27 @@ class PipeBuyerParsedAffiliateSubmission {
       suggestedBrand: json['suggestedBrand']?.toString().trim() ?? '',
       suggestedCategoryCode: json['suggestedCategoryCode']?.toString().trim() ??
           'power_hand_tools',
+      suggestedSubcategory:
+          json['suggestedSubcategory']?.toString().trim() ?? '',
+      suggestedHighlights: highlights,
       imageUrl: json['imageUrl']?.toString().trim() ?? '',
       eligibleCountries: countries,
       suggestedPriceDisplay:
           json['suggestedPriceDisplay']?.toString().trim() ?? '',
       resolvedUrl: json['resolvedUrl']?.toString().trim() ?? '',
+      canonicalProductUrl: json['canonicalProductUrl']?.toString().trim() ?? '',
       metadataFetched: json['metadataFetched'] == true,
       isAmazonLink: json['isAmazonLink'] == true,
       isShortLink: json['isShortLink'] == true,
+      isSearchPageLink: json['isSearchPageLink'] == true,
       embeddedAssociateTag:
           json['embeddedAssociateTag']?.toString().trim() ?? '',
       effectiveAssociateTag:
           json['effectiveAssociateTag']?.toString().trim() ?? '',
       monetizedPreviewUs: json['monetizedPreviewUs']?.toString().trim() ?? '',
       monetizedPreviewCa: json['monetizedPreviewCa']?.toString().trim() ?? '',
+      searchCandidates: candidates,
+      complianceWarnings: warnings,
     );
   }
 }
@@ -2249,7 +2520,11 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'pipe_welding_fab',
       subcategory: 'Pipe Wrenches, Chain Tongs & Vises',
-      destinationUrl: 'https://link.amazon/B0iZoQG46',
+      asin: 'B0000224JH',
+      destinationUrl: 'https://www.amazon.com/dp/B0000224JH?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/41xUYaUmGwL._AC_SL1000_.jpg',
+      priceDisplay: '\$245.99',
       badgeText: 'Pipeline Essential',
       featured: true,
       priorityRank: 10,
@@ -2260,21 +2535,36 @@ abstract final class PipeBuyerShopTaxonomy {
         'Lightweight forged aluminum housing',
         'Replaceable alloy steel hook & heel jaws',
       ],
-      tags: <String>['ridgid', 'pipe wrench', 'tubular', 'casing', 'plumbing'],
-      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
+      tags: <String>[
+        'ridgid',
+        'pipe wrench',
+        'tubular',
+        'casing',
+        'plumbing',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Pipe',
+        'Oilfield Equipment',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
     ),
     PipeBuyerShopProduct(
       id: 'ridgid-460-tristand-chain-vise',
-      title: 'RIDGID 36273 Model 460-6 Portable TRISTAND Chain Pipe Vise',
+      title:
+          'RIDGID 16703 Model 425 Portable TRISTAND Chain Pipe Vise w/ Folding Legs',
       brand: 'RIDGID',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'pipe_welding_fab',
       subcategory: 'Pipe Wrenches, Chain Tongs & Vises',
-      destinationUrl: 'https://link.amazon/B0dkMQ4Gm',
+      asin: 'B001P3056K',
+      destinationUrl: 'https://www.amazon.com/dp/B001P3056K?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/61s4dEBnyxL._AC_SL1000_.jpg',
+      priceDisplay: '\$414.50',
       badgeText: 'Fab Truck Favorite',
       featured: true,
       priorityRank: 15,
@@ -2290,9 +2580,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'tristand',
         'chain vise',
         'welding',
-        'pipefitting'
+        'pipefitting',
       ],
-      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Pipe',
+        'Oilfield Equipment',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/17-pipe-and-materials/11-pipe-threading-equipment.svg',
       isStarterSeed: true,
@@ -2306,8 +2600,13 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'pipe_welding_fab',
       subcategory: 'Pipe Wrenches, Chain Tongs & Vises',
-      destinationUrl: 'https://link.amazon/B02tpL9H0',
+      asin: 'B004FCJHNA',
+      destinationUrl: 'https://www.amazon.com/dp/B004FCJHNA?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/41O1kERSbxL._AC_SL1000_.jpg',
+      priceDisplay: '\$60.14',
       badgeText: 'Rig Bag Staple',
+      featured: false,
       priorityRank: 42,
       description:
           'Compact forged aluminum pipe wrench for instrument tubing, 1-inch nipples, and tight manifold racks.',
@@ -2316,8 +2615,18 @@ abstract final class PipeBuyerShopTaxonomy {
         '40% lighter than cast-iron equivalents',
         'Self-cleaning hook jaw threads',
       ],
-      tags: <String>['ridgid', 'pipe wrench', '10 inch', 'manifold', 'tubing'],
-      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
+      tags: <String>[
+        'ridgid',
+        'pipe wrench',
+        '10 inch',
+        'manifold',
+        'tubing',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Pipe',
+        'Oilfield Equipment',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2331,8 +2640,13 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'pipe_welding_fab',
       subcategory: 'Pipe Wrenches, Chain Tongs & Vises',
-      destinationUrl: 'https://link.amazon/B0ia8erLT',
+      asin: 'B0000224JE',
+      destinationUrl: 'https://www.amazon.com/dp/B0000224JE?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/512uEoH3BmL._AC_SL1000_.jpg',
+      priceDisplay: '\$51.99',
       badgeText: 'Pipefitter Standard',
+      featured: false,
       priorityRank: 43,
       description:
           'Everyday 14-inch aluminum straight wrench for 1/2" to 2" threaded black iron and galvanized pipe.',
@@ -2341,8 +2655,17 @@ abstract final class PipeBuyerShopTaxonomy {
         'Forged aluminum housing',
         'Replaceable hardened alloy jaws',
       ],
-      tags: <String>['ridgid', 'pipe wrench', '14 inch', 'pipefitter'],
-      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
+      tags: <String>[
+        'ridgid',
+        'pipe wrench',
+        '14 inch',
+        'pipefitter',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Pipe',
+        'Oilfield Equipment',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2356,8 +2679,13 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'pipe_welding_fab',
       subcategory: 'Pipe Wrenches, Chain Tongs & Vises',
-      destinationUrl: 'https://link.amazon/B0bCNPX9o',
+      asin: 'B0000224JF',
+      destinationUrl: 'https://www.amazon.com/dp/B0000224JF?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/61jhLmIkt3L._AC_SL1000_.jpg',
+      priceDisplay: '\$79.97',
       badgeText: 'Lease Crew Pick',
+      featured: false,
       priorityRank: 44,
       description:
           'Balanced 18-inch aluminum wrench ideal for wellhead trim, 2-inch flowlines, and tank battery hookups.',
@@ -2371,9 +2699,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'pipe wrench',
         '18 inch',
         'wellhead',
-        'flowline'
+        'flowline',
       ],
-      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Pipe',
+        'Oilfield Equipment',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2387,8 +2719,13 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'pipe_welding_fab',
       subcategory: 'Pipe Wrenches, Chain Tongs & Vises',
-      destinationUrl: 'https://link.amazon/B0emLXhCS',
+      asin: 'B0000224JG',
+      destinationUrl: 'https://www.amazon.com/dp/B0000224JG?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/41BoSQROuiL._AC_SL1000_.jpg',
+      priceDisplay: '\$119.99',
       badgeText: 'Flowline Spec',
+      featured: false,
       priorityRank: 45,
       description:
           'Heavy-leverage 24-inch aluminum pipe wrench built for 2-inch and 3-inch threaded oilfield tubulars.',
@@ -2402,9 +2739,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'pipe wrench',
         '24 inch',
         'tubulars',
-        'flowline'
+        'flowline',
       ],
-      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Pipe',
+        'Oilfield Equipment',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2418,8 +2759,13 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'pipe_welding_fab',
       subcategory: 'Pipe Wrenches, Chain Tongs & Vises',
-      destinationUrl: 'https://link.amazon/B09Fd0TuQ',
+      asin: 'B0000224JI',
+      destinationUrl: 'https://www.amazon.com/dp/B0000224JI?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/51VR9a0hX0L._AC_SL1000_.jpg',
+      priceDisplay: '\$429.99',
       badgeText: 'Big Iron 6" Cap',
+      featured: false,
       priorityRank: 46,
       description:
           'Two-hand 48-inch aluminum pipe wrench for 4-inch to 6-inch casing collars, headers, and pump suction lines.',
@@ -2428,8 +2774,18 @@ abstract final class PipeBuyerShopTaxonomy {
         '18.5 lb aluminum housing saves crew backs',
         'Heavy-duty replaceable heel jaw',
       ],
-      tags: <String>['ridgid', 'pipe wrench', '48 inch', 'casing', 'header'],
-      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
+      tags: <String>[
+        'ridgid',
+        'pipe wrench',
+        '48 inch',
+        'casing',
+        'header',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Pipe',
+        'Oilfield Equipment',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2443,8 +2799,13 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'pipe_welding_fab',
       subcategory: 'Pipe Wrenches, Chain Tongs & Vises',
-      destinationUrl: 'https://link.amazon/B0aLZDhdJ',
+      asin: 'B0000224J8',
+      destinationUrl: 'https://www.amazon.com/dp/B0000224J8?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/51jx2ZY-0fL._AC_SL1000_.jpg',
+      priceDisplay: '\$51.99',
       badgeText: 'Cast-Iron Classic',
+      featured: false,
       priorityRank: 47,
       description:
           'Ductile-iron housing 14-inch straight wrench engineered for brutal rig-floor torque and stubborn unions.',
@@ -2458,9 +2819,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'pipe wrench',
         '14 inch',
         'cast iron',
-        'rig floor'
+        'rig floor',
       ],
-      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Pipe',
+        'Oilfield Equipment',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2473,8 +2838,11 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'pipe_welding_fab',
       subcategory: 'Welding Machines, Leads & Torches',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Lincoln+Electric+VIKING+3350+Welding+Helmet',
+      asin: 'B07XZG78M1',
+      destinationUrl: 'https://www.amazon.com/dp/B07XZG78M1?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/71GR6PttffL._AC_SL1000_.jpg',
+      priceDisplay: '\$532.33',
       badgeText: 'Welder Top Pick',
       featured: true,
       priorityRank: 18,
@@ -2489,12 +2857,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'lincoln electric',
         'welding helmet',
         'pipeline',
-        'fabrication'
+        'fabrication',
       ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Pipe',
         'Oilfield Equipment',
-        'Farm & Ranch'
+        'Farm & Ranch',
       ],
       fallbackIconAsset:
           'assets/images/industrial_icons/26-marketplace-catalog-photos/welding-machine.svg',
@@ -2509,8 +2878,10 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'pipe_welding_fab',
       subcategory: 'Pipe Alignment, Jacks & Fit-Up Tools',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Flange+Wizard+Two+Hole+Pins+Pipefitter+Level',
+      asin: 'B00IORD4O0',
+      destinationUrl: 'https://www.amazon.com/dp/B00IORD4O0?linkCode=ll1',
+      imageUrl: 'https://m.media-amazon.com/images/I/21VvxR9IDiL._AC_.jpg',
+      priceDisplay: '\$67.75',
       badgeText: 'Pipefitter Spec',
       featured: false,
       priorityRank: 28,
@@ -2521,8 +2892,16 @@ abstract final class PipeBuyerShopTaxonomy {
         'ACME threads for rapid self-centering',
         'Rare-earth magnetic grooved pipe vial level',
       ],
-      tags: <String>['flange', 'pipefitter', 'alignment pins', 'valves'],
-      marketplaceCategories: <String>['Pipe'],
+      tags: <String>[
+        'flange',
+        'pipefitter',
+        'alignment pins',
+        'valves',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Pipe',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/04-pipe-flange.svg',
       isStarterSeed: true,
@@ -2538,8 +2917,11 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'power_hand_tools',
       subcategory: 'Cordless Impact Wrenches & Socket Sets',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Milwaukee+2767-20+M18+FUEL+High+Torque+Impact+Wrench',
+      asin: 'B094RDL3QR',
+      destinationUrl: 'https://www.amazon.com/dp/B094RDL3QR?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/51efp2NB2HL._AC_SL1000_.jpg',
+      priceDisplay: '\$279.90',
       badgeText: '1,400 ft-lbs Nut-Busting',
       featured: true,
       priorityRank: 8,
@@ -2555,8 +2937,9 @@ abstract final class PipeBuyerShopTaxonomy {
         'm18',
         'impact wrench',
         'flange bolts',
-        'mechanic'
+        'mechanic',
       ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Heavy Equipment',
         'Oilfield Equipment',
@@ -2576,8 +2959,11 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'power_hand_tools',
       subcategory: 'Angle Grinders, Bandsaws & Mag Drills',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Milwaukee+M18+FUEL+Deep+Cut+Band+Saw',
+      asin: 'B00LBHJ688',
+      destinationUrl: 'https://www.amazon.com/dp/B00LBHJ688?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/81MBdLmrZgL._AC_SL1000_.jpg',
+      priceDisplay: '\$399.00',
       badgeText: 'Jobsite Safety Spec',
       featured: true,
       priorityRank: 14,
@@ -2588,8 +2974,17 @@ abstract final class PipeBuyerShopTaxonomy {
         'Variable speed dial + tool-free shoe adjustment',
         'LED cut-line worklight & integrated hang hook',
       ],
-      tags: <String>['milwaukee', 'bandsaw', 'pipe cutting', 'm18 fuel'],
-      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
+      tags: <String>[
+        'milwaukee',
+        'bandsaw',
+        'pipe cutting',
+        'm18 fuel',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Pipe',
+        'Oilfield Equipment',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/02-pipes-and-valves/07-pipe-cutter.svg',
       isStarterSeed: true,
@@ -2603,8 +2998,11 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'power_hand_tools',
       subcategory: 'Angle Grinders, Bandsaws & Mag Drills',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Milwaukee+M18+FUEL+Braking+Grinder+Paddle+Switch',
+      asin: 'B09RX4R3TR',
+      destinationUrl: 'https://www.amazon.com/dp/B09RX4R3TR?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/51VbFwi7iOL._AC_SL1000_.jpg',
+      priceDisplay: '\$122.55',
       badgeText: 'RAPIDSTOP Brake',
       featured: false,
       priorityRank: 24,
@@ -2615,11 +3013,17 @@ abstract final class PipeBuyerShopTaxonomy {
         'No-lock paddle switch required on major sites',
         'Electronic clutch for kickback protection',
       ],
-      tags: <String>['milwaukee', 'grinder', 'pipe beveling', 'welding prep'],
+      tags: <String>[
+        'milwaukee',
+        'grinder',
+        'pipe beveling',
+        'welding prep',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Pipe',
         'Heavy Equipment',
-        'Farm & Ranch'
+        'Farm & Ranch',
       ],
       fallbackIconAsset:
           'assets/images/industrial_icons/09-software-and-administration/04-maintenance-tools.svg',
@@ -2634,8 +3038,11 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'power_hand_tools',
       subcategory: 'Cordless Impact Wrenches & Socket Sets',
-      destinationUrl:
-          'https://www.amazon.com/s?k=DEWALT+1%2F2+Drive+Deep+Impact+Socket+Set+SAE+Metric',
+      asin: 'B01IFSX9M4',
+      destinationUrl: 'https://www.amazon.com/dp/B01IFSX9M4?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/71j7st1PmDL._AC_SL1000_.jpg',
+      priceDisplay: '\$65.99',
       badgeText: 'Service Truck Kit',
       featured: false,
       priorityRank: 32,
@@ -2646,8 +3053,18 @@ abstract final class PipeBuyerShopTaxonomy {
         'Black oxide oil-resistant coating',
         'Heavy-duty stackable service truck case',
       ],
-      tags: <String>['dewalt', 'impact sockets', 'sae', 'metric', 'mechanic'],
-      marketplaceCategories: <String>['Heavy Equipment', 'Transport & Hauling'],
+      tags: <String>[
+        'dewalt',
+        'impact sockets',
+        'sae',
+        'metric',
+        'mechanic',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Heavy Equipment',
+        'Transport & Hauling',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/09-software-and-administration/04-maintenance-tools.svg',
       isStarterSeed: true,
@@ -2657,14 +3074,16 @@ abstract final class PipeBuyerShopTaxonomy {
     PipeBuyerShopProduct(
       id: 'dot-grade-70-transport-chain-4pack',
       title:
-          'DOT Grade 70 3/8-Inch x 20-Ft Heavy-Duty Transport Binder Chains (4-Pack, 6,600 lb WLL)',
-      brand: 'Vulcan / Peerless',
+          'DOT Grade 70 3/8-Inch x 20-Ft Heavy-Duty Transport Binder Chains w/ Grab Hooks (6,600 lb WLL)',
+      brand: 'Mega Cargo Control',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'rigging_hauling_cargo',
       subcategory: 'Grade 70/100 Chains & Load Binders',
-      destinationUrl:
-          'https://www.amazon.com/s?k=3%2F8+x+20+Grade+70+Transport+Binder+Chain+6600+WLL',
+      asin: 'B083GBSFP4',
+      destinationUrl: 'https://www.amazon.com/dp/B083GBSFP4?linkCode=ll1',
+      imageUrl: 'https://m.media-amazon.com/images/I/81DHi6RPLEL._SL1500_.jpg',
+      priceDisplay: '\$139.85',
       badgeText: 'DOT / CVSA Compliant',
       featured: true,
       priorityRank: 12,
@@ -2681,12 +3100,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'tie down',
         'flatbed',
         'lowboy',
-        'pipe hauling'
+        'pipe hauling',
       ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Transport & Hauling',
         'Heavy Equipment',
-        'Pipe'
+        'Pipe',
       ],
       fallbackIconAsset:
           'assets/images/industrial_icons/20-transport-and-dispatch-equipment/05-pipe-hauling-truck-trailer.svg',
@@ -2695,14 +3115,17 @@ abstract final class PipeBuyerShopTaxonomy {
     PipeBuyerShopProduct(
       id: 'ratchet-load-binders-9200-wll',
       title:
-          'Heavy-Duty Forged Ratchet Load Binders for 3/8"–1/2" Grade 70/80 Chain (4-Pack, 9,200 lb WLL)',
-      brand: 'Vulcan',
+          'KJE 4-Pack Heavy-Duty Forged Ratchet Chain Load Binders 3/8"–1/2" (9,200 lb WLL)',
+      brand: 'KJE',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'rigging_hauling_cargo',
       subcategory: 'Grade 70/100 Chains & Load Binders',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Forged+Ratchet+Load+Binder+3%2F8+to+1%2F2+9200+WLL+4+Pack',
+      asin: 'B0G3PBBBJY',
+      destinationUrl: 'https://www.amazon.com/dp/B0G3PBBBJY?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/81emKVvd7WL._AC_SL1000_.jpg',
+      priceDisplay: '\$113.00',
       badgeText: 'Hotshot & Lowboy',
       featured: false,
       priorityRank: 22,
@@ -2718,9 +3141,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'ratchet binder',
         'hotshot',
         'flatbed',
-        'dispatch'
+        'dispatch',
       ],
-      marketplaceCategories: <String>['Transport & Hauling', 'Heavy Equipment'],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Transport & Hauling',
+        'Heavy Equipment',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/11-heavy-haul-and-escort/01-lowboy-trailer.svg',
       isStarterSeed: true,
@@ -2734,8 +3161,10 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'rigging_hauling_cargo',
       subcategory: 'Shackles, Hooks, Swivels & Hardware',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Crosby+G-209+Screw+Pin+Anchor+Shackle+4.75+Ton',
+      asin: 'B005648RGY',
+      destinationUrl: 'https://www.amazon.com/dp/B005648RGY?linkCode=ll1',
+      imageUrl: 'https://m.media-amazon.com/images/I/910H7ecvOJL._SL1500_.jpg',
+      priceDisplay: '\$55.40',
       badgeText: 'Rigging Gold Standard',
       featured: false,
       priorityRank: 26,
@@ -2746,7 +3175,14 @@ abstract final class PipeBuyerShopTaxonomy {
         'Hot-dip galvanized fatigue-rated body',
         'Forged in North America / ASME B30.26 compliant',
       ],
-      tags: <String>['crosby', 'shackle', 'rigging', 'crane', 'lifting'],
+      tags: <String>[
+        'crosby',
+        'shackle',
+        'rigging',
+        'crane',
+        'lifting',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Transport & Hauling',
         'Oilfield Equipment',
@@ -2760,14 +3196,17 @@ abstract final class PipeBuyerShopTaxonomy {
     // 4. FR Workwear, PPE & Gas Detection
     PipeBuyerShopProduct(
       id: 'bw-clip4-multi-gas-detector-h2s',
-      title: 'Honeywell BW Clip4 / Multi-Gas 4-Gas Detector (H2S, CO, O2, LEL)',
-      brand: 'Honeywell BW',
+      title:
+          'BW Technologies GasAlertMicroClip XL 4-Gas Detector (H2S, CO, O2, LEL)',
+      brand: 'BW Technologies',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'ppe_fr_safety',
       subcategory: 'H2S / 4-Gas Monitors & Respiratory',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Honeywell+BW+4+Gas+Monitor+H2S+CO+O2+LEL',
+      asin: 'B0H15MGT9H',
+      destinationUrl: 'https://www.amazon.com/dp/B0H15MGT9H?linkCode=ll1',
+      imageUrl: 'https://m.media-amazon.com/images/I/61NhiV0M8jL._SL1500_.jpg',
+      priceDisplay: '\$489.00',
       badgeText: 'Wellsite Mandatory PPE',
       featured: true,
       priorityRank: 11,
@@ -2778,10 +3217,17 @@ abstract final class PipeBuyerShopTaxonomy {
         'IP68 waterproof / Class I, Div 1 intrinsically safe',
         '95 dB alarm + high-output strobe + vibration alert',
       ],
-      tags: <String>['h2s monitor', '4 gas', 'ppe', 'wellsite', 'tank entry'],
+      tags: <String>[
+        'h2s monitor',
+        '4 gas',
+        'ppe',
+        'wellsite',
+        'tank entry',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Oilfield Equipment',
-        'Tanks & Containers'
+        'Tanks & Containers',
       ],
       fallbackIconAsset:
           'assets/images/industrial_icons/08-safety-and-security/01-safety-shield.svg',
@@ -2790,14 +3236,17 @@ abstract final class PipeBuyerShopTaxonomy {
     PipeBuyerShopProduct(
       id: 'carhartt-fr-henley-work-shirt',
       title:
-          'Carhartt / Ariat Flame-Resistant (FR) CAT 2 NFPA 2112 Long-Sleeve Work Shirt',
-      brand: 'Carhartt FR',
+          'Carhartt Men\'s FR Force Dearborn Long-Sleeve Flame-Resistant Work Shirt',
+      brand: 'Carhartt',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'ppe_fr_safety',
       subcategory: 'FR Shirts, Coveralls & Winter Outerwear',
-      destinationUrl:
-          'https://www.amazon.com/s?k=NFPA+2112+CAT+2+FR+Work+Shirt+Men+Oilfield',
+      asin: 'B00B4RN6YU',
+      destinationUrl: 'https://www.amazon.com/dp/B00B4RN6YU?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/51oQq7aKaSL._AC_SL1000_.jpg',
+      priceDisplay: '\$68.00',
       badgeText: 'NFPA 2112 / CAT 2',
       featured: false,
       priorityRank: 25,
@@ -2813,9 +3262,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'nfpa 2112',
         'carhartt',
         'safety',
-        'oilfield'
+        'oilfield',
       ],
-      marketplaceCategories: <String>['Oilfield Equipment', 'Pipe'],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Oilfield Equipment',
+        'Pipe',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/08-safety-and-security/06-safety-hardhat.svg',
       isStarterSeed: true,
@@ -2823,14 +3276,16 @@ abstract final class PipeBuyerShopTaxonomy {
     PipeBuyerShopProduct(
       id: 'ansi-a6-oilfield-impact-rigger-gloves',
       title:
-          'HexArmor / Superior ANSI Cut A6 TPR Back-of-Hand Oilfield Impact Rigging Gloves',
+          'HexArmor Rig Lizard 2090X Cut-Resistant Oilfield Impact Rigging Gloves',
       brand: 'HexArmor',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'ppe_fr_safety',
       subcategory: 'ANSI Impact, Rigging & Cut Gloves',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Oilfield+TPR+Impact+Gloves+ANSI+Cut+A6',
+      asin: 'B0774WVGFZ',
+      destinationUrl: 'https://www.amazon.com/dp/B0774WVGFZ?linkCode=ll1',
+      imageUrl: 'https://m.media-amazon.com/images/I/71eDqjaIxYL._SL1200_.jpg',
+      priceDisplay: '\$25.49',
       badgeText: 'Pinch-Point Protection',
       featured: false,
       priorityRank: 30,
@@ -2841,11 +3296,17 @@ abstract final class PipeBuyerShopTaxonomy {
         'ANSI A6 cut-resistant liner for sharp pipe burrs',
         'Hi-vis colors for hand-signal visibility',
       ],
-      tags: <String>['impact gloves', 'rigger gloves', 'ppe', 'pipe handling'],
+      tags: <String>[
+        'impact gloves',
+        'rigger gloves',
+        'ppe',
+        'pipe handling',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Pipe',
         'Oilfield Equipment',
-        'Transport & Hauling'
+        'Transport & Hauling',
       ],
       fallbackIconAsset:
           'assets/images/industrial_icons/08-safety-and-security/06-safety-hardhat.svg',
@@ -2854,14 +3315,16 @@ abstract final class PipeBuyerShopTaxonomy {
     PipeBuyerShopProduct(
       id: 'dot-truck-oil-spill-containment-kit',
       title:
-          'Universal & Oil-Only DOT Service Truck Emergency Spill Kit in Weatherproof Duffel',
-      brand: 'PIG / Brady',
+          'OSHA / DOT Service Truck Emergency Oil & Universal Spill Response Kit in Hi-Vis Duffel',
+      brand: 'Magnicare',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'ppe_fr_safety',
       subcategory: 'Fall Protection, Spill Kits & First Aid',
-      destinationUrl:
-          'https://www.amazon.com/s?k=DOT+Truck+Emergency+Oil+Spill+Kit+Bag',
+      asin: 'B0FF6WR8CC',
+      destinationUrl: 'https://www.amazon.com/dp/B0FF6WR8CC?linkCode=ll1',
+      imageUrl: 'https://m.media-amazon.com/images/I/813urertDlL._SL1500_.jpg',
+      priceDisplay: '\$46.99',
       badgeText: 'Lease Road Compliant',
       featured: false,
       priorityRank: 36,
@@ -2877,11 +3340,12 @@ abstract final class PipeBuyerShopTaxonomy {
         'containment',
         'dot',
         'tanker',
-        'vacuum truck'
+        'vacuum truck',
       ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Tanks & Containers',
-        'Transport & Hauling'
+        'Transport & Hauling',
       ],
       fallbackIconAsset:
           'assets/images/industrial_icons/26-marketplace-catalog-photos/spill-kit.svg',
@@ -2898,8 +3362,11 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'hydraulics_fleet_shop',
       subcategory: 'Grease Guns, Hose Reels & Lubrication',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Milwaukee+2646-20+M18+2-Speed+Grease+Gun',
+      asin: 'B00CMV6DT2',
+      destinationUrl: 'https://www.amazon.com/dp/B00CMV6DT2?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/517DahFrU0L._AC_SL1000_.jpg',
+      priceDisplay: '\$208.00',
       badgeText: '10,000 PSI Heavy Iron',
       featured: true,
       priorityRank: 16,
@@ -2914,12 +3381,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'milwaukee',
         'grease gun',
         'excavator',
-        'preventive maintenance'
+        'preventive maintenance',
       ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Heavy Equipment',
         'Transport & Hauling',
-        'Farm & Ranch'
+        'Farm & Ranch',
       ],
       fallbackIconAsset:
           'assets/images/industrial_icons/10-heavy-equipment/01-crawler-excavator.svg',
@@ -2928,14 +3396,16 @@ abstract final class PipeBuyerShopTaxonomy {
     PipeBuyerShopProduct(
       id: 'fill-rite-12v-15gpm-fuel-transfer-pump',
       title:
-          'Fill-Rite FR1210H 12V DC 15-GPM Heavy-Duty Cast-Iron Fuel Transfer Pump w/ Nozzle',
+          'Fill-Rite FR1204H 12V DC 15-GPM Heavy-Duty Cast-Iron Fuel Transfer Pump',
       brand: 'Fill-Rite',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'hydraulics_fleet_shop',
       subcategory: 'Diesel Transfer Pumps, Meters & Filters',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Fill-Rite+FR1210H+12V+15+GPM+Fuel+Transfer+Pump',
+      asin: 'B00B5RDWD4',
+      destinationUrl: 'https://www.amazon.com/dp/B00B5RDWD4?linkCode=ll1',
+      imageUrl: 'https://m.media-amazon.com/images/I/71qHegpRiIL._SL1500_.jpg',
+      priceDisplay: '\$369.10',
       badgeText: 'Slip-Tank Standard',
       featured: false,
       priorityRank: 20,
@@ -2946,11 +3416,17 @@ abstract final class PipeBuyerShopTaxonomy {
         'Explosion-proof UL/cUL listed 1/4 HP motor',
         '2-inch bung mount for truck slip tanks & drums',
       ],
-      tags: <String>['fill-rite', 'diesel pump', 'slip tank', 'fuel tank'],
+      tags: <String>[
+        'fill-rite',
+        'diesel pump',
+        'slip tank',
+        'fuel tank',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Tanks & Containers',
         'Heavy Equipment',
-        'Farm & Ranch'
+        'Farm & Ranch',
       ],
       fallbackIconAsset:
           'assets/images/industrial_icons/03-fuel-and-fluid-equipment/04-fuel-nozzle.svg',
@@ -2965,8 +3441,11 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'hydraulics_fleet_shop',
       subcategory: '12V/24V Jump Packs, Chargers & HD Scanners',
-      destinationUrl:
-          'https://www.amazon.com/s?k=NOCO+Boost+Pro+GB150+3000A+12V+Jump+Starter',
+      asin: 'B015TKSSB8',
+      destinationUrl: 'https://www.amazon.com/dp/B015TKSSB8?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/71BK9TytPEL._AC_SL1000_.jpg',
+      priceDisplay: '\$299.95',
       badgeText: 'Winter Fleet Saver',
       featured: false,
       priorityRank: 29,
@@ -2977,8 +3456,18 @@ abstract final class PipeBuyerShopTaxonomy {
         'Spark-proof clamps + reverse polarity protection',
         'Built-in digital voltmeter & 500-lumen worklight',
       ],
-      tags: <String>['noco', 'jump starter', 'diesel', 'winter', 'fleet'],
-      marketplaceCategories: <String>['Heavy Equipment', 'Transport & Hauling'],
+      tags: <String>[
+        'noco',
+        'jump starter',
+        'diesel',
+        'winter',
+        'fleet',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Heavy Equipment',
+        'Transport & Hauling',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/05-commercial-vehicles/04-pickup-flatbed-truck.svg',
       isStarterSeed: true,
@@ -2994,8 +3483,11 @@ abstract final class PipeBuyerShopTaxonomy {
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'lighting_power_jobsite',
       subcategory: 'Cordless Tower, Magnetic & Flood Lights',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Milwaukee+M18+ROVER+Magnetic+Flood+Light',
+      asin: 'B0DMBQ5H8X',
+      destinationUrl: 'https://www.amazon.com/dp/B0DMBQ5H8X?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/51Tl7B5xfXL._AC_SL1000_.jpg',
+      priceDisplay: '\$169.00',
       badgeText: 'Night Shift Ready',
       featured: false,
       priorityRank: 27,
@@ -3011,8 +3503,9 @@ abstract final class PipeBuyerShopTaxonomy {
         'led light',
         'rover',
         'night shift',
-        'magnetic'
+        'magnetic',
       ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Portable Buildings',
         'Oilfield Equipment',
@@ -3025,14 +3518,17 @@ abstract final class PipeBuyerShopTaxonomy {
     PipeBuyerShopProduct(
       id: 'crescent-jobox-48-steel-gang-box',
       title:
-          'Crescent JOBOX 48-Inch Heavy-Duty Lockable Steel Site-Vault Chest',
+          'Crescent JOBOX 60-Inch Heavy-Duty Lockable Steel Site-Vault Chest',
       brand: 'Crescent JOBOX',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'lighting_power_jobsite',
       subcategory: 'Jobsite Gang Boxes, Truck Chests & Cases',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Crescent+JOBOX+48+Inch+Site+Vault+Piano+Box',
+      asin: 'B084Y6M494',
+      destinationUrl: 'https://www.amazon.com/dp/B084Y6M494?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/61nXZYtpfVL._AC_SL1000_.jpg',
+      priceDisplay: '\$1,320.00',
       badgeText: 'Site-Vault Security',
       featured: false,
       priorityRank: 34,
@@ -3043,10 +3539,16 @@ abstract final class PipeBuyerShopTaxonomy {
         '4-way forklift skid bolsters for fast yard loading',
         'EZ-Loader anti-tip skid design',
       ],
-      tags: <String>['jobox', 'gang box', 'tool storage', 'yard security'],
+      tags: <String>[
+        'jobox',
+        'gang box',
+        'tool storage',
+        'yard security',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Portable Buildings',
-        'Land & Commercial Property'
+        'Land & Commercial Property',
       ],
       fallbackIconAsset:
           'assets/images/industrial_icons/26-marketplace-catalog-photos/tool-room.svg',
@@ -3057,14 +3559,16 @@ abstract final class PipeBuyerShopTaxonomy {
     PipeBuyerShopProduct(
       id: 'ultrasonic-pipe-wall-thickness-gauge',
       title:
-          'Digital Ultrasonic Pipe Wall Thickness Gauge (0.04"–11.8" Steel & OCTG Inspection)',
-      brand: 'REED / Industrial NDT',
+          'Industrial-882 Digital Ultrasonic Pipe & Steel Wall Thickness Gauge (0.039"–8.858")',
+      brand: 'Industrial-882',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'measuring_inspection',
       subcategory: 'Ultrasonic Wall Thickness & NDT Kits',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Digital+Ultrasonic+Thickness+Gauge+Steel+Pipe+Wall',
+      asin: 'B09HTXKJPB',
+      destinationUrl: 'https://www.amazon.com/dp/B09HTXKJPB?linkCode=ll1',
+      imageUrl: 'https://m.media-amazon.com/images/I/71Tb7334JFL._SL1500_.jpg',
+      priceDisplay: '\$159.99',
       badgeText: 'Pipe Buyer Essential',
       featured: true,
       priorityRank: 17,
@@ -3080,12 +3584,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'wall thickness',
         'pipe inspection',
         'octg',
-        'casing'
+        'casing',
       ],
+      eligibleCountries: <String>['US', 'CA'],
       marketplaceCategories: <String>[
         'Pipe',
         'Tanks & Containers',
-        'Oilfield Equipment'
+        'Oilfield Equipment',
       ],
       fallbackIconAsset:
           'assets/images/industrial_icons/17-pipe-and-materials/12-pipe-inspection-equipment.svg',
@@ -3093,15 +3598,16 @@ abstract final class PipeBuyerShopTaxonomy {
     ),
     PipeBuyerShopProduct(
       id: 'mitutoyo-stainless-digital-pipe-caliper',
-      title:
-          'Mitutoyo 500-196-30 Absolute Digimatic 0–6" / 0–8" Stainless Vernier Caliper',
-      brand: 'Mitutoyo',
+      title: 'iGAGING Absolute Origin 0–6" IP54 Stainless Digital Pipe Caliper',
+      brand: 'iGaging',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'measuring_inspection',
       subcategory: 'Pipe Calipers, Tally Tapes & Thread Gauges',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Mitutoyo+500-196-30+Digital+Caliper+Stainless',
+      asin: 'B00INL0BTS',
+      destinationUrl: 'https://www.amazon.com/dp/B00INL0BTS?linkCode=ll1',
+      imageUrl: 'https://m.media-amazon.com/images/I/81MRTRCxHVL._SL1500_.jpg',
+      priceDisplay: '\$47.77',
       badgeText: 'Precision +/-0.001"',
       featured: false,
       priorityRank: 31,
@@ -3117,9 +3623,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'caliper',
         'pipe od',
         'fittings',
-        'inspection'
+        'inspection',
       ],
-      marketplaceCategories: <String>['Pipe', 'Oilfield Equipment'],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Pipe',
+        'Oilfield Equipment',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/17-pipe-and-materials/05-generic-fittings-assortment.svg',
       isStarterSeed: true,
@@ -3128,14 +3638,18 @@ abstract final class PipeBuyerShopTaxonomy {
     // 8. Farm, Ranch & Pipe Fencing Gear
     PipeBuyerShopProduct(
       id: 'gas-powered-pipe-tpost-driver',
-      title: 'Heavy-Duty 4-Stroke Gas Powered T-Post & Pipe Fence Post Driver',
-      brand: 'Titan / Redi-Driver',
+      title:
+          'VEVOR 4-Stroke 37.7cc Gas-Powered T-Post & Pipe Fence Post Driver',
+      brand: 'VEVOR',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'ranch_fencing_ag',
       subcategory: 'Gas Post Drivers, Augers & T-Post Tools',
-      destinationUrl:
-          'https://www.amazon.com/s?k=4+Stroke+Gas+Powered+Post+Driver+Pipe+Fence+T+Post',
+      asin: 'B0DH1BNQYL',
+      destinationUrl: 'https://www.amazon.com/dp/B0DH1BNQYL?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/71bRv55+HQL._AC_SL1000_.jpg',
+      priceDisplay: '\$319.90',
       badgeText: 'Ranch Pipe Crew',
       featured: false,
       priorityRank: 23,
@@ -3151,9 +3665,13 @@ abstract final class PipeBuyerShopTaxonomy {
         'pipe fence',
         'drill stem',
         'ranch',
-        'corral'
+        'corral',
       ],
-      marketplaceCategories: <String>['Farm & Ranch', 'Pipe'],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Farm & Ranch',
+        'Pipe',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/18-farm-ranch-listings/04-fence-post.svg',
       isStarterSeed: true,
@@ -3161,14 +3679,17 @@ abstract final class PipeBuyerShopTaxonomy {
     PipeBuyerShopProduct(
       id: 'weld-on-steel-barrel-gate-hinges',
       title:
-          'Heavy-Duty 7-Inch Weld-On Steel Barrel Hinges w/ Grease Zerks for Pipe Ranch Gates (4-Pairs)',
-      brand: 'Ranch Fab Select',
+          'Heavy-Duty 7-Inch Weld-On Steel Barrel Gate Hinges w/ Grease Zerk (900 lb Cap.)',
+      brand: 'Korhvante',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'ranch_fencing_ag',
       subcategory: 'Weld-On Hinges, Latches & Gate Hardware',
-      destinationUrl:
-          'https://www.amazon.com/s?k=Heavy+Duty+7+Inch+Weld+On+Barrel+Gate+Hinges+Grease+Zerk',
+      asin: 'B0GWQBFKBK',
+      destinationUrl: 'https://www.amazon.com/dp/B0GWQBFKBK?linkCode=ll1',
+      imageUrl:
+          'https://m.media-amazon.com/images/I/61uciux3NJL._AC_SL1000_.jpg',
+      priceDisplay: '\$32.99',
       badgeText: 'Drill-Stem Gate Ready',
       featured: false,
       priorityRank: 35,
@@ -3179,8 +3700,17 @@ abstract final class PipeBuyerShopTaxonomy {
         'Built-in grease zerk fitting for smooth swing',
         'Uncoated mild steel welds cleanly to drill pipe',
       ],
-      tags: <String>['weld on hinges', 'pipe gate', 'corral', 'ranch gate'],
-      marketplaceCategories: <String>['Farm & Ranch', 'Pipe'],
+      tags: <String>[
+        'weld on hinges',
+        'pipe gate',
+        'corral',
+        'ranch gate',
+      ],
+      eligibleCountries: <String>['US', 'CA'],
+      marketplaceCategories: <String>[
+        'Farm & Ranch',
+        'Pipe',
+      ],
       fallbackIconAsset:
           'assets/images/industrial_icons/12-farm-and-ranch/08-ranch-gate.svg',
       isStarterSeed: true,

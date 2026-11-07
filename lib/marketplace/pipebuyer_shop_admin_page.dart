@@ -2141,8 +2141,12 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                 TextField(
                   controller: _caTagController,
                   decoration: const InputDecoration(
-                    labelText: 'Canada Amazon Associate Tag (amazon.ca)',
-                    hintText: 'e.g., pipebuyer0c-20',
+                    labelText:
+                        'Canada Amazon Associate Tag (amazon.ca — optional w/ OneLink)',
+                    hintText:
+                        'Leave blank if Amazon OneLink is active on US Store ID',
+                    helperText:
+                        'Leave blank when Amazon OneLink is enabled on your US Store ID so OneLink auto-redirects Canadian buyers.',
                     prefixIcon: Icon(Icons.flag_circle_outlined),
                   ),
                   onChanged: (_) => setState(() {}),
@@ -2871,7 +2875,9 @@ class _AdminCatalogProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = item.status == 'active';
     final hasPhoto = item.imageUrl.trim().isNotEmpty;
-    final isSearchUrl = item.destinationUrl.toLowerCase().contains('/s?k=');
+    final lowerUrl = item.destinationUrl.toLowerCase();
+    final isSearchUrl =
+        lowerUrl.contains('/s?k=') || lowerUrl.contains('ar_mt=search_page');
     final countries = item.effectiveEligibleCountries;
     final isRestrictedNonNorthAmerica = !countries.contains('GLOBAL') &&
         !countries.contains('US') &&
@@ -3188,6 +3194,7 @@ class _PipeBuyerAffiliateLinkEditorDialogState
     extends State<PipeBuyerAffiliateLinkEditorDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _quickPasteController;
+  late final TextEditingController _amazonSearchController;
   late final TextEditingController _titleController;
   late final TextEditingController _brandController;
   late final TextEditingController _vendorController;
@@ -3206,6 +3213,10 @@ class _PipeBuyerAffiliateLinkEditorDialogState
   late bool _featured;
   bool _saving = false;
   bool _fetchingMetadata = false;
+  bool _searchingAmazon = false;
+  String _amazonSearchEmptyNote = '';
+  List<PipeBuyerAmazonSearchCandidate> _searchCandidates =
+      const <PipeBuyerAmazonSearchCandidate>[];
   Timer? _metadataDebounce;
   PipeBuyerParsedAffiliateSubmission? _parsedPreview;
 
@@ -3313,6 +3324,13 @@ class _PipeBuyerAffiliateLinkEditorDialogState
     _quickPasteController = TextEditingController(
       text: e?.destinationUrl ?? '',
     );
+    _amazonSearchController = TextEditingController(
+      text: (e != null &&
+              e.sourceType == PipeBuyerShopSourceType.amazonAffiliate &&
+              e.asin.isEmpty)
+          ? e.title
+          : '',
+    );
     _titleController = TextEditingController(text: e?.title ?? '');
     _brandController = TextEditingController(text: e?.brand ?? '');
     _vendorController = TextEditingController(text: initialVendor);
@@ -3345,6 +3363,7 @@ class _PipeBuyerAffiliateLinkEditorDialogState
   void dispose() {
     _metadataDebounce?.cancel();
     _quickPasteController.dispose();
+    _amazonSearchController.dispose();
     _titleController.dispose();
     _brandController.dispose();
     _vendorController.dispose();
@@ -3428,7 +3447,10 @@ class _PipeBuyerAffiliateLinkEditorDialogState
         _categoryCode = parsed.suggestedCategoryCode;
         final validSubs =
             PipeBuyerShopTaxonomy.subcategoriesForCategory(_categoryCode);
-        if (!validSubs.contains(_subcategory)) {
+        if (parsed.suggestedSubcategory.isNotEmpty &&
+            validSubs.contains(parsed.suggestedSubcategory)) {
+          _subcategory = parsed.suggestedSubcategory;
+        } else if (!validSubs.contains(_subcategory)) {
           _subcategory = _defaultSubcategoryFor(_categoryCode);
         }
       }
@@ -3469,9 +3491,20 @@ class _PipeBuyerAffiliateLinkEditorDialogState
       if (remote == null) return;
       _parsedPreview = remote;
 
-      if (remote.destinationUrl.isNotEmpty &&
+      if (remote.canonicalProductUrl.isNotEmpty &&
+          (_urlController.text.trim().isEmpty ||
+              remote.isShortLink ||
+              _urlController.text.toLowerCase().contains('/s?k=') ||
+              _urlController.text.toLowerCase().contains('ar_mt=search_page') ||
+              _urlController.text.toLowerCase().contains('link.amazon'))) {
+        _urlController.text = remote.canonicalProductUrl;
+      } else if (remote.destinationUrl.isNotEmpty &&
           _urlController.text.trim().isEmpty) {
         _urlController.text = remote.destinationUrl;
+      }
+      if (remote.searchCandidates.isNotEmpty) {
+        _searchCandidates = remote.searchCandidates;
+        _amazonSearchEmptyNote = '';
       }
       _sourceType = remote.sourceType;
       if (remote.suggestedVendorName.isNotEmpty) {
@@ -3502,6 +3535,21 @@ class _PipeBuyerAffiliateLinkEditorDialogState
           _priceController.text.trim().isEmpty) {
         _priceController.text = remote.suggestedPriceDisplay;
       }
+      if (widget.existing == null && remote.suggestedCategoryCode.isNotEmpty) {
+        _categoryCode = remote.suggestedCategoryCode;
+        final validSubs =
+            PipeBuyerShopTaxonomy.subcategoriesForCategory(_categoryCode);
+        if (remote.suggestedSubcategory.isNotEmpty &&
+            validSubs.contains(remote.suggestedSubcategory)) {
+          _subcategory = remote.suggestedSubcategory;
+        } else if (!validSubs.contains(_subcategory)) {
+          _subcategory = _defaultSubcategoryFor(_categoryCode);
+        }
+      }
+      if (remote.suggestedHighlights.isNotEmpty &&
+          _highlightsController.text.trim().isEmpty) {
+        _highlightsController.text = remote.suggestedHighlights.join('\n');
+      }
       if (remote.eligibleCountries.isNotEmpty) {
         _eligibleCountries = List<String>.from(remote.eligibleCountries);
       }
@@ -3512,6 +3560,101 @@ class _PipeBuyerAffiliateLinkEditorDialogState
             'Field-proven ${cat?.shortLabel.toLowerCase() ?? "industrial"} gear selected for Pipe Buyer contractors, fabricators, and field crews.';
       }
     });
+  }
+
+  Future<void> _runAmazonProductSearch([String? queryOverride]) async {
+    final query = (queryOverride ?? _amazonSearchController.text).trim();
+    if (query.length < 2 || !mounted) {
+      PipeFeedback.show(
+        context,
+        message: 'Enter a tool name, brand, or model number to search Amazon.',
+        tone: PipeStatusTone.warning,
+      );
+      return;
+    }
+    setState(() {
+      _searchingAmazon = true;
+      _amazonSearchEmptyNote = '';
+    });
+    final results = await widget.client.searchAmazonAffiliateProducts(
+      query,
+      settings: widget.settings,
+    );
+    if (!mounted) return;
+    setState(() {
+      _searchingAmazon = false;
+      _searchCandidates = results;
+      _amazonSearchEmptyNote = results.isEmpty
+          ? 'No direct Amazon SKU matched "$query". Try a model number (e.g., RIDGID 31110 or Milwaukee 2767-20) or paste the /dp/ product URL directly.'
+          : '';
+    });
+  }
+
+  void _selectAmazonCandidate(PipeBuyerAmazonSearchCandidate candidate) {
+    final baseUrl = candidate.destinationUrl.trim().isNotEmpty
+        ? candidate.destinationUrl.trim()
+        : 'https://www.amazon.com/dp/${candidate.asin}?linkCode=ll1';
+    final draft = PipeBuyerShopProduct(
+      id: widget.existing?.id ?? 'draft_candidate',
+      title: candidate.title,
+      brand: candidate.brand,
+      vendorName: 'Amazon',
+      sourceType: PipeBuyerShopSourceType.amazonAffiliate,
+      categoryCode: candidate.categoryCode,
+      subcategory: candidate.subcategory,
+      asin: candidate.asin,
+      destinationUrl: baseUrl,
+      imageUrl: candidate.imageUrl,
+      priceDisplay: candidate.priceDisplay,
+      eligibleCountries: const <String>['US', 'CA'],
+    );
+    final monetizedUrl = PipeBuyerShopUrlBuilder.buildMonetizedUrl(
+      draft,
+      widget.settings,
+      regionCode: 'US',
+    );
+    final finalUrl = monetizedUrl.isNotEmpty ? monetizedUrl : baseUrl;
+    final parsed = PipeBuyerShopUrlBuilder.parseAffiliateSubmission(
+      finalUrl,
+      widget.settings,
+    );
+
+    setState(() {
+      _sourceType = PipeBuyerShopSourceType.amazonAffiliate;
+      _vendorController.text = 'Amazon';
+      _asinController.text = candidate.asin;
+      _urlController.text = finalUrl;
+      _quickPasteController.text = finalUrl;
+      if (candidate.imageUrl.isNotEmpty) {
+        _imageUrlController.text = candidate.imageUrl;
+      }
+      if (candidate.title.isNotEmpty) {
+        _titleController.text = candidate.title;
+      }
+      if (candidate.brand.isNotEmpty) {
+        _brandController.text = candidate.brand;
+      }
+      if (candidate.priceDisplay.isNotEmpty) {
+        _priceController.text = candidate.priceDisplay;
+      }
+      _categoryCode = candidate.categoryCode;
+      final validSubs =
+          PipeBuyerShopTaxonomy.subcategoriesForCategory(_categoryCode);
+      _subcategory = validSubs.contains(candidate.subcategory)
+          ? candidate.subcategory
+          : _defaultSubcategoryFor(_categoryCode);
+      _eligibleCountries = const <String>['US', 'CA'];
+      _parsedPreview = parsed;
+      _searchCandidates = const <PipeBuyerAmazonSearchCandidate>[];
+      _amazonSearchEmptyNote = '';
+      if (_descriptionController.text.trim().isEmpty &&
+          _titleController.text.trim().isNotEmpty) {
+        final cat = PipeBuyerShopTaxonomy.categoryByCode(_categoryCode);
+        _descriptionController.text =
+            'Field-proven ${cat?.shortLabel.toLowerCase() ?? "industrial"} gear selected for Pipe Buyer contractors, fabricators, and field crews.';
+      }
+    });
+    _scheduleRemoteMetadataFetch(finalUrl);
   }
 
   Future<void> _pasteFromClipboard() async {
@@ -3806,6 +3949,258 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                         ),
                         onChanged: _applySmartPaste,
                       ),
+                      if (_sourceType ==
+                          PipeBuyerShopSourceType.amazonAffiliate) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: PipeBuyerColors.industrialBlue
+                                  .withValues(alpha: .28),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.manage_search_rounded,
+                                    size: 17,
+                                    color: PipeBuyerColors.industrialBlue,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'SiteStripe Product Finder (Auto-Build Direct /dp/ Link + Photo w/ Tag ${widget.settings.amazonAssociateTagUs.isNotEmpty ? widget.settings.amazonAssociateTagUs : "pipebuyer-20"})',
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: PipeBuyerColors.ink,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      key: const Key(
+                                        'amazon_product_finder_field',
+                                      ),
+                                      controller: _amazonSearchController,
+                                      textInputAction: TextInputAction.search,
+                                      onSubmitted: _runAmazonProductSearch,
+                                      decoration: const InputDecoration(
+                                        isDense: true,
+                                        labelText:
+                                            'Search Amazon by Tool Name, Brand, or Model #',
+                                        hintText:
+                                            'e.g., RIDGID 31110 36 pipe wrench, Milwaukee 2767-20, Lincoln Viking 3350',
+                                        prefixIcon: Icon(
+                                          Icons.search_rounded,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  FilledButton.tonalIcon(
+                                    key: const Key(
+                                      'amazon_product_finder_button',
+                                    ),
+                                    onPressed: _searchingAmazon
+                                        ? null
+                                        : () => _runAmazonProductSearch(),
+                                    icon: _searchingAmazon
+                                        ? const SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.travel_explore_rounded,
+                                            size: 16,
+                                          ),
+                                    label: Text(
+                                      _searchingAmazon
+                                          ? 'Searching...'
+                                          : 'Find SKU',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (_amazonSearchEmptyNote.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  _amazonSearchEmptyNote,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: PipeBuyerColors.muted,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (preview != null &&
+                          (preview.isSearchPageLink ||
+                              preview.complianceWarnings.isNotEmpty)) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: PipeBuyerColors.warning
+                                  .withValues(alpha: .45),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.warning_amber_rounded,
+                                size: 17,
+                                color: PipeBuyerColors.warning,
+                              ),
+                              const SizedBox(width: 7),
+                              Expanded(
+                                child: Text(
+                                  preview.complianceWarnings.isNotEmpty
+                                      ? preview.complianceWarnings.first
+                                      : 'Amazon search URL detected (/s?k=...). Select the exact product SKU below so buyers open the real product page instead of competitor search ads.',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: PipeBuyerColors.ink,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (_searchCandidates.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Matching Amazon SKUs — Click "Select SKU" to Auto-Fill Direct Link, Photo & Category:',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w900,
+                            color: PipeBuyerColors.industrialBlue,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        ..._searchCandidates.map((cand) {
+                          final catObj = PipeBuyerShopTaxonomy.categoryByCode(
+                            cand.categoryCode,
+                          );
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: PipeBuyerColors.line),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: PipeBuyerColors.surfaceMuted,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: cand.imageUrl.isNotEmpty
+                                      ? CachedNetworkImage(
+                                          imageUrl: cand.imageUrl,
+                                          fit: BoxFit.contain,
+                                          placeholder: (_, __) => const Icon(
+                                            Icons.image_outlined,
+                                            size: 20,
+                                            color: PipeBuyerColors.muted,
+                                          ),
+                                          errorWidget: (_, __, ___) =>
+                                              const Icon(
+                                            Icons.inventory_2_outlined,
+                                            size: 20,
+                                            color: PipeBuyerColors.muted,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.inventory_2_outlined,
+                                          size: 20,
+                                          color: PipeBuyerColors.muted,
+                                        ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        cand.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          height: 1.2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'ASIN: ${cand.asin}${cand.priceDisplay.isNotEmpty ? " • ${cand.priceDisplay}" : ""} • ${catObj?.shortLabel ?? cand.categoryCode}${cand.subcategory.isNotEmpty ? " › ${cand.subcategory}" : ""}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 10.5,
+                                          color: PipeBuyerColors.muted,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                FilledButton.tonalIcon(
+                                  onPressed: () => _selectAmazonCandidate(cand),
+                                  style: FilledButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.check_circle_outline_rounded,
+                                    size: 15,
+                                  ),
+                                  label: const Text(
+                                    'Select SKU',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
                       if (preview != null) ...[
                         const SizedBox(height: 8),
                         Wrap(
@@ -3826,6 +4221,11 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                               _ComplianceBadge(
                                 ok: true,
                                 label: 'ASIN: ${preview.asin}',
+                              ),
+                            if (preview.isSearchPageLink)
+                              const _ComplianceBadge(
+                                ok: false,
+                                label: 'Search URL — Pick Direct SKU',
                               ),
                             _ComplianceBadge(
                               ok: !isNonNorthAmericaOnly,

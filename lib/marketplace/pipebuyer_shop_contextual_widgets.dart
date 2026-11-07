@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -22,8 +23,9 @@ class PipeBuyerHomeShopShowcase extends StatefulWidget {
 class _PipeBuyerHomeShopShowcaseState extends State<PipeBuyerHomeShopShowcase> {
   late final PipeBuyerShopClient _client;
   PipeBuyerShopSettings _settings = const PipeBuyerShopSettings();
-  List<PipeBuyerShopProduct> _products = PipeBuyerShopClient
-      .mergeWithStarterCatalog(const <PipeBuyerShopProduct>[]);
+  List<PipeBuyerShopProduct> _products =
+      PipeBuyerShopClient.mergeWithStarterCatalog(
+          const <PipeBuyerShopProduct>[]);
   String _regionCode = 'US';
 
   @override
@@ -225,8 +227,9 @@ class _PipeBuyerContextualShopCardState
     extends State<PipeBuyerContextualShopCard> {
   late final PipeBuyerShopClient _client;
   PipeBuyerShopSettings _settings = const PipeBuyerShopSettings();
-  List<PipeBuyerShopProduct> _catalog = PipeBuyerShopClient
-      .mergeWithStarterCatalog(const <PipeBuyerShopProduct>[]);
+  List<PipeBuyerShopProduct> _catalog =
+      PipeBuyerShopClient.mergeWithStarterCatalog(
+          const <PipeBuyerShopProduct>[]);
   String _regionCode = 'US';
 
   @override
@@ -328,17 +331,33 @@ class _PipeBuyerContextualShopCardState
                   child: Row(
                     children: [
                       SizedBox(
-                        width: 34,
-                        height: 34,
-                        child: SvgPicture.asset(
-                          item.effectiveIconAsset,
-                          fit: BoxFit.contain,
-                          placeholderBuilder: (_) => Icon(
-                            item.category.icon,
-                            size: 20,
-                            color: PipeBuyerColors.orange,
-                          ),
-                        ),
+                        width: 38,
+                        height: 38,
+                        child: item.imageUrl.trim().isNotEmpty
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(7),
+                                child: CachedNetworkImage(
+                                  imageUrl: item.imageUrl.trim(),
+                                  fit: BoxFit.contain,
+                                  placeholder: (_, __) => SvgPicture.asset(
+                                    item.effectiveIconAsset,
+                                    fit: BoxFit.contain,
+                                  ),
+                                  errorWidget: (_, __, ___) => SvgPicture.asset(
+                                    item.effectiveIconAsset,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              )
+                            : SvgPicture.asset(
+                                item.effectiveIconAsset,
+                                fit: BoxFit.contain,
+                                placeholderBuilder: (_) => Icon(
+                                  item.category.icon,
+                                  size: 20,
+                                  color: PipeBuyerColors.orange,
+                                ),
+                              ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -413,17 +432,36 @@ class _CompactAffiliateTile extends StatelessWidget {
               Row(
                 children: [
                   SizedBox(
-                    width: 34,
-                    height: 34,
-                    child: SvgPicture.asset(
-                      product.effectiveIconAsset,
-                      fit: BoxFit.contain,
-                      placeholderBuilder: (_) => Icon(
-                        product.category.icon,
-                        size: 20,
-                        color: product.category.accentColor,
-                      ),
-                    ),
+                    width: 40,
+                    height: 40,
+                    child: product.imageUrl.trim().isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: ColoredBox(
+                              color: Colors.white,
+                              child: CachedNetworkImage(
+                                imageUrl: product.imageUrl.trim(),
+                                fit: BoxFit.contain,
+                                placeholder: (_, __) => SvgPicture.asset(
+                                  product.effectiveIconAsset,
+                                  fit: BoxFit.contain,
+                                ),
+                                errorWidget: (_, __, ___) => SvgPicture.asset(
+                                  product.effectiveIconAsset,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          )
+                        : SvgPicture.asset(
+                            product.effectiveIconAsset,
+                            fit: BoxFit.contain,
+                            placeholderBuilder: (_) => Icon(
+                              product.category.icon,
+                              size: 20,
+                              color: product.category.accentColor,
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(

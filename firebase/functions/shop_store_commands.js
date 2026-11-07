@@ -19,18 +19,22 @@ const {
   SHOP_SOURCE_TYPES,
   SHOP_STAFF_ROLES,
   VENDOR_APPLICATION_STATUSES,
+  buildMonetizedDestinationUrl,
   buildPublicShopProduct,
   cleanText,
   detectAffiliatePlatform,
   doesProductShipToCountry,
   extractAmazonAsin,
+  extractAmazonSearchCandidates,
   extractHtmlProductMetadata,
   extractTitleFromAmazonSlug,
   extractTitleFromGenericSlug,
   inferBrandFromText,
   inferCategoryCodeFromText,
   inferEligibleCountries,
+  inferSubcategoryFromText,
   isAmazonFullHostname,
+  isAmazonSearchPageUrl,
   normalizeHiddenStarterIds,
   normalizeStoreSettings,
   parseAmazonAffiliateSubmission,
@@ -141,7 +145,7 @@ async function readBodyUpToBytes(response, maxBytes = 262144) {
   return "";
 }
 
-async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn) {
+async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn, settings = DEFAULT_STORE_SETTINGS) {
   if (!parsed || !parsed.destinationUrl || typeof fetchFn !== "function") {
     return parsed;
   }
@@ -151,18 +155,23 @@ async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn) {
 
   try {
     for (let hop = 0; hop < 6; hop++) {
+      const hostLower = currentUrl.hostname.toLowerCase();
+      const headers = {
+        "user-agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "accept-language": "en-US,en;q=0.9",
+      };
+      if (isAmazonFullHostname(hostLower)) {
+        headers["cookie"] = "i18n-prefs=USD";
+      }
       const res = await fetchFn(currentUrl.toString(), {
         method: "GET",
         redirect: "manual",
         signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ?
           AbortSignal.timeout(6500) :
           undefined,
-        headers: {
-          "user-agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-          "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "accept-language": "en-US,en;q=0.9",
-        },
+        headers,
       });
       if (res && res.status >= 300 && res.status < 400) {
         const rawLoc = res.headers && typeof res.headers.get === "function" ?
@@ -185,8 +194,46 @@ async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn) {
     const resolvedHost = currentUrl.hostname.toLowerCase();
     result.resolvedUrl = resolvedUrlStr;
     result.resolvedHost = resolvedHost;
+    const isResolvedSearchPage = isAmazonSearchPageUrl(resolvedUrlStr);
+    if (isResolvedSearchPage) {
+      result.isSearchPageLink = true;
+      const searchWarning =
+        "This link opens an Amazon search results page instead of a direct product SKU. Pick the exact product below or copy the SiteStripe link from a /dp/<ASIN> product page.";
+      const existingWarnings = Array.isArray(result.complianceWarnings) ?
+        result.complianceWarnings :
+        [];
+      if (!existingWarnings.some((w) => String(w).includes("search"))) {
+        result.complianceWarnings = [...existingWarnings, searchWarning];
+      }
+    }
 
-    const resolvedAsin = result.asin || extractAmazonAsin(resolvedUrlStr);
+    let html = "";
+    let htmlMeta = {
+      title: "",
+      imageUrl: "",
+      brand: "",
+      priceDisplay: "",
+      asin: "",
+      breadcrumbs: [],
+      highlights: [],
+    };
+    if (finalResponse && finalResponse.status >= 200 && finalResponse.status < 400) {
+      const contentType = finalResponse.headers && typeof finalResponse.headers.get === "function" ?
+        String(finalResponse.headers.get("content-type") || "").toLowerCase() :
+        "text/html";
+      if (!contentType || contentType.includes("html") || contentType.includes("xml")) {
+        html = await readBodyUpToBytes(finalResponse, 458752);
+        htmlMeta = extractHtmlProductMetadata(html, resolvedUrlStr);
+      }
+    }
+
+    if (isResolvedSearchPage && html) {
+      result.searchCandidates = extractAmazonSearchCandidates(html, settings);
+    }
+
+    const resolvedAsin =
+      result.asin ||
+      (!isResolvedSearchPage ? (htmlMeta.asin || extractAmazonAsin(resolvedUrlStr)) : "");
     if (resolvedAsin && !result.asin) {
       result.asin = resolvedAsin;
     }
@@ -206,16 +253,28 @@ async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn) {
       ) {
         result.suggestedVendorName = resolvedDetected.vendorName;
       }
-    }
-
-    let htmlMeta = {title: "", imageUrl: "", brand: "", priceDisplay: ""};
-    if (finalResponse && finalResponse.status >= 200 && finalResponse.status < 400) {
-      const contentType = finalResponse.headers && typeof finalResponse.headers.get === "function" ?
-        String(finalResponse.headers.get("content-type") || "").toLowerCase() :
-        "text/html";
-      if (!contentType || contentType.includes("html") || contentType.includes("xml")) {
-        const html = await readBodyUpToBytes(finalResponse, 262144);
-        htmlMeta = extractHtmlProductMetadata(html, resolvedUrlStr);
+      // If an Amazon shortlink resolved directly to a canonical /dp/<ASIN> product page,
+      // upgrade preview URLs to canonical SiteStripe /dp/<ASIN>?tag=...&linkCode=ll1
+      if (
+        !isResolvedSearchPage &&
+        resolvedAsin &&
+        isAmazonFullHostname(resolvedHost)
+      ) {
+        const resolvedTag = cleanText(currentUrl.searchParams.get("tag"), 64);
+        const canonicalBase = `https://${resolvedHost}/dp/${resolvedAsin}?linkCode=ll1${
+          resolvedTag ? `&tag=${encodeURIComponent(resolvedTag)}` : ""
+        }`;
+        const draft = {
+          sourceType: "amazon_affiliate",
+          categoryCode: result.suggestedCategoryCode || "power_hand_tools",
+          asin: resolvedAsin,
+          destinationUrl: canonicalBase,
+        };
+        result.canonicalProductUrl = buildMonetizedDestinationUrl(
+            draft,
+            settings,
+            {regionCode: "US"},
+        );
       }
     }
 
@@ -227,25 +286,42 @@ async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn) {
         160,
     );
 
-    if (!result.imageUrl && htmlMeta.imageUrl) {
+    if (!result.imageUrl && htmlMeta.imageUrl && !isResolvedSearchPage) {
       result.imageUrl = htmlMeta.imageUrl;
     }
     if (!result.suggestedTitle) {
-      result.suggestedTitle = htmlMeta.title || resolvedSlugTitle || searchQueryTitle;
+      result.suggestedTitle = (!isResolvedSearchPage ? htmlMeta.title : "") ||
+        resolvedSlugTitle ||
+        searchQueryTitle;
     }
     if (!result.suggestedBrand) {
       result.suggestedBrand =
         htmlMeta.brand || inferBrandFromText(`${result.suggestedTitle} ${resolvedUrlStr}`);
     }
-    if (result.suggestedTitle) {
-      result.suggestedCategoryCode = inferCategoryCodeFromText(
-          `${result.suggestedTitle} ${result.suggestedBrand}`,
+    const taxonomySignal = [
+      result.suggestedTitle,
+      result.suggestedBrand,
+      ...(Array.isArray(htmlMeta.breadcrumbs) ? htmlMeta.breadcrumbs : []),
+      ...(Array.isArray(htmlMeta.highlights) ? htmlMeta.highlights.slice(0, 2) : []),
+    ].filter(Boolean).join(" ");
+    if (taxonomySignal) {
+      result.suggestedCategoryCode = inferCategoryCodeFromText(taxonomySignal);
+      result.suggestedSubcategory = inferSubcategoryFromText(
+          taxonomySignal,
+          result.suggestedCategoryCode,
       );
     }
-    if (htmlMeta.priceDisplay) {
+    if (Array.isArray(htmlMeta.highlights) && htmlMeta.highlights.length > 0 && !isResolvedSearchPage) {
+      result.suggestedHighlights = htmlMeta.highlights;
+    }
+    if (htmlMeta.priceDisplay && !isResolvedSearchPage) {
       result.suggestedPriceDisplay = htmlMeta.priceDisplay;
     }
-    result.metadataFetched = Boolean(result.imageUrl || htmlMeta.title);
+    result.metadataFetched = Boolean(
+        result.imageUrl ||
+        htmlMeta.title ||
+        (Array.isArray(result.searchCandidates) && result.searchCandidates.length > 0),
+    );
   } catch {
     result.metadataFetched = false;
   }
@@ -520,13 +596,50 @@ function createShopStoreCommands(admin, {notifyAdministrators, fetchImpl} = {}) 
     );
     const settings = await loadEffectiveSettings();
     const data = (request && request.data) || {};
+    const searchQuery = cleanText(data.searchQuery, 160);
+    if (searchQuery) {
+      if (!effectiveFetch) {
+        return {searchQuery, searchCandidates: []};
+      }
+      if (typeof db().runTransaction === "function") {
+        await enforceUserRateLimit({db: db(), admin, request, scope: "search"});
+      }
+      let searchCandidates = [];
+      try {
+        const searchUrl = `https://www.amazon.com/s?k=${encodeURIComponent(searchQuery)}`;
+        const res = await effectiveFetch(searchUrl, {
+          method: "GET",
+          signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ?
+            AbortSignal.timeout(7000) :
+            undefined,
+          headers: {
+            "user-agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "accept-language": "en-US,en;q=0.9",
+            "cookie": "i18n-prefs=USD",
+          },
+        });
+        if (res && res.status >= 200 && res.status < 400) {
+          const html = await readBodyUpToBytes(res, 524288);
+          searchCandidates = extractAmazonSearchCandidates(html, settings);
+        }
+      } catch {
+        searchCandidates = [];
+      }
+      return {
+        searchQuery,
+        searchCandidates,
+      };
+    }
+
     const rawInput = data.rawInput || "";
     const parsed = parseAmazonAffiliateSubmission(rawInput, settings);
     if (data.fetchMetadata === true && effectiveFetch) {
       if (typeof db().runTransaction === "function") {
         await enforceUserRateLimit({db: db(), admin, request, scope: "search"});
       }
-      return enrichParsedAffiliateWithLiveMetadata(parsed, effectiveFetch);
+      return enrichParsedAffiliateWithLiveMetadata(parsed, effectiveFetch, settings);
     }
     return parsed;
   });
