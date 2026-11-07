@@ -1,15 +1,16 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
-import 'marketplace_account_security_page.dart';
-import 'pipebuyer_shop_admin_page.dart';
 import 'pipebuyer_shop_client.dart';
 import 'pipebuyer_shop_taxonomy.dart';
 import 'pipebuyer_shop_vendor_apply_page.dart';
+
+const Color _kShopeeOrange = Color(0xFFEE4D2D);
+const Color _kShopeeOrangeDark = Color(0xFFD73211);
+const Color _kStoreCanvas = Color(0xFFF5F5F7);
 
 class PipeBuyerShopStorePage extends StatefulWidget {
   const PipeBuyerShopStorePage({
@@ -34,6 +35,26 @@ class PipeBuyerShopStorePage extends StatefulWidget {
 }
 
 class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
+  static const List<String> _trendingKeywords = <String>[
+    'Milwaukee M18',
+    'Pipe Wrench',
+    'Welding Helmet',
+    'Grade 70 Chain',
+    'H2S Monitor',
+    'Transfer Pump',
+    'Post Driver',
+  ];
+
+  static const List<(String label, String brand)> _featuredBrandPills =
+      <(String, String)>[
+    ('Milwaukee Tool Selection', 'Milwaukee'),
+    ('RIDGID Pipe Tools', 'RIDGID'),
+    ('Lincoln Electric', 'Lincoln Electric'),
+    ('Miller Welding', 'Miller'),
+    ('Fill-Rite Pumps', 'Fill-Rite'),
+    ('Carhartt FR', 'Carhartt'),
+  ];
+
   late PipeBuyerShopClient _client;
   late final TextEditingController _searchController;
 
@@ -41,7 +62,6 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
   List<PipeBuyerShopProduct> _products =
       PipeBuyerShopClient.mergeWithStarterCatalog(
           const <PipeBuyerShopProduct>[]);
-  List<Map<String, dynamic>> _approvedVendors = const <Map<String, dynamic>>[];
   Set<String> _savedIds = <String>{};
 
   late String _selectedCategoryCode;
@@ -52,11 +72,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
   String _sortBy = 'featured';
   bool _savedOnly = false;
   int _visibleLimit = 60;
-  PipeBuyerShopRoleSession _roleSession =
-      const PipeBuyerShopRoleSession.signedOut();
   bool _loadingLive = true;
-
-  bool get _canManageLinks => _roleSession.canManageCatalog;
 
   @override
   void initState() {
@@ -78,8 +94,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
   @override
   void didUpdateWidget(covariant PipeBuyerShopStorePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.sessionOverride != widget.sessionOverride ||
-        oldWidget.client != widget.client) {
+    if (oldWidget.client != widget.client) {
       if (widget.client != null) {
         _client = widget.client!;
       }
@@ -97,22 +112,10 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
     final savedFuture = _client.loadSavedProductIds();
     final regionFuture = _client.loadPreferredRegion();
     final catalogFuture = _client.loadStoreCatalog();
-    Future<PipeBuyerShopRoleSession> sessionFuture =
-        Future<PipeBuyerShopRoleSession>.value(
-      const PipeBuyerShopRoleSession.signedOut(),
-    );
-    if (widget.sessionOverride != null) {
-      sessionFuture = widget.sessionOverride!();
-    } else if (Firebase.apps.isNotEmpty) {
-      sessionFuture = _client
-          .resolveShopRoleSession()
-          .catchError((_) => const PipeBuyerShopRoleSession.signedOut());
-    }
 
     final saved = await savedFuture;
     final region = await regionFuture;
     final snapshot = await catalogFuture;
-    final roleSession = await sessionFuture;
 
     if (!mounted) return;
     setState(() {
@@ -120,8 +123,6 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
       _regionCode = region;
       _settings = snapshot.settings;
       _products = snapshot.products;
-      _approvedVendors = snapshot.vendors;
-      _roleSession = roleSession;
       _loadingLive = false;
     });
   }
@@ -139,8 +140,8 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
     PipeFeedback.show(
       context,
       message: savedNow
-          ? 'Saved "${product.title}" to your Shop list.'
-          : 'Removed from your Saved Gear.',
+          ? 'Saved "${product.title}" to your Saved list.'
+          : 'Removed from your Saved list.',
       tone: PipeStatusTone.info,
     );
   }
@@ -159,7 +160,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
     if (!opened) {
       PipeFeedback.show(
         context,
-        message: 'Could not launch external partner link on this device.',
+        message: 'Could not open store link on this device.',
         tone: PipeStatusTone.warning,
       );
     }
@@ -176,98 +177,23 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
     );
   }
 
-  Future<void> _openAdminControl() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => PipeBuyerShopAdminPage(
-          client: _client,
-          sessionOverride: widget.sessionOverride,
-        ),
-      ),
-    );
-    if (mounted) {
-      await _hydrateStore();
-    }
-  }
-
-  Future<void> _openMfaSecurity() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const MarketplaceAccountSecurityPage(),
-      ),
-    );
-    if (mounted) {
-      await _hydrateStore();
-    }
-  }
-
-  Future<void> _openInlineLinkEditor({PipeBuyerShopProduct? existing}) async {
-    final action = await showDialog<String>(
+  Future<void> _openProductSuggestionDialog({String initialName = ''}) async {
+    final submitted = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => PipeBuyerAffiliateLinkEditorDialog(
+      builder: (dialogContext) => PipeBuyerProductSuggestionDialog(
         client: _client,
-        settings: _settings,
-        existing: existing,
+        initialProductName: initialName,
+        initialCategoryCode: _selectedCategoryCode.isNotEmpty
+            ? _selectedCategoryCode
+            : 'power_hand_tools',
       ),
     );
-    if ((action == 'saved' || action == 'deleted') && mounted) {
+    if (submitted == true && mounted) {
       PipeFeedback.show(
         context,
-        message: action == 'deleted'
-            ? 'Affiliate link removed from the Store.'
-            : existing == null
-                ? 'Affiliate link added to the Store.'
-                : 'Affiliate link updated.',
+        message:
+            'Thank you! Your product suggestion has been sent to our Store team.',
         tone: PipeStatusTone.success,
-      );
-      await _hydrateStore();
-    }
-  }
-
-  Future<void> _confirmInlineRemove(PipeBuyerShopProduct product) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Remove Affiliate Link?'),
-        content: Text(
-          'Remove "${product.title}" (${product.brand}) from the Pipe Buyer Store? '
-          'Shoppers will immediately stop seeing this link.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: PipeBuyerColors.danger,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            icon: const Icon(Icons.delete_outline_rounded, size: 18),
-            label: const Text('Remove Link'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    try {
-      await _client.deleteProduct(
-        productId: product.id,
-        title: product.title,
-      );
-      if (!mounted) return;
-      PipeFeedback.show(
-        context,
-        message: 'Removed "${product.title}" from the Store.',
-        tone: PipeStatusTone.success,
-      );
-      await _hydrateStore();
-    } catch (err) {
-      if (!mounted) return;
-      PipeFeedback.show(
-        context,
-        message: 'Failed to remove link: $err',
-        tone: PipeStatusTone.error,
       );
     }
   }
@@ -337,14 +263,28 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
           if (clickCmp != 0) return clickCmp;
           return a.priorityRank.compareTo(b.priorityRank);
         });
+      case 'price_asc':
+        matched.sort((a, b) {
+          final pa = a.numericPrice ?? double.infinity;
+          final pb = b.numericPrice ?? double.infinity;
+          final cmp = pa.compareTo(pb);
+          if (cmp != 0) return cmp;
+          return a.title.compareTo(b.title);
+        });
+      case 'price_desc':
+        matched.sort((a, b) {
+          final pa = a.numericPrice ?? -1;
+          final pb = b.numericPrice ?? -1;
+          final cmp = pb.compareTo(pa);
+          if (cmp != 0) return cmp;
+          return a.title.compareTo(b.title);
+        });
       case 'brand':
         matched.sort((a, b) {
           final brandCmp = a.brand.compareTo(b.brand);
           if (brandCmp != 0) return brandCmp;
           return a.title.compareTo(b.title);
         });
-      case 'title':
-        matched.sort((a, b) => a.title.compareTo(b.title));
       default:
         matched.sort((a, b) {
           if (a.featured != b.featured) return a.featured ? -1 : 1;
@@ -371,11 +311,12 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
           p.categoryCode != _selectedCategoryCode) {
         continue;
       }
+      if (p.brand.trim().isEmpty) continue;
       counts[p.brand] = (counts[p.brand] ?? 0) + 1;
     }
     final brands = counts.keys.toList()
       ..sort((a, b) => (counts[b] ?? 0).compareTo(counts[a] ?? 0));
-    return brands.take(10).toList(growable: false);
+    return brands.take(12).toList(growable: false);
   }
 
   @override
@@ -388,335 +329,135 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
         _selectedSource != null ||
         _savedOnly;
 
-    return Scaffold(
-      backgroundColor: PipeBuyerColors.canvas,
-      appBar: AppBar(
-        backgroundColor: PipeBuyerColors.ink,
-        foregroundColor: Colors.white,
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.shopping_bag_outlined,
-              color: PipeBuyerColors.orange,
-              size: 21,
-            ),
-            SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                'Pipe Buyer Store',
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+    if (!_settings.storeEnabled) {
+      return Scaffold(
+        backgroundColor: _kStoreCanvas,
+        appBar: AppBar(
+          backgroundColor: _kShopeeOrange,
+          foregroundColor: Colors.white,
+          title: const Text('Pipe Buyer Store'),
         ),
-        actions: [
-          if (_canManageLinks) ...[
-            MediaQuery.sizeOf(context).width < 620
-                ? IconButton(
-                    tooltip: 'Add Affiliate Link',
-                    onPressed: () => _openInlineLinkEditor(),
-                    icon: const Icon(
-                      Icons.add_link_rounded,
-                      color: PipeBuyerColors.orange,
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: FilledButton.icon(
-                      onPressed: () => _openInlineLinkEditor(),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: PipeBuyerColors.orange,
-                        foregroundColor: Colors.white,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: const Icon(Icons.add_link_rounded, size: 17),
-                      label: const Text(
-                        'Add Affiliate Link',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-            MediaQuery.sizeOf(context).width < 620
-                ? IconButton(
-                    tooltip: 'Store Admin',
-                    onPressed: _openAdminControl,
-                    icon: const Icon(
-                      Icons.admin_panel_settings_outlined,
-                      color: PipeBuyerColors.orange,
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: TextButton.icon(
-                      onPressed: _openAdminControl,
-                      style:
-                          TextButton.styleFrom(foregroundColor: Colors.white),
-                      icon: const Icon(
-                        Icons.admin_panel_settings_outlined,
-                        size: 18,
-                        color: PipeBuyerColors.orange,
-                      ),
-                      label: const Text('Store Admin'),
-                    ),
-                  ),
-          ],
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: MediaQuery.sizeOf(context).width < 420
-                ? IconButton(
-                    tooltip: 'Sell / Partner',
-                    onPressed: () => _openVendorApply(),
-                    icon: const Icon(
-                      Icons.handshake_outlined,
-                      color: PipeBuyerColors.orange,
-                    ),
-                  )
-                : OutlinedButton.icon(
-                    onPressed: () => _openVendorApply(),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: PipeBuyerColors.orange),
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.handshake_outlined,
-                      size: 16,
-                      color: PipeBuyerColors.orange,
-                    ),
-                    label: const Text(
-                      'Sell / Partner',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-                    ),
-                  ),
-          ),
-        ],
-      ),
-      body: !_settings.storeEnabled
-          ? Center(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Card(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.storefront_outlined,
-                          size: 46,
-                          color: PipeBuyerColors.muted,
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Pipe Buyer Store is being updated',
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Check back shortly for updated industrial tools, welding gear, and partner deals.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: PipeBuyerColors.muted),
-                        ),
-                        if (_canManageLinks) ...[
-                          const SizedBox(height: 14),
-                          FilledButton(
-                            onPressed: _openAdminControl,
-                            child: const Text('Open Store Admin'),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            )
-          : Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1320),
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 36),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildStoreHero(context),
-                    const SizedBox(height: 10),
-                    _buildAffiliateDisclosureBanner(context),
-                    if (_canManageLinks ||
-                        _roleSession.reason == 'mfa_required') ...[
-                      const SizedBox(height: 10),
-                      _buildAdminQuickManageBar(context),
-                    ],
-                    const SizedBox(height: 16),
-                    _buildPartnerSpotlights(context),
-                    const SizedBox(height: 18),
-                    _buildCategorySelector(context),
-                    const SizedBox(height: 12),
-                    _buildSubcategorySelector(context),
-                    const SizedBox(height: 14),
-                    _buildFilterAndSortToolbar(
-                      context,
-                      resultCount: filtered.length,
-                      hasActiveFilters: hasActiveFilters,
+                    const Icon(
+                      Icons.storefront_outlined,
+                      size: 46,
+                      color: PipeBuyerColors.muted,
                     ),
-                    const SizedBox(height: 14),
-                    if (filtered.isEmpty)
-                      _buildEmptyResultsCard(context)
-                    else ...[
-                      _buildProductGrid(
-                        context,
-                        filtered.take(_visibleLimit).toList(growable: false),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Pipe Buyer Store is refreshing inventory',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
                       ),
-                      if (filtered.length > _visibleLimit) ...[
-                        const SizedBox(height: 16),
-                        Center(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              setState(() => _visibleLimit += 60);
-                            },
-                            icon: const Icon(Icons.expand_more_rounded),
-                            label: Text(
-                              'Show More Store Items (${filtered.length - _visibleLimit} remaining)',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                    const SizedBox(height: 24),
-                    _buildVendorRecruitmentBanner(context),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Check back shortly for updated industrial tools, welding gear, and jobsite supplies.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: PipeBuyerColors.muted),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => _openProductSuggestionDialog(),
+                      icon: const Icon(Icons.lightbulb_outline_rounded),
+                      label: const Text('Suggest a Product'),
+                    ),
                   ],
                 ),
               ),
             ),
-    );
-  }
-
-  Widget _buildAdminQuickManageBar(BuildContext context) {
-    if (_roleSession.reason == 'mfa_required') {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFBEB),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: PipeBuyerColors.warning.withValues(alpha: .45),
           ),
-        ),
-        child: Wrap(
-          spacing: 12,
-          runSpacing: 8,
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.phonelink_lock_outlined,
-                  size: 18,
-                  color: PipeBuyerColors.warning,
-                ),
-                SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    'Admin/Store role detected — complete 2-step verification (MFA) in Account Security to add or remove Store affiliate links.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: PipeBuyerColors.ink,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            OutlinedButton.icon(
-              onPressed: _openMfaSecurity,
-              icon: const Icon(Icons.security_outlined, size: 16),
-              label: const Text('Complete Account MFA'),
-            ),
-          ],
         ),
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: PipeBuyerColors.industrialBlue.withValues(alpha: .35),
-        ),
-      ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.verified_user_outlined,
-                size: 18,
-                color: PipeBuyerColors.industrialBlue,
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  '${_roleSession.roleDisplayLabel}: Paste any Amazon, AliExpress, Lazada, Shopee or partner link to publish, or edit/remove below.',
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: PipeBuyerColors.ink,
+    return Scaffold(
+      backgroundColor: _kStoreCanvas,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _buildShopeeHeader(context),
+            Expanded(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1320),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 36),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildPromoBannerSection(context),
+                        const SizedBox(height: 14),
+                        _buildCategoriesGridCard(context),
+                        const SizedBox(height: 14),
+                        _buildSortAndFilterBar(
+                          context,
+                          resultCount: filtered.length,
+                          hasActiveFilters: hasActiveFilters,
+                        ),
+                        const SizedBox(height: 12),
+                        if (filtered.isEmpty)
+                          _buildEmptyResultsCard(context)
+                        else ...[
+                          _buildProductGrid(
+                            context,
+                            filtered
+                                .take(_visibleLimit)
+                                .toList(growable: false),
+                          ),
+                          if (filtered.length > _visibleLimit) ...[
+                            const SizedBox(height: 18),
+                            Center(
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  setState(() => _visibleLimit += 60);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 12,
+                                  ),
+                                ),
+                                icon: const Icon(Icons.expand_more_rounded),
+                                label: Text(
+                                  'See More Products (${filtered.length - _visibleLimit} more)',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                        const SizedBox(height: 22),
+                        _buildSuggestProductBanner(context),
+                        const SizedBox(height: 18),
+                        _buildStoreFooter(context),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ],
-          ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton.icon(
-                onPressed: () => _openInlineLinkEditor(),
-                style: FilledButton.styleFrom(
-                  backgroundColor: PipeBuyerColors.orange,
-                  visualDensity: VisualDensity.compact,
-                ),
-                icon: const Icon(Icons.add_link_rounded, size: 17),
-                label: const Text('Quick-Add Amazon / Affiliate Link'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _openAdminControl,
-                style: OutlinedButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                ),
-                icon: const Icon(
-                  Icons.admin_panel_settings_outlined,
-                  size: 17,
-                ),
-                label: const Text('Store & Role Settings'),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStoreHero(BuildContext context) {
+  Widget _buildShopeeHeader(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isCompact = screenWidth < 760;
+    final canPop = Navigator.of(context).canPop();
     final activeCountry =
         PipeBuyerShopTaxonomy.countryOptionByCode(_regionCode);
     final countryLabel = activeCountry != null
@@ -724,442 +465,697 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
         : '🌍 $_regionCode';
 
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: <Color>[PipeBuyerColors.ink, Color(0xFF1A2536)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: <Color>[
+            _kShopeeOrangeDark,
+            _kShopeeOrange,
+            Color(0xFFF9683A)
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: PipeBuyerColors.orange.withValues(alpha: .35),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Color(0x1F0F172A),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1320),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              14,
+              isCompact ? 8 : 6,
+              14,
+              isCompact ? 10 : 10,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top utility strip (Country selector + Suggest Item + Saved + Seller Center)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _HeaderUtilityChip(
+                          label: 'US Store (.com)',
+                          selected: _regionCode == 'US',
+                          onTap: () => _setRegion('US'),
+                        ),
+                        _HeaderUtilityChip(
+                          label: 'Canada (.ca)',
+                          selected: _regionCode == 'CA',
+                          onTap: () => _setRegion('CA'),
+                        ),
+                        PopupMenuButton<String>(
+                          key: const Key('shop_country_picker_button'),
+                          tooltip: 'Select delivery country',
+                          onSelected: _setRegion,
+                          itemBuilder: (context) =>
+                              PipeBuyerShopTaxonomy.countryOptions
+                                  .map(
+                                    (opt) => PopupMenuItem<String>(
+                                      value: opt.code,
+                                      child: Row(
+                                        children: [
+                                          Text(opt.flag),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              opt.label,
+                                              style: TextStyle(
+                                                fontWeight:
+                                                    _regionCode == opt.code
+                                                        ? FontWeight.w900
+                                                        : FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                          if (_regionCode == opt.code)
+                                            const Icon(
+                                              Icons.check_rounded,
+                                              size: 16,
+                                              color: _kShopeeOrange,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                  .toList(growable: false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  (_regionCode != 'US' && _regionCode != 'CA')
+                                      ? Colors.white
+                                      : Colors.white.withValues(alpha: .16),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    'Ship to: $countryLabel',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: (_regionCode != 'US' &&
+                                              _regionCode != 'CA')
+                                          ? _kShopeeOrangeDark
+                                          : Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.arrow_drop_down_rounded,
+                                  size: 15,
+                                  color: (_regionCode != 'US' &&
+                                          _regionCode != 'CA')
+                                      ? _kShopeeOrangeDark
+                                      : Colors.white,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        InkWell(
+                          key: const Key('shop_suggest_product_top_button'),
+                          borderRadius: BorderRadius.circular(999),
+                          onTap: () => _openProductSuggestionDialog(),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: .18),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.lightbulb_outline_rounded,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    isCompact
+                                        ? 'Suggest an Item'
+                                        : 'Know a helpful product not listed? Let us know!',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_settings.vendorApplicationsOpen && !isCompact)
+                          InkWell(
+                            borderRadius: BorderRadius.circular(999),
+                            onTap: () => _openVendorApply(),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 3,
+                              ),
+                              child: Text(
+                                'Sell on Store',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Main Shopee-style Brand + Wide Search Input + Wishlist Bar
+                if (isCompact) ...[
+                  Row(
+                    children: [
+                      if (canPop)
+                        IconButton(
+                          tooltip: 'Back',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          icon: const Icon(
+                            Icons.arrow_back_rounded,
+                            color: Colors.white,
+                          ),
+                        ),
+                      const Icon(
+                        Icons.shopping_bag_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 7),
+                      const Expanded(
+                        child: Text(
+                          'Pipe Buyer Store',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+                      _SavedHeartButton(
+                        count: _savedIds.length,
+                        selected: _savedOnly,
+                        onTap: () => setState(() => _savedOnly = !_savedOnly),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  _buildSearchBox(),
+                ] else ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      if (canPop)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: IconButton(
+                            tooltip: 'Back',
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            icon: const Icon(
+                              Icons.arrow_back_rounded,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: _clearAllFilters,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 4,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.shopping_bag_rounded,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Pipe Buyer Store',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 21,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 22),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSearchBox(),
+                            const SizedBox(height: 5),
+                            SizedBox(
+                              height: 18,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _trendingKeywords.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 12),
+                                itemBuilder: (context, i) {
+                                  final kw = _trendingKeywords[i];
+                                  return InkWell(
+                                    onTap: () => setState(() {
+                                      _searchController.text = kw;
+                                    }),
+                                    child: Text(
+                                      kw,
+                                      style: TextStyle(
+                                        color:
+                                            Colors.white.withValues(alpha: .92),
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      _SavedHeartButton(
+                        count: _savedIds.length,
+                        selected: _savedOnly,
+                        onTap: () => setState(() => _savedOnly = !_savedOnly),
+                      ),
+                    ],
+                  ),
+                ],
+                if (_loadingLive)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: LinearProgressIndicator(
+                      minHeight: 2,
+                      color: Colors.white,
+                      backgroundColor: Colors.white24,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildSearchBox() {
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.only(left: 12, right: 4),
+      child: Row(
         children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              textInputAction: TextInputAction.search,
+              style: const TextStyle(
+                color: PipeBuyerColors.ink,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                hintText:
+                    'Search tools, pipe wrenches, welding hoods, rigging chains, PPE...',
+                hintStyle: const TextStyle(
+                  color: PipeBuyerColors.muted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        tooltip: 'Clear search',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: PipeBuyerColors.muted,
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 34,
+            width: 52,
+            child: FilledButton(
+              onPressed: () => setState(() {}),
+              style: FilledButton.styleFrom(
+                backgroundColor: _kShopeeOrange,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              child: const Icon(Icons.search_rounded, size: 19),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPromoBannerSection(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 860;
+
+        final mainBanner = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: <Color>[
+                Color(0xFF0F172A),
+                Color(0xFF1E293B),
+                Color(0xFF3B1D14),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                 decoration: BoxDecoration(
-                  color: PipeBuyerColors.orange.withValues(alpha: .18),
-                  borderRadius: BorderRadius.circular(999),
+                  color: _kShopeeOrange,
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
-                  'PIPE BUYER INDUSTRIAL SHOPPING & PARTNER STORE',
+                  'FIELD-PROVEN JOBSITE DEALS',
                   style: TextStyle(
-                    color: PipeBuyerColors.orange,
-                    fontSize: 10.5,
+                    color: Colors.white,
+                    fontSize: 10,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 1.1,
+                    letterSpacing: 0.8,
                   ),
                 ),
               ),
+              const SizedBox(height: 8),
+              const Text(
+                'Shop Pipefitting, Welding, Power Tools, Rigging & Safety Gear',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Top-rated industrial equipment & jobsite essentials from trusted trade brands.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: .82),
+                  fontSize: 12.5,
+                ),
+              ),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  _RegionChip(
-                    label: 'US Store (.com)',
-                    selected: _regionCode == 'US',
-                    onTap: () => _setRegion('US'),
-                  ),
-                  _RegionChip(
-                    label: 'Canada (.ca)',
-                    selected: _regionCode == 'CA',
-                    onTap: () => _setRegion('CA'),
-                  ),
-                  PopupMenuButton<String>(
-                    key: const Key('shop_country_picker_button'),
-                    tooltip: 'Select your delivery country',
-                    onSelected: _setRegion,
-                    itemBuilder: (context) =>
-                        PipeBuyerShopTaxonomy.countryOptions
-                            .map(
-                              (opt) => PopupMenuItem<String>(
-                                value: opt.code,
-                                child: Row(
-                                  children: [
-                                    Text(opt.flag),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        opt.label,
-                                        style: TextStyle(
-                                          fontWeight: _regionCode == opt.code
-                                              ? FontWeight.w900
-                                              : FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                    if (_regionCode == opt.code)
-                                      const Icon(
-                                        Icons.check_rounded,
-                                        size: 16,
-                                        color: PipeBuyerColors.orangePressed,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            )
-                            .toList(growable: false),
+                children: _featuredBrandPills.map((entry) {
+                  final isSelected =
+                      _selectedBrand.toLowerCase() == entry.$2.toLowerCase();
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: () => setState(() {
+                      _selectedBrand = isSelected ? '' : entry.$2;
+                      _visibleLimit = 60;
+                    }),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
-                        vertical: 6,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: (_regionCode != 'US' && _regionCode != 'CA')
-                            ? PipeBuyerColors.orange
-                            : Colors.white.withValues(alpha: .10),
+                        color: isSelected
+                            ? _kShopeeOrange
+                            : Colors.white.withValues(alpha: .12),
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                          color: (_regionCode != 'US' && _regionCode != 'CA')
-                              ? PipeBuyerColors.orange
-                              : Colors.white.withValues(alpha: .22),
+                          color: isSelected
+                              ? _kShopeeOrange
+                              : Colors.white.withValues(alpha: .24),
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              'Deliver to: $countryLabel',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 3),
-                          const Icon(
-                            Icons.arrow_drop_down_rounded,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                        ],
+                      child: Text(
+                        entry.$1,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
-                  ),
-                  _RegionChip(
-                    label: 'Saved (${_savedIds.length})',
-                    icon: _savedOnly
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    selected: _savedOnly,
-                    onTap: () => setState(() => _savedOnly = !_savedOnly),
-                  ),
-                ],
+                  );
+                }).toList(growable: false),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          const Text(
-            'Shop Field-Proven Tools, Pipefitting, Welding, Rigging & PPE',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Curated gear from Amazon Industrial, top trade brands like Milwaukee, RIDGID & Lincoln Electric, plus authorized distributors and verified vendors.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: .80),
-              fontSize: 13,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _searchController,
-            onChanged: (_) => setState(() {}),
-            style: const TextStyle(
-              color: PipeBuyerColors.ink,
-              fontWeight: FontWeight.w600,
-            ),
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.white,
-              hintText:
-                  'Search Milwaukee M18, pipe wrenches, welding helmets, Grade 70 chains, H2S monitors...',
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                color: PipeBuyerColors.orangePressed,
-              ),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      tooltip: 'Clear search',
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {});
-                      },
-                      icon: const Icon(Icons.close_rounded),
-                    )
-                  : null,
-            ),
-          ),
-          if (_loadingLive)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: LinearProgressIndicator(
-                minHeight: 2,
-                color: PipeBuyerColors.orange,
-                backgroundColor: Colors.white12,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+        );
 
-  Widget _buildAffiliateDisclosureBanner(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: PipeBuyerColors.line),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.verified_user_outlined,
-            size: 18,
-            color: PipeBuyerColors.orangePressed,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              _settings.disclosureText,
-              style: const TextStyle(
-                fontSize: 11.5,
-                color: PipeBuyerColors.slate,
-                fontWeight: FontWeight.w600,
+        final suggestCard = InkWell(
+          key: const Key('shop_suggest_product_hero_card'),
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => _openProductSuggestionDialog(),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: <Color>[Color(0xFFFFF4EE), Color(0xFFFFE5D8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _kShopeeOrange.withValues(alpha: .35),
               ),
             ),
-          ),
-          TextButton(
-            onPressed: () => _showDisclosureDialog(context),
-            child: const Text(
-              'Details',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDisclosureDialog(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Affiliate & Partner Store Disclosure'),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _settings.disclosureText,
-                style: const TextStyle(height: 1.45),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _settings.priceDisclaimerText,
-                style: const TextStyle(
-                  color: PipeBuyerColors.muted,
-                  fontSize: 12.5,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Purchases open securely on Amazon or the verified partner/distributor website so you receive full manufacturer warranties, Prime shipping eligibility, and buyer protections.',
-                style: TextStyle(
-                  color: PipeBuyerColors.muted,
-                  fontSize: 12.5,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Got it'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPartnerSpotlights(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'BRANDS, AFFILIATES & PARTNER STOREFRONTS',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.0,
-                  color: PipeBuyerColors.slate,
-                ),
-              ),
-            ),
-            if (_approvedVendors.isNotEmpty)
-              Text(
-                '${_approvedVendors.length} Verified Partner(s)',
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  color: PipeBuyerColors.success,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 132,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: PipeBuyerShopTaxonomy.partnerSpotlights.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, index) {
-              final spot = PipeBuyerShopTaxonomy.partnerSpotlights[index];
-              final isSelected = (spot.filterBrand != null &&
-                      _selectedBrand.toLowerCase() ==
-                          spot.filterBrand!.toLowerCase()) ||
-                  (spot.filterSource != null &&
-                      _selectedSource == spot.filterSource &&
-                      _selectedBrand.isEmpty);
-
-              return InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () {
-                  if (spot.opensVendorPortal) {
-                    _openVendorApply();
-                    return;
-                  }
-                  setState(() {
-                    if (spot.filterBrand != null) {
-                      _selectedBrand = isSelected ? '' : spot.filterBrand!;
-                      _selectedSource = null;
-                    } else if (spot.filterSource != null) {
-                      _selectedSource = isSelected ? null : spot.filterSource;
-                      _selectedBrand = '';
-                    }
-                  });
-                },
-                child: Container(
-                  width: 268,
-                  padding: const EdgeInsets.all(13),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? spot.accentColor.withValues(alpha: .08)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color:
-                          isSelected ? spot.accentColor : PipeBuyerColors.line,
-                      width: isSelected ? 1.8 : 1,
-                    ),
+                    color: _kShopeeOrange,
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  child: const Icon(
+                    Icons.add_shopping_cart_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Icon(spot.icon, size: 18, color: spot.accentColor),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              spot.channelLabel,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.8,
-                                color: spot.accentColor,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: spot.accentColor.withValues(alpha: .12),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              spot.statusLabel,
-                              style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                                color: spot.accentColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 7),
                       Text(
-                        spot.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        'Know a helpful product not listed?',
+                        style: TextStyle(
+                          color: PipeBuyerColors.ink,
                           fontSize: 13.5,
                           fontWeight: FontWeight.w900,
+                          height: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Expanded(
-                        child: Text(
-                          spot.description,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: PipeBuyerColors.muted,
-                            height: 1.25,
-                          ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Let us know! Tap here to suggest tools or gear ->',
+                        style: TextStyle(
+                          color: _kShopeeOrangeDark,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
                   ),
                 ),
-              );
-            },
+              ],
+            ),
           ),
-        ),
-      ],
+        );
+
+        final topRatedCard = InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => setState(() {
+            _sortBy = 'featured';
+            _selectedCategoryCode = '';
+            _selectedSubcategory = '';
+          }),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: PipeBuyerColors.line),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.workspace_premium_rounded,
+                    color: Color(0xFFD97706),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Crew-Tested Top Picks',
+                        style: TextStyle(
+                          color: PipeBuyerColors.ink,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Verified quality & fast doorstep delivery',
+                        style: TextStyle(
+                          color: PipeBuyerColors.muted,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        if (!wide) {
+          return Column(
+            children: [
+              mainBanner,
+              const SizedBox(height: 8),
+              suggestCard,
+            ],
+          );
+        }
+
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(flex: 7, child: mainBanner),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 4,
+                child: Column(
+                  children: [
+                    Expanded(child: topRatedCard),
+                    const SizedBox(height: 8),
+                    Expanded(child: suggestCard),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildCategorySelector(BuildContext context) {
+  Widget _buildCategoriesGridCard(BuildContext context) {
     final countsByCat = <String, int>{};
     var totalCountryEligible = 0;
     for (final p in _products) {
@@ -1169,281 +1165,149 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
       }
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'SHOP BY CATEGORY',
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.0,
-            color: PipeBuyerColors.slate,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _CategoryFilterPill(
-              label: 'All Categories',
-              count: totalCountryEligible,
-              icon: Icons.apps_rounded,
-              selected: _selectedCategoryCode.isEmpty,
-              onTap: () => setState(() {
-                _selectedCategoryCode = '';
-                _selectedSubcategory = '';
-                _visibleLimit = 60;
-              }),
-            ),
-            ...PipeBuyerShopTaxonomy.categories.map(
-              (cat) => _CategoryFilterPill(
-                label: cat.shortLabel,
-                count: countsByCat[cat.code] ?? 0,
-                icon: cat.icon,
-                selected: _selectedCategoryCode == cat.code,
-                onTap: () => setState(() {
-                  _selectedCategoryCode =
-                      _selectedCategoryCode == cat.code ? '' : cat.code;
-                  _selectedSubcategory = '';
-                  _visibleLimit = 60;
-                }),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+    final subcategories = _selectedCategoryCode.isEmpty
+        ? const <String>[]
+        : PipeBuyerShopTaxonomy.subcategoriesForCategory(_selectedCategoryCode);
 
-  Widget _buildSubcategorySelector(BuildContext context) {
-    final countsBySub = <String, int>{};
-    for (final p in _products) {
-      if (p.status != 'active' || !p.shipsToCountry(_regionCode)) continue;
-      if (_selectedCategoryCode.isNotEmpty &&
-          p.categoryCode != _selectedCategoryCode) {
-        continue;
-      }
-      final sub = p.subcategory.trim();
-      if (sub.isNotEmpty) {
-        countsBySub[sub] = (countsBySub[sub] ?? 0) + 1;
-      }
-    }
-
-    final List<String> subOptions;
-    if (_selectedCategoryCode.isNotEmpty) {
-      final official = PipeBuyerShopTaxonomy.subcategoriesForCategory(
-        _selectedCategoryCode,
-      );
-      final merged = <String>[...official];
-      for (final extra in countsBySub.keys) {
-        if (!merged.any((m) => m.toLowerCase() == extra.toLowerCase())) {
-          merged.add(extra);
-        }
-      }
-      subOptions = merged;
-    } else {
-      final populated = countsBySub.keys.toList()
-        ..sort((a, b) => (countsBySub[b] ?? 0).compareTo(countsBySub[a] ?? 0));
-      subOptions = populated.take(12).toList(growable: false);
-    }
-
-    if (subOptions.isEmpty) return const SizedBox.shrink();
-
-    final selectedCat =
-        PipeBuyerShopTaxonomy.categoryByCode(_selectedCategoryCode);
-    final heading = selectedCat != null
-        ? '${selectedCat.shortLabel.toUpperCase()} SUBCATEGORIES'
-        : 'POPULAR SUBCATEGORIES';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          heading,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.9,
-            color: PipeBuyerColors.muted,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            ChoiceChip(
-              label: const Text(
-                'All Subcategories',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
-              ),
-              selected: _selectedSubcategory.isEmpty,
-              selectedColor: PipeBuyerColors.orangeSoft,
-              onSelected: (_) => setState(() {
-                _selectedSubcategory = '';
-                _visibleLimit = 60;
-              }),
-            ),
-            ...subOptions.map((sub) {
-              final active =
-                  _selectedSubcategory.toLowerCase() == sub.toLowerCase();
-              final count = countsBySub[sub] ?? 0;
-              return ChoiceChip(
-                label: Text(
-                  count > 0 ? '$sub ($count)' : sub,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                  ),
-                ),
-                selected: active,
-                selectedColor: PipeBuyerColors.orangeSoft,
-                onSelected: (_) => setState(() {
-                  _selectedSubcategory = active ? '' : sub;
-                  _visibleLimit = 60;
-                }),
-              );
-            }),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFilterAndSortToolbar(
-    BuildContext context, {
-    required int resultCount,
-    required bool hasActiveFilters,
-  }) {
-    final brands = _availableBrands;
-    final hiddenByCountry = _hiddenByCountryCount;
     return Container(
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: PipeBuyerColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    '$resultCount item${resultCount == 1 ? '' : 's'} shown',
-                    style: const TextStyle(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'CATEGORIES',
+                    style: TextStyle(
+                      fontSize: 13,
                       fontWeight: FontWeight.w900,
-                      fontSize: 13.5,
+                      letterSpacing: 0.6,
+                      color: PipeBuyerColors.muted,
                     ),
                   ),
-                  if (hiddenByCountry > 0)
-                    TextButton(
-                      onPressed: () => _setRegion('ALL'),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
+                ),
+                if (_selectedCategoryCode.isNotEmpty)
+                  InkWell(
+                    onTap: () => setState(() {
+                      _selectedCategoryCode = '';
+                      _selectedSubcategory = '';
+                    }),
+                    child: const Text(
+                      'View All Categories',
+                      style: TextStyle(
+                        color: _kShopeeOrange,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.public_rounded, size: 15),
-                          const SizedBox(width: 5),
-                          Flexible(
-                            child: Text(
-                              '$hiddenByCountry regional item${hiddenByCountry == 1 ? '' : 's'} hidden for $_regionCode • Show All Regions',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 11.5),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final tileCount = PipeBuyerShopTaxonomy.categories.length + 1;
+              final wide = constraints.maxWidth >= 920;
+              final tileWidth = wide
+                  ? constraints.maxWidth / tileCount
+                  : (constraints.maxWidth /
+                          (constraints.maxWidth >= 560 ? 5 : 3))
+                      .clamp(98.0, 160.0);
+
+              final tiles = <Widget>[
+                _ShopeeCategoryTile(
+                  width: tileWidth,
+                  label: 'All Products',
+                  count: totalCountryEligible,
+                  icon: Icons.grid_view_rounded,
+                  accentColor: _kShopeeOrange,
+                  selected: _selectedCategoryCode.isEmpty,
+                  onTap: () => setState(() {
+                    _selectedCategoryCode = '';
+                    _selectedSubcategory = '';
+                    _visibleLimit = 60;
+                  }),
+                ),
+                ...PipeBuyerShopTaxonomy.categories.map(
+                  (cat) => _ShopeeCategoryTile(
+                    width: tileWidth,
+                    label: cat.shortLabel,
+                    count: countsByCat[cat.code] ?? 0,
+                    icon: cat.icon,
+                    accentColor: cat.accentColor,
+                    selected: _selectedCategoryCode == cat.code,
+                    onTap: () => setState(() {
+                      _selectedCategoryCode =
+                          _selectedCategoryCode == cat.code ? '' : cat.code;
+                      _selectedSubcategory = '';
+                      _visibleLimit = 60;
+                    }),
+                  ),
+                ),
+              ];
+
+              return Wrap(children: tiles);
+            },
+          ),
+          if (subcategories.isNotEmpty) ...[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ChoiceChip(
+                        label: const Text(
+                          'All Subcategories',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        selected: _selectedSubcategory.isEmpty,
+                        selectedColor: const Color(0xFFFFEDE8),
+                        visualDensity: VisualDensity.compact,
+                        onSelected: (_) =>
+                            setState(() => _selectedSubcategory = ''),
+                      ),
+                    ),
+                    ...subcategories.map((sub) {
+                      final active = _selectedSubcategory.toLowerCase() ==
+                          sub.toLowerCase();
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(
+                            sub,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight:
+                                  active ? FontWeight.w800 : FontWeight.w600,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  if (hasActiveFilters)
-                    TextButton.icon(
-                      onPressed: _clearAllFilters,
-                      icon: const Icon(Icons.filter_alt_off_outlined, size: 16),
-                      label: const Text('Reset filters'),
-                    ),
-                ],
+                          selected: active,
+                          selectedColor: const Color(0xFFFFEDE8),
+                          visualDensity: VisualDensity.compact,
+                          onSelected: (_) => setState(
+                            () => _selectedSubcategory = active ? '' : sub,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Sort: ',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: PipeBuyerColors.muted,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Flexible(
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _sortBy,
-                        isDense: true,
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'featured',
-                            child: Text('Featured Picks'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'popular',
-                            child: Text('Most Popular'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'brand',
-                            child: Text('Brand (A–Z)'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'title',
-                            child: Text('Product Name (A–Z)'),
-                          ),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) setState(() => _sortBy = v);
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          if (brands.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: brands.map((brand) {
-                final active =
-                    _selectedBrand.toLowerCase() == brand.toLowerCase();
-                return ChoiceChip(
-                  label: Text(
-                    brand,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                    ),
-                  ),
-                  selected: active,
-                  selectedColor: PipeBuyerColors.orangeSoft,
-                  onSelected: (_) => setState(() {
-                    _selectedBrand = active ? '' : brand;
-                  }),
-                );
-              }).toList(growable: false),
             ),
           ],
         ],
@@ -1451,76 +1315,234 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
     );
   }
 
-  Widget _buildEmptyResultsCard(BuildContext context) {
+  Widget _buildSortAndFilterBar(
+    BuildContext context, {
+    required int resultCount,
+    required bool hasActiveFilters,
+  }) {
+    final brands = _availableBrands;
     final hiddenByCountry = _hiddenByCountryCount;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.search_off_rounded,
-              size: 44,
-              color: PipeBuyerColors.muted,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              hiddenByCountry > 0
-                  ? 'No items ship to $_regionCode for those filters'
-                  : 'No Store items match those filters',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              hiddenByCountry > 0
-                  ? '$hiddenByCountry item${hiddenByCountry == 1 ? '' : 's'} are available in other regional stores. Switch delivery country or show all regions below.'
-                  : 'Clear filters to browse all categories, or search directly on Amazon with Pipe Buyer support.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: PipeBuyerColors.muted),
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                if (hiddenByCountry > 0)
-                  FilledButton.tonalIcon(
-                    onPressed: () => _setRegion('ALL'),
-                    icon: const Icon(Icons.public_rounded, size: 17),
-                    label: const Text('Show All Regions'),
-                  ),
-                OutlinedButton(
-                  onPressed: _clearAllFilters,
-                  child: const Text('Show All Store Items'),
+
+    const sortTabs = <(String, String)>[
+      ('featured', 'Top Picks'),
+      ('popular', 'Popular'),
+      ('price_asc', 'Price: Low to High'),
+      ('price_desc', 'Price: High to Low'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: PipeBuyerColors.line),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'Sort by',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: PipeBuyerColors.muted,
+                  fontWeight: FontWeight.w700,
                 ),
-                if (_searchController.text.trim().isNotEmpty)
-                  FilledButton.icon(
-                    onPressed: () {
-                      final q = Uri.encodeQueryComponent(
-                        _searchController.text.trim(),
-                      );
-                      final dynamicSearch = PipeBuyerShopProduct(
-                        id: 'amazon-search-fallback',
-                        title: _searchController.text.trim(),
-                        brand: 'Amazon',
-                        vendorName: 'Amazon',
-                        sourceType: PipeBuyerShopSourceType.amazonAffiliate,
-                        categoryCode: 'power_hand_tools',
-                        destinationUrl: 'https://www.amazon.com/s?k=$q',
-                      );
-                      _buyOrOpenPartner(dynamicSearch, placement: 'store_grid');
-                    },
-                    icon: const Icon(Icons.open_in_new_rounded, size: 17),
-                    label: Text(
-                      'Search "${_searchController.text.trim()}" on Amazon',
+              ),
+              ...sortTabs.map((tab) {
+                final active = _sortBy == tab.$1;
+                return InkWell(
+                  borderRadius: BorderRadius.circular(5),
+                  onTap: () => setState(() => _sortBy = tab.$1),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: active ? _kShopeeOrange : _kStoreCanvas,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      tab.$2,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: active ? Colors.white : PipeBuyerColors.ink,
+                      ),
                     ),
                   ),
-              ],
-            ),
-          ],
-        ),
+                );
+              }),
+              if (brands.isNotEmpty)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 185),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: _kStoreCanvas,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: brands.any(
+                          (b) =>
+                              b.toLowerCase() == _selectedBrand.toLowerCase(),
+                        )
+                            ? brands.firstWhere(
+                                (b) =>
+                                    b.toLowerCase() ==
+                                    _selectedBrand.toLowerCase(),
+                              )
+                            : '',
+                        isDense: true,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: PipeBuyerColors.ink,
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: '',
+                            child: Text(
+                              'All Brands',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          ...brands.map(
+                            (b) => DropdownMenuItem(
+                              value: b,
+                              child: Text(
+                                b,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (v) =>
+                            setState(() => _selectedBrand = v ?? ''),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (hiddenByCountry > 0)
+                TextButton.icon(
+                  onPressed: () => _setRegion('ALL'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: _kShopeeOrangeDark,
+                  ),
+                  icon: const Icon(Icons.public_rounded, size: 15),
+                  label: Text(
+                    '$hiddenByCountry regional item${hiddenByCountry == 1 ? '' : 's'} hidden for $_regionCode • Show All',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              if (hasActiveFilters)
+                TextButton.icon(
+                  onPressed: _clearAllFilters,
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                  label: const Text('Reset'),
+                ),
+              Text(
+                '$resultCount product${resultCount == 1 ? '' : 's'}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: PipeBuyerColors.muted,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyResultsCard(BuildContext context) {
+    final hiddenByCountry = _hiddenByCountryCount;
+    final currentQuery = _searchController.text.trim();
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: PipeBuyerColors.line),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.manage_search_rounded,
+            size: 46,
+            color: PipeBuyerColors.muted,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            hiddenByCountry > 0
+                ? 'No items ship to $_regionCode for those filters'
+                : 'No products found matching your search',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            hiddenByCountry > 0
+                ? '$hiddenByCountry item${hiddenByCountry == 1 ? '' : 's'} are available in other regional stores. Switch delivery country or view all regions below.'
+                : 'Know a helpful product not listed? Let us know and our team can add it to the Store!',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: PipeBuyerColors.muted),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              if (hiddenByCountry > 0)
+                FilledButton.tonalIcon(
+                  onPressed: () => _setRegion('ALL'),
+                  icon: const Icon(Icons.public_rounded, size: 17),
+                  label: const Text('Show All Regions'),
+                ),
+              OutlinedButton(
+                onPressed: _clearAllFilters,
+                child: const Text('View All Products'),
+              ),
+              FilledButton.icon(
+                onPressed: () =>
+                    _openProductSuggestionDialog(initialName: currentQuery),
+                style: FilledButton.styleFrom(backgroundColor: _kShopeeOrange),
+                icon: const Icon(Icons.lightbulb_outline_rounded, size: 17),
+                label: Text(
+                  currentQuery.isNotEmpty
+                      ? 'Suggest "$currentQuery"'
+                      : 'Suggest a Product',
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1529,15 +1551,23 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
     BuildContext context,
     List<PipeBuyerShopProduct> items,
   ) {
+    final textScale = MediaQuery.textScalerOf(context).scale(10) / 10.0;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final columns = width >= 1060
-            ? 3
-            : width >= 660
-                ? 2
-                : 1;
-        const gap = 14.0;
+        final int columns;
+        if (width >= 1160) {
+          columns = 5;
+        } else if (width >= 880) {
+          columns = 4;
+        } else if (width >= 600) {
+          columns = 3;
+        } else if (width >= 380 && textScale <= 1.15) {
+          columns = 2;
+        } else {
+          columns = 1;
+        }
+        const gap = 10.0;
         final cardWidth = (width - (gap * (columns - 1))) / columns;
 
         return Wrap(
@@ -1551,22 +1581,183 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
                 product: product,
                 regionCode: _regionCode,
                 saved: isSaved,
-                canManageLinks: _canManageLinks,
                 onToggleSave: () => _toggleSave(product),
                 onOpenDetails: () => _showProductDetailsSheet(context, product),
                 onBuy: () =>
                     _buyOrOpenPartner(product, placement: 'store_grid'),
-                onEdit: _canManageLinks
-                    ? () => _openInlineLinkEditor(existing: product)
-                    : null,
-                onRemove: _canManageLinks
-                    ? () => _confirmInlineRemove(product)
-                    : null,
               ),
             );
           }).toList(growable: false),
         );
       },
+    );
+  }
+
+  Widget _buildSuggestProductBanner(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kShopeeOrange.withValues(alpha: .30)),
+      ),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 12,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEDE8),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.lightbulb_outline_rounded,
+                  color: _kShopeeOrange,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Know a helpful product not listed? Let us know!',
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w900,
+                        color: PipeBuyerColors.ink,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Share tools, welding supplies, rigging gear, or shop equipment your crew relies on and we will look into adding it.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: PipeBuyerColors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          FilledButton.icon(
+            key: const Key('shop_suggest_product_footer_button'),
+            onPressed: () => _openProductSuggestionDialog(),
+            style: FilledButton.styleFrom(
+              backgroundColor: _kShopeeOrange,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: const Text('Suggest a Product'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoreFooter(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 6,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 920),
+            child: Text(
+              _settings.disclosureText,
+              style: const TextStyle(
+                fontSize: 11,
+                color: PipeBuyerColors.muted,
+                height: 1.35,
+              ),
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton(
+                onPressed: () => _showDisclosureDialog(context),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text(
+                  'Store Info',
+                  style: TextStyle(fontSize: 11.5),
+                ),
+              ),
+              if (_settings.vendorApplicationsOpen)
+                TextButton(
+                  onPressed: () => _openVendorApply(),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text(
+                    'Become a Seller',
+                    style: TextStyle(fontSize: 11.5),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDisclosureDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('About Pipe Buyer Store'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Orders open directly on Amazon or the verified retail storefront so you receive full manufacturer warranties, fast shipping, and buyer protection.',
+                style: TextStyle(height: 1.45),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _settings.disclosureText,
+                style: const TextStyle(
+                  color: PipeBuyerColors.muted,
+                  fontSize: 12.5,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _settings.priceDisclaimerText,
+                style: const TextStyle(
+                  color: PipeBuyerColors.muted,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1579,16 +1770,16 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetContext) {
         return SafeArea(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.85,
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.86,
             ),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1600,19 +1791,31 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: PipeBuyerColors.orangeSoft,
-                          borderRadius: BorderRadius.circular(999),
+                          color: const Color(0xFFFFEDE8),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          '${product.brand} • ${product.sourceType.label}',
+                          product.brand,
                           style: const TextStyle(
-                            color: PipeBuyerColors.orangePressed,
-                            fontSize: 11,
+                            color: _kShopeeOrangeDark,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          product.category.shortLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PipeBuyerColors.muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                       IconButton(
                         onPressed: () => Navigator.of(sheetContext).pop(),
                         icon: const Icon(Icons.close_rounded),
@@ -1620,65 +1823,84 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  if (product.imageUrl.trim().isNotEmpty) ...[
-                    Container(
-                      width: double.infinity,
-                      height: 210,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: PipeBuyerColors.surfaceMuted,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: PipeBuyerColors.line),
-                      ),
-                      child: CachedNetworkImage(
-                        imageUrl: product.imageUrl.trim(),
-                        fit: BoxFit.contain,
-                        placeholder: (_, __) => Center(
-                          child: SvgPicture.asset(
-                            product.effectiveIconAsset,
-                            height: 76,
+                  Container(
+                    width: double.infinity,
+                    height: 230,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: PipeBuyerColors.line),
+                    ),
+                    child: product.imageUrl.trim().isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: product.imageUrl.trim(),
                             fit: BoxFit.contain,
+                            placeholder: (_, __) => Center(
+                              child: SvgPicture.asset(
+                                product.effectiveIconAsset,
+                                height: 76,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            errorWidget: (_, __, ___) => Center(
+                              child: SvgPicture.asset(
+                                product.effectiveIconAsset,
+                                height: 76,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: SvgPicture.asset(
+                              product.effectiveIconAsset,
+                              height: 76,
+                              fit: BoxFit.contain,
+                            ),
                           ),
-                        ),
-                        errorWidget: (_, __, ___) => Center(
-                          child: SvgPicture.asset(
-                            product.effectiveIconAsset,
-                            height: 76,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
+                  ),
+                  const SizedBox(height: 14),
+                  if (product.priceDisplay.isNotEmpty) ...[
+                    Text(
+                      product.priceDisplay,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        color: _kShopeeOrange,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
                   ],
                   Text(
                     product.title,
                     style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                      height: 1.25,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      height: 1.28,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Category: ${product.category.label}${product.subcategory.isNotEmpty ? ' • ${product.subcategory}' : ''}',
-                    style: const TextStyle(
-                      color: PipeBuyerColors.muted,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
+                  if (product.subcategory.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      product.subcategory,
+                      style: const TextStyle(
+                        color: PipeBuyerColors.muted,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
+                  ],
                   if (product.description.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Text(
                       product.description,
-                      style: const TextStyle(fontSize: 14, height: 1.45),
+                      style: const TextStyle(fontSize: 13.5, height: 1.45),
                     ),
                   ],
                   if (product.highlights.isNotEmpty) ...[
                     const SizedBox(height: 14),
                     const Text(
-                      'Key Jobsite Specifications',
+                      'Product Specifications',
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 13.5,
@@ -1692,8 +1914,8 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Icon(
-                              Icons.check_circle_outline_rounded,
-                              size: 17,
+                              Icons.check_circle_rounded,
+                              size: 16,
                               color: PipeBuyerColors.success,
                             ),
                             const SizedBox(width: 8),
@@ -1708,67 +1930,33 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: PipeBuyerColors.surfaceMuted,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${_settings.disclosureText} ${_settings.priceDisclaimerText}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: PipeBuyerColors.muted,
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   SizedBox(
                     width: double.infinity,
+                    height: 46,
                     child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _kShopeeOrange,
+                        foregroundColor: Colors.white,
+                      ),
                       onPressed: () {
                         Navigator.of(sheetContext).pop();
                         _buyOrOpenPartner(product, placement: 'store_detail');
                       },
-                      icon: const Icon(Icons.open_in_new_rounded),
+                      icon: const Icon(Icons.shopping_cart_checkout_rounded),
                       label: Text(
-                        '${product.effectiveCtaLabel} (${_regionCode == 'CA' ? 'Canada' : 'US'})',
+                        product.sourceType ==
+                                    PipeBuyerShopSourceType.amazonAffiliate &&
+                                _regionCode == 'CA'
+                            ? 'Buy on Amazon.ca'
+                            : product.effectiveCtaLabel,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
-                  if (_canManageLinks) ...[
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.of(sheetContext).pop();
-                            _openInlineLinkEditor(existing: product);
-                          },
-                          icon: const Icon(Icons.edit_outlined, size: 17),
-                          label: const Text('Edit Link'),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {
-                            Navigator.of(sheetContext).pop();
-                            _confirmInlineRemove(product);
-                          },
-                          style: TextButton.styleFrom(
-                            foregroundColor: PipeBuyerColors.danger,
-                          ),
-                          icon: const Icon(
-                            Icons.delete_outline_rounded,
-                            size: 17,
-                          ),
-                          label: const Text('Remove Link'),
-                        ),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -1777,85 +1965,255 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
       },
     );
   }
+}
 
-  Widget _buildVendorRecruitmentBanner(BuildContext context) {
-    if (!_settings.vendorApplicationsOpen) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: PipeBuyerColors.industrialBlue.withValues(alpha: .30),
-        ),
-      ),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 14,
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
+class PipeBuyerProductSuggestionDialog extends StatefulWidget {
+  const PipeBuyerProductSuggestionDialog({
+    super.key,
+    required this.client,
+    this.initialProductName = '',
+    this.initialCategoryCode = 'power_hand_tools',
+  });
+
+  final PipeBuyerShopClient client;
+  final String initialProductName;
+  final String initialCategoryCode;
+
+  @override
+  State<PipeBuyerProductSuggestionDialog> createState() =>
+      _PipeBuyerProductSuggestionDialogState();
+}
+
+class _PipeBuyerProductSuggestionDialogState
+    extends State<PipeBuyerProductSuggestionDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _urlController;
+  late final TextEditingController _notesController;
+  late final TextEditingController _submitterNameController;
+  late final TextEditingController _emailController;
+  late String _categoryCode;
+  bool _submitting = false;
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialProductName);
+    _urlController = TextEditingController();
+    _notesController = TextEditingController();
+    _submitterNameController = TextEditingController(
+      text: widget.client.currentUserDisplayName,
+    );
+    _emailController = TextEditingController(
+      text: widget.client.currentUserEmail,
+    );
+    _categoryCode =
+        PipeBuyerShopTaxonomy.categoryByCode(widget.initialCategoryCode) != null
+            ? widget.initialCategoryCode
+            : 'power_hand_tools';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _urlController.dispose();
+    _notesController.dispose();
+    _submitterNameController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _submitting = true;
+      _errorText = null;
+    });
+    try {
+      await widget.client.submitProductSuggestion(
+        productName: _nameController.text,
+        productUrl: _urlController.text,
+        categoryCode: _categoryCode,
+        notes: _notesController.text,
+        submitterName: _submitterNameController.text,
+        contactEmail: _emailController.text,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (err) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _errorText = err.toString().replaceFirst('Bad state: ', '');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Row(
         children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 740),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'DISTRIBUTORS, BRANDS & INDUSTRIAL BUSINESSES',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.1,
-                    color: PipeBuyerColors.industrialBlue,
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Want to list Milwaukee, welding, rigging, PPE, or your business catalog in the Pipe Buyer Store?',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    height: 1.25,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'We onboard authorized industrial distributors, tool manufacturers, and verified businesses via affiliate feeds, partner storefronts, and direct vendor listings.',
-                  style: TextStyle(
-                    color: PipeBuyerColors.muted,
-                    fontSize: 12.5,
-                    height: 1.4,
-                  ),
-                ),
-              ],
+          Icon(Icons.lightbulb_outline_rounded, color: _kShopeeOrange),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Suggest a Helpful Product',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
             ),
-          ),
-          FilledButton.icon(
-            onPressed: () => _openVendorApply(),
-            style: FilledButton.styleFrom(
-              backgroundColor: PipeBuyerColors.industrialBlue,
-            ),
-            icon: const Icon(Icons.handshake_outlined),
-            label: const Text('Apply as Vendor / Distributor'),
           ),
         ],
       ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Know a helpful product, tool, or piece of gear not listed yet? Let us know and our Store team will review it!',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: PipeBuyerColors.muted,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  key: const Key('suggest_product_name_field'),
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Product / Tool Name & Brand *',
+                    hintText: 'e.g., Klein Tools 935DAG Digital Angle Gauge',
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().length < 3) {
+                      return 'Enter the product or tool name.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _categoryCode,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                  items: PipeBuyerShopTaxonomy.categories
+                      .map(
+                        (cat) => DropdownMenuItem<String>(
+                          value: cat.code,
+                          child: Text(
+                            cat.shortLabel,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _categoryCode = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const Key('suggest_product_url_field'),
+                  controller: _urlController,
+                  decoration: const InputDecoration(
+                    labelText: 'Product Link (Optional)',
+                    hintText: 'https://www.amazon.com/... or brand website',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const Key('suggest_product_notes_field'),
+                  controller: _notesController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Why do you recommend it? (Optional)',
+                    hintText: 'Helpful notes, model number, or field use...',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _submitterNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Your Name (Optional)',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email (Optional)',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_errorText != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _errorText!,
+                    style: const TextStyle(
+                      color: PipeBuyerColors.danger,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          key: const Key('suggest_product_submit_button'),
+          style: FilledButton.styleFrom(
+            backgroundColor: _kShopeeOrange,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: _submitting ? null : _submit,
+          icon: _submitting
+              ? const SizedBox(
+                  width: 15,
+                  height: 15,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.send_rounded, size: 16),
+          label: const Text('Send Suggestion'),
+        ),
+      ],
     );
   }
 }
 
-class _RegionChip extends StatelessWidget {
-  const _RegionChip({
+class _HeaderUtilityChip extends StatelessWidget {
+  const _HeaderUtilityChip({
     required this.label,
     required this.selected,
     required this.onTap,
-    this.icon,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -1863,34 +2221,61 @@ class _RegionChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
-          color: selected
-              ? PipeBuyerColors.orange
-              : Colors.white.withValues(alpha: .10),
+          color: selected ? Colors.white : Colors.white.withValues(alpha: .16),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected
-                ? PipeBuyerColors.orange
-                : Colors.white.withValues(alpha: .22),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? _kShopeeOrangeDark : Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SavedHeartButton extends StatelessWidget {
+  const _SavedHeartButton({
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.white.withValues(alpha: .16),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (icon != null) ...[
-              Icon(icon, size: 15, color: Colors.white),
-              const SizedBox(width: 5),
-            ],
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                ),
+            Icon(
+              selected ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              size: 19,
+              color: selected ? _kShopeeOrange : Colors.white,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              'Saved ($count)',
+              style: TextStyle(
+                color: selected ? _kShopeeOrangeDark : Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
@@ -1900,72 +2285,80 @@ class _RegionChip extends StatelessWidget {
   }
 }
 
-class _CategoryFilterPill extends StatelessWidget {
-  const _CategoryFilterPill({
+class _ShopeeCategoryTile extends StatelessWidget {
+  const _ShopeeCategoryTile({
+    required this.width,
     required this.label,
     required this.count,
     required this.icon,
+    required this.accentColor,
     required this.selected,
     required this.onTap,
   });
 
+  final double width;
   final String label;
   final int count;
   final IconData icon;
+  final Color accentColor;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        width: width,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? PipeBuyerColors.ink : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? PipeBuyerColors.orange : PipeBuyerColors.line,
-            width: selected ? 1.6 : 1,
+          color: selected ? const Color(0xFFFFF5F2) : Colors.white,
+          border: Border(
+            right: const BorderSide(color: Color(0xFFF1F5F9)),
+            bottom: BorderSide(
+              color: selected ? _kShopeeOrange : const Color(0xFFF1F5F9),
+              width: selected ? 2.5 : 1,
+            ),
           ),
         ),
-        child: Row(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 17,
-              color: selected ? PipeBuyerColors.orange : PipeBuyerColors.slate,
-            ),
-            const SizedBox(width: 7),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selected ? Colors.white : PipeBuyerColors.ink,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12.5,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
                 color: selected
-                    ? Colors.white.withValues(alpha: .15)
-                    : PipeBuyerColors.surfaceMuted,
-                borderRadius: BorderRadius.circular(999),
+                    ? _kShopeeOrange.withValues(alpha: .14)
+                    : accentColor.withValues(alpha: .10),
+                shape: BoxShape.circle,
               ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  color: selected ? Colors.white : PipeBuyerColors.muted,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w900,
-                ),
+              child: Icon(
+                icon,
+                size: 21,
+                color: selected ? _kShopeeOrange : accentColor,
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              label,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11.5,
+                height: 1.2,
+                fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                color: selected ? _kShopeeOrangeDark : PipeBuyerColors.ink,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '$count items',
+              style: const TextStyle(
+                fontSize: 10,
+                color: PipeBuyerColors.muted,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -1980,377 +2373,221 @@ class _ShopProductCard extends StatelessWidget {
     required this.product,
     required this.regionCode,
     required this.saved,
-    this.canManageLinks = false,
     required this.onToggleSave,
     required this.onOpenDetails,
     required this.onBuy,
-    this.onEdit,
-    this.onRemove,
   });
 
   final PipeBuyerShopProduct product;
   final String regionCode;
   final bool saved;
-  final bool canManageLinks;
   final VoidCallback onToggleSave;
   final VoidCallback onOpenDetails;
   final VoidCallback onBuy;
-  final VoidCallback? onEdit;
-  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
     final fallbackArtwork = Center(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: SvgPicture.asset(
           product.effectiveIconAsset,
-          height: 76,
+          height: 68,
           fit: BoxFit.contain,
           placeholderBuilder: (_) => Icon(
             product.category.icon,
-            size: 44,
+            size: 40,
             color: product.category.accentColor,
           ),
         ),
       ),
     );
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: PipeBuyerColors.line),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A0F172A),
-            blurRadius: 12,
-            offset: Offset(0, 4),
+    final ctaText =
+        product.sourceType == PipeBuyerShopSourceType.amazonAffiliate &&
+                regionCode == 'CA'
+            ? 'Amazon.ca'
+            : product.effectiveCtaLabel;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onOpenDetails,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            height: 142,
-            decoration: const BoxDecoration(
-              color: PipeBuyerColors.surfaceMuted,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
-            ),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: product.imageUrl.trim().isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(15),
-                          ),
-                          child: CachedNetworkImage(
-                            imageUrl: product.imageUrl.trim(),
-                            fit: BoxFit.contain,
-                            placeholder: (_, __) => fallbackArtwork,
-                            errorWidget: (_, __, ___) => fallbackArtwork,
-                          ),
-                        )
-                      : fallbackArtwork,
-                ),
-                Positioned(
-                  left: 10,
-                  top: 10,
-                  right: 48,
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: PipeBuyerColors.ink.withValues(alpha: .88),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          product.brand.toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Clean white Shopee/Amazon square-feel product image showcase
+              SizedBox(
+                height: 176,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: product.imageUrl.trim().isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: product.imageUrl.trim(),
+                                fit: BoxFit.contain,
+                                placeholder: (_, __) => fallbackArtwork,
+                                errorWidget: (_, __, ___) => fallbackArtwork,
+                              )
+                            : fallbackArtwork,
                       ),
-                      if (product.badgeText.trim().isNotEmpty)
-                        Container(
+                    ),
+                    if (product.featured || product.badgeText.trim().isNotEmpty)
+                      Positioned(
+                        left: 0,
+                        top: 8,
+                        child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                            horizontal: 7,
+                            vertical: 3,
                           ),
-                          decoration: BoxDecoration(
-                            color: PipeBuyerColors.orange,
-                            borderRadius: BorderRadius.circular(999),
+                          decoration: const BoxDecoration(
+                            color: _kShopeeOrange,
+                            borderRadius: BorderRadius.horizontal(
+                              right: Radius.circular(4),
+                            ),
                           ),
                           child: Text(
-                            product.badgeText,
+                            product.badgeText.trim().isNotEmpty
+                                ? product.badgeText.trim()
+                                : 'Top Pick',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
+                              fontSize: 9.5,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  right: 6,
-                  top: 6,
-                  child: Material(
-                    color: Colors.white.withValues(alpha: .92),
-                    shape: const CircleBorder(),
-                    child: IconButton(
-                      tooltip: saved ? 'Saved in Shop' : 'Save item',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: onToggleSave,
-                      icon: Icon(
-                        saved
-                            ? Icons.bookmark_rounded
-                            : Icons.bookmark_border_rounded,
-                        size: 20,
-                        color: saved
-                            ? PipeBuyerColors.orangePressed
-                            : PipeBuyerColors.slate,
                       ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        product.subcategory.trim().isNotEmpty
-                            ? '${product.category.shortLabel.toUpperCase()} • ${product.subcategory}'
-                            : product.category.shortLabel.toUpperCase(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
-                          color: product.category.accentColor,
+                    Positioned(
+                      right: 4,
+                      top: 4,
+                      child: Material(
+                        color: Colors.white.withValues(alpha: .9),
+                        shape: const CircleBorder(),
+                        child: IconButton(
+                          tooltip: saved ? 'Saved' : 'Save item',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: onToggleSave,
+                          icon: Icon(
+                            saved
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            size: 18,
+                            color:
+                                saved ? _kShopeeOrange : PipeBuyerColors.muted,
+                          ),
                         ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      product.sourceType.label,
+                      product.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: PipeBuyerColors.ink,
+                        height: 1.28,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${product.brand} • ${product.category.shortLabel}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 10.5,
                         color: PipeBuyerColors.muted,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                InkWell(
-                  onTap: onOpenDetails,
-                  child: Text(
-                    product.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w900,
-                      height: 1.25,
-                    ),
-                  ),
-                ),
-                if (product.description.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    product.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: PipeBuyerColors.muted,
-                      height: 1.32,
-                    ),
-                  ),
-                ],
-                if (product.highlights.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ...product.highlights.take(2).map(
-                        (spec) => Padding(
-                          padding: const EdgeInsets.only(bottom: 3),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.check_rounded,
-                                size: 14,
-                                color: PipeBuyerColors.success,
-                              ),
-                              const SizedBox(width: 5),
-                              Expanded(
-                                child: Text(
-                                  spec,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            product.priceDisplay.isNotEmpty
+                                ? product.priceDisplay
+                                : 'View Price',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                              color: _kShopeeOrange,
+                            ),
                           ),
                         ),
-                      ),
-                ],
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.sell_outlined,
-                      size: 14,
-                      color: product.priceDisplay.isNotEmpty
-                          ? PipeBuyerColors.ink
-                          : PipeBuyerColors.muted,
-                    ),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        product.priceDisplay.isNotEmpty
-                            ? '${product.priceDisplay} (verify live price)'
-                            : 'Check live price & Prime delivery',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: product.priceDisplay.isNotEmpty
-                              ? FontWeight.w900
-                              : FontWeight.w700,
-                          color: product.priceDisplay.isNotEmpty
-                              ? PipeBuyerColors.ink
-                              : PipeBuyerColors.slate,
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 14,
+                          color: Color(0xFFF59E0B),
                         ),
-                      ),
+                        const SizedBox(width: 2),
+                        const Text(
+                          '4.9',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: PipeBuyerColors.slate,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  product.sourceType == PipeBuyerShopSourceType.amazonAffiliate
-                      ? '#ad • Amazon Associate link • ${product.shippingSummaryLabel}'
-                      : '#ad • ${product.vendorName.isNotEmpty ? product.vendorName : 'Partner'} • ${product.shippingSummaryLabel}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    color: PipeBuyerColors.muted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    OutlinedButton(
-                      onPressed: onOpenDetails,
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(56, 42),
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                      ),
-                      child: const Text(
-                        'Specs',
-                        style: TextStyle(fontSize: 12.5),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.icon(
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 36,
+                      child: FilledButton(
                         onPressed: onBuy,
                         style: FilledButton.styleFrom(
-                          minimumSize: const Size(64, 42),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          backgroundColor: _kShopeeOrange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
+                          ),
                         ),
-                        icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                        label: Text(
-                          product.sourceType ==
-                                      PipeBuyerShopSourceType.amazonAffiliate &&
-                                  regionCode == 'CA'
-                              ? 'Amazon.ca'
-                              : product.effectiveCtaLabel,
+                        child: Text(
+                          ctaText,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12.5),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                if (canManageLinks && (onEdit != null || onRemove != null)) ...[
-                  const SizedBox(height: 10),
-                  const Divider(height: 1),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      if (onEdit != null)
-                        TextButton.icon(
-                          onPressed: onEdit,
-                          style: TextButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                          ),
-                          icon: const Icon(Icons.edit_outlined, size: 15),
-                          label: const Text(
-                            'Edit Link',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      if (onRemove != null)
-                        TextButton.icon(
-                          onPressed: onRemove,
-                          style: TextButton.styleFrom(
-                            foregroundColor: PipeBuyerColors.danger,
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                          ),
-                          icon: const Icon(
-                            Icons.delete_outline_rounded,
-                            size: 15,
-                          ),
-                          label: const Text(
-                            'Remove Link',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -28,6 +28,8 @@ class _FakeAdminShopClient extends PipeBuyerShopClient {
   final List<String> deletedIds = <String>[];
   final List<PipeBuyerShopProduct> _customProducts = <PipeBuyerShopProduct>[];
   final Set<String> _hiddenStarterIds = <String>{};
+  final List<PipeBuyerProductSuggestion> submittedSuggestions =
+      <PipeBuyerProductSuggestion>[];
 
   PipeBuyerShopSettings get _currentSettings => PipeBuyerShopSettings(
         amazonAssociateTagUs: 'pipebuyer-20',
@@ -201,6 +203,60 @@ class _FakeAdminShopClient extends PipeBuyerShopClient {
           'home_showcase': 12
         },
       },
+    );
+  }
+
+  @override
+  Future<String> submitProductSuggestion({
+    required String productName,
+    String productUrl = '',
+    String categoryCode = 'power_hand_tools',
+    String notes = '',
+    String submitterName = '',
+    String contactEmail = '',
+  }) async {
+    final id = 'sugg_${submittedSuggestions.length + 1}';
+    submittedSuggestions.insert(
+      0,
+      PipeBuyerProductSuggestion(
+        id: id,
+        productName: productName.trim(),
+        productUrl: productUrl.trim(),
+        categoryCode: categoryCode,
+        notes: notes.trim(),
+        submitterName: submitterName.trim(),
+        contactEmail: contactEmail.trim(),
+        status: 'pending',
+        createdAtIso: '2026-11-07T19:00:00Z',
+      ),
+    );
+    return id;
+  }
+
+  @override
+  Future<List<PipeBuyerProductSuggestion>> listProductSuggestions() async {
+    return List<PipeBuyerProductSuggestion>.from(submittedSuggestions);
+  }
+
+  @override
+  Future<void> updateProductSuggestionStatus({
+    required String suggestionId,
+    required String status,
+    String reviewNotes = '',
+  }) async {
+    final idx = submittedSuggestions.indexWhere((s) => s.id == suggestionId);
+    if (idx < 0) return;
+    final prev = submittedSuggestions[idx];
+    submittedSuggestions[idx] = PipeBuyerProductSuggestion(
+      id: prev.id,
+      productName: prev.productName,
+      productUrl: prev.productUrl,
+      categoryCode: prev.categoryCode,
+      notes: prev.notes,
+      submitterName: prev.submitterName,
+      contactEmail: prev.contactEmail,
+      status: status,
+      createdAtIso: prev.createdAtIso,
     );
   }
 }
@@ -839,7 +895,7 @@ void main() {
   });
 
   testWidgets(
-      'PipeBuyerShopStorePage allows inline Admin link removal directly from /shop',
+      'PipeBuyerShopStorePage renders Shopee-style public storefront with zero developer/admin UI and end-to-end product suggestions',
       (
     tester,
   ) async {
@@ -860,26 +916,80 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Quick-Add Amazon / Affiliate Link'), findsOneWidget);
+    // Zero developer, admin, or inline product-input controls leak onto /shop
+    expect(find.text('Quick-Add Amazon / Affiliate Link'), findsNothing);
+    expect(find.text('Add Affiliate Link'), findsNothing);
+    expect(find.text('Store Admin'), findsNothing);
+    expect(find.text('Remove Link'), findsNothing);
+    expect(find.text('BRANDS, AFFILIATES & PARTNER STOREFRONTS'), findsNothing);
 
-    final removeBtn = find.text('Remove Link').first;
-    await tester.scrollUntilVisible(
-      removeBtn,
-      250,
-      scrollable: find.byType(Scrollable).first,
+    // Shopee-style e-commerce storefront elements render cleanly
+    expect(find.text('CATEGORIES'), findsOneWidget);
+    expect(find.text('Sort by'), findsOneWidget);
+    expect(find.text('Top Picks'), findsOneWidget);
+    expect(find.text('Price: Low to High'), findsOneWidget);
+    expect(
+      find.text('Know a helpful product not listed? Let us know!'),
+      findsWidgets,
+    );
+
+    // Public shopper submits a helpful product suggestion
+    await tester.tap(find.byKey(const Key('shop_suggest_product_top_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Suggest a Helpful Product'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('suggest_product_name_field')),
+      'RIDGID 31110',
+    );
+    await tester.enterText(
+      find.byKey(const Key('suggest_product_notes_field')),
+      'Essential 36-inch aluminum pipe wrench for rig crews.',
+    );
+    await tester.tap(find.byKey(const Key('suggest_product_submit_button')));
+    await tester.pumpAndSettle();
+
+    expect(fakeClient.submittedSuggestions, hasLength(1));
+    expect(fakeClient.submittedSuggestions.single.productName, 'RIDGID 31110');
+    expect(fakeClient.submittedSuggestions.single.status, 'pending');
+
+    // Admin / Store Manager reviews the suggestion inside /admin/shop and publishes it in 1 click
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: PipeBuyerTheme.light(),
+        home: PipeBuyerShopAdminPage(
+          client: fakeClient,
+          sessionOverride: () async =>
+              const PipeBuyerShopRoleSession.authorizedAdmin(),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(removeBtn);
+
+    expect(find.text('Suggestions (1)'), findsOneWidget);
+    await tester.tap(find.text('Suggestions (1)'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Remove Affiliate Link?'), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Remove Link'));
+    expect(find.text('Shopper Product Suggestions'), findsOneWidget);
+    expect(find.text('RIDGID 31110'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('suggestion_add_sugg_1')));
     await tester.pumpAndSettle();
 
-    expect(fakeClient.deletedIds, hasLength(1));
-    final removedStarter = PipeBuyerShopTaxonomy.starterCatalog
-        .firstWhere((item) => item.id == fakeClient.deletedIds.first);
-    expect(find.text(removedStarter.title), findsNothing);
+    // SiteStripe Product Finder automatically searched Amazon for "RIDGID 31110"
+    expect(find.text('Select SKU'), findsWidgets);
+    await tester.tap(find.text('Select SKU').first);
+    await tester.pump(const Duration(milliseconds: 450));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ASIN: B0000224JH'), findsOneWidget);
+    await tester.tap(find.text('Publish Affiliate Link'));
+    await tester.pumpAndSettle();
+
+    expect(fakeClient.upsertedPayloads, hasLength(1));
+    expect(fakeClient.upsertedPayloads.single['asin'], 'B0000224JH');
+    expect(fakeClient.submittedSuggestions.single.status, 'added');
+    expect(find.text('Suggestions (0)'), findsOneWidget);
   });
 
   testWidgets(
