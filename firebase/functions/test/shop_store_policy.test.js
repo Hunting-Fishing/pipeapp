@@ -1074,3 +1074,278 @@ test("OneLink Canada preservation, subcategory inference, and SiteStripe Amazon 
   assert.equal(finderRes.searchCandidates.length, 2);
   assert.equal(finderRes.searchCandidates[1].asin, "B094RDL3QR");
 });
+
+test("Vendor, Distributor & Brand Portal supports guest OEM submissions, multi-channel Admin + Store Manager alerts, and applicant decision notifications", async () => {
+  const store = new Map();
+  let autoCounter = 0;
+
+  function makeDocRef(col, id) {
+    const key = `${col}/${id}`;
+    return {
+      id,
+      async get() {
+        const exists = store.has(key);
+        return {id, exists, data: () => (exists ? {...store.get(key)} : undefined)};
+      },
+      async set(data, opts) {
+        const prev = opts && opts.merge && store.has(key) ? store.get(key) : {};
+        store.set(key, {...prev, ...data});
+      },
+      async update(data) {
+        store.set(key, {...(store.get(key) || {}), ...data});
+      },
+      async delete() {
+        store.delete(key);
+      },
+      collection(subCol) {
+        return makeCollection(`${col}/${id}/${subCol}`);
+      },
+    };
+  }
+
+  function makeCollection(col) {
+    const prefix = `${col}/`;
+    const queryApi = (pred = () => true) => ({
+      where: (f, op, exp) => queryApi((d) => pred(d) && (op === "==" ? d[f] === exp : true)),
+      orderBy: () => queryApi(pred),
+      limit: () => queryApi(pred),
+      async get() {
+        const docs = [];
+        for (const [k, v] of store.entries()) {
+          if (k.startsWith(prefix)) {
+            const rest = k.slice(prefix.length);
+            if (!rest.includes("/") && pred(v)) {
+              docs.push({id: rest, data: () => ({...v})});
+            }
+          }
+        }
+        return {empty: docs.length === 0, size: docs.length, docs};
+      },
+    });
+    return {
+      ...queryApi(),
+      doc: (id) => makeDocRef(col, id || `auto_${++autoCounter}`),
+      add: async (data) => {
+        const ref = makeDocRef(col, `auto_${++autoCounter}`);
+        await ref.set(data);
+        return ref;
+      },
+    };
+  }
+
+  const fakeDb = {
+    collection: (col) => makeCollection(col),
+    batch() {
+      const ops = [];
+      return {
+        set: (r, d, o) => ops.push(() => r.set(d, o)),
+        update: (r, d) => ops.push(() => r.update(d)),
+        delete: (r) => ops.push(() => r.delete()),
+        commit: async () => {
+          for (const op of ops) await op();
+        },
+      };
+    },
+    async runTransaction(fn) {
+      return fn({
+        get: (ref) => ref.get(),
+        set: (ref, data, opts) => ref.set(data, opts),
+      });
+    },
+  };
+
+  // Seed active Administrator + active Store Manager
+  store.set("administrator_roles/admin_jordi", {
+    uid: "admin_jordi",
+    email: "jordilwbailey@gmail.com",
+    active: true,
+  });
+  store.set("shop_staff/manager_sarah", {
+    uid: "manager_sarah",
+    email: "sarah.manager@pipebuyer.com",
+    role: "store_manager",
+    active: true,
+  });
+
+  const mockAdmin = {
+    firestore: Object.assign(() => fakeDb, {
+      FieldValue: {serverTimestamp: () => "2026-11-07T19:30:00Z", increment: (n) => n},
+      Timestamp: {
+        now: () => ({toMillis: () => Date.now()}),
+        fromMillis: (ms) => ({toMillis: () => ms}),
+      },
+    }),
+    auth: () => ({
+      async getUserByEmail(email) {
+        if (email === "fleet.partnerships@brandt.ca") {
+          return {uid: "brandt_rep_uid", email, emailVerified: true};
+        }
+        const err = new Error("not found");
+        err.code = "auth/user-not-found";
+        throw err;
+      },
+    }),
+  };
+
+  const adminInAppPayloads = [];
+  const sentEmails = [];
+  const commands = createShopStoreCommands(mockAdmin, {
+    notifyAdministrators: async (payload) => {
+      adminInAppPayloads.push(payload);
+      await makeDocRef(`users/admin_jordi/notifications`, payload.notificationId).set({
+        ...payload,
+        recipientUid: "admin_jordi",
+      });
+    },
+    sendEmailImpl: async (emailParams) => {
+      sentEmails.push(emailParams);
+      return {sent: true, id: `email_${sentEmails.length}`, recipientCount: emailParams.to.length};
+    },
+  });
+
+  const adminRequest = {
+    auth: {
+      uid: "admin_jordi",
+      token: {
+        admin: true,
+        role: "administrator",
+        email: "jordilwbailey@gmail.com",
+        email_verified: true,
+        firebase: {sign_in_second_factor: "phone"},
+      },
+    },
+  };
+
+  // 1. Admin configures extra partnership alert inbox; verify public_config never leaks it
+  await commands.updateShopStoreSettings({
+    ...adminRequest,
+    data: {
+      adminNotificationEmails: ["partnerships@pipebuyer.com"],
+    },
+  });
+  assert.deepEqual(
+      store.get("shop_settings/admin_config").adminNotificationEmails,
+      ["partnerships@pipebuyer.com"],
+  );
+  assert.equal(
+      store.get("shop_settings/public_config").adminNotificationEmails,
+      undefined,
+  );
+
+  // 2. Unauthenticated corporate OEM/Dealer representative (Brandt Tractor / John Deere / Caterpillar) submits request-to-list
+  const guestSubmission = await commands.submitShopVendorApplication({
+    rawRequest: {ip: "203.0.113.42"},
+    data: {
+      companyName: "Brandt Tractor Ltd.",
+      contactName: "Marcus Halvorsen",
+      contactTitle: "VP Commercial Fleet & Pipeline Equipment",
+      headquartersLocation: "Regina, SK / Western Canada & US",
+      email: "fleet.partnerships@brandt.ca",
+      phone: "+1 (306) 555-0148",
+      websiteUrl: "brandt.ca",
+      sampleCatalogUrl: "https://www.brandt.ca/heavy-equipment",
+      partnershipTrack: "oem_heavy_equipment_dealer",
+      authorizationLevel: "authorized_dealer",
+      requestedPlacements: [
+        "heavy_equipment_listings",
+        "shop_storefront",
+        "brand_spotlight_deals",
+      ],
+      categories: [
+        "heavy_equipment_oem",
+        "oem_parts_undercarriage",
+        "diagnostic_service_truck",
+      ],
+      brandsCarried: ["Brandt Tractor", "John Deere", "Caterpillar"],
+      fulfillmentRegions: ["CA", "US"],
+      catalogIntegrationMethod: "api_xml_feed",
+      estimatedSkuCount: "250–1,000 SKUs",
+      affiliateProgramDetails: "Direct dealer territory lead routing & parts catalog",
+      catalogNotes: "Requesting pipelayer, excavator, and undercarriage catalog onboarding.",
+    },
+  });
+
+  assert.equal(guestSubmission.status, "pending");
+  assert.ok(guestSubmission.applicationId);
+  assert.equal(guestSubmission.notificationSummary.adminEmailStatus, "sent");
+  assert.equal(guestSubmission.notificationSummary.applicantConfirmationSent, true);
+
+  // Verify Admin + Store Manager both received in-app notifications with deep link to /admin/shop?tab=applications
+  assert.equal(adminInAppPayloads.length, 1);
+  assert.equal(adminInAppPayloads[0].route, "/admin/shop?tab=applications");
+  assert.equal(adminInAppPayloads[0].priority, "high");
+  const managerNotif = store.get(
+      `users/manager_sarah/notifications/shop_vendor_app_${guestSubmission.applicationId}`,
+  );
+  assert.ok(managerNotif, "Store Manager should receive in-app vendor alert");
+  assert.equal(managerNotif.type, "shop_vendor_application");
+  assert.equal(managerNotif.route, "/admin/shop?tab=applications");
+
+  // Verify Admin Alert Email + Applicant Confirmation Receipt Email
+  assert.equal(sentEmails.length, 2);
+  const adminEmail = sentEmails[0];
+  assert.ok(adminEmail.to.includes("jordilwbailey@gmail.com"));
+  assert.ok(adminEmail.to.includes("sarah.manager@pipebuyer.com"));
+  assert.ok(adminEmail.to.includes("partnerships@pipebuyer.com"));
+  assert.equal(adminEmail.replyTo, "fleet.partnerships@brandt.ca");
+  assert.match(adminEmail.subject, /Brandt Tractor Ltd\./);
+  assert.match(adminEmail.html, /VP Commercial Fleet/);
+
+  const receiptEmail = sentEmails[1];
+  assert.deepEqual(receiptEmail.to, ["fleet.partnerships@brandt.ca"]);
+  assert.match(receiptEmail.subject, new RegExp(guestSubmission.applicationId));
+
+  // 3. Admin dashboard reports pending & open application counts
+  const dashBefore = await commands.getShopAdminDashboard(adminRequest);
+  assert.equal(dashBefore.analytics.pendingApplicationCount, 1);
+  assert.equal(dashBefore.analytics.openApplicationCount, 1);
+
+  // 4. Admin approves Brandt Tractor with onboarding notes -> notifies applicant (in-app + email) & creates shop_vendors record
+  const approval = await commands.reviewShopVendorApplication({
+    ...adminRequest,
+    data: {
+      applicationId: guestSubmission.applicationId,
+      status: "approved",
+      reviewNotes: "Approved for Heavy Equipment & Storefront onboarding. Feed credentials sent.",
+    },
+  });
+  assert.equal(approval.status, "approved");
+  assert.equal(approval.applicantNotificationSummary.inAppApplicantNotified, true);
+  assert.equal(approval.applicantNotificationSummary.applicantEmailSent, true);
+
+  const applicantNotif = store.get(
+      `users/brandt_rep_uid/notifications/shop_vendor_app_${guestSubmission.applicationId}_approved`,
+  );
+  assert.ok(applicantNotif);
+  assert.equal(applicantNotif.type, "shop_vendor_application_status");
+  assert.equal(applicantNotif.route, "/shop/apply");
+
+  assert.equal(sentEmails.length, 3);
+  assert.deepEqual(sentEmails[2].to, ["fleet.partnerships@brandt.ca"]);
+  assert.match(sentEmails[2].subject, /Approved Partner/);
+  assert.match(sentEmails[2].html, /Feed credentials sent/);
+
+  const vendorRecord = store.get(`shop_vendors/${approval.vendorId}`);
+  assert.equal(vendorRecord.companyName, "Brandt Tractor Ltd.");
+  assert.equal(vendorRecord.contactTitle, "VP Commercial Fleet & Pipeline Equipment");
+  assert.equal(vendorRecord.authorizationLevel, "authorized_dealer");
+  assert.deepEqual(vendorRecord.requestedPlacements, [
+    "heavy_equipment_listings",
+    "shop_storefront",
+    "brand_spotlight_deals",
+  ]);
+
+  // 5. Applicant later signs in with verified corporate email and sees their approved application via listMyShopVendorApplications
+  const myApps = await commands.listMyShopVendorApplications({
+    auth: {
+      uid: "brandt_rep_uid",
+      token: {
+        email: "fleet.partnerships@brandt.ca",
+        email_verified: true,
+      },
+    },
+  });
+  assert.equal(myApps.applications.length, 1);
+  assert.equal(myApps.applications[0].companyName, "Brandt Tractor Ltd.");
+  assert.equal(myApps.applications[0].status, "approved");
+});

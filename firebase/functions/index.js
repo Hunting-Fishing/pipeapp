@@ -13,6 +13,7 @@ setGlobalOptions({
 
 const { createAdminRuntime } = require("./admin_runtime");
 const {
+  PRIMARY_ADMIN_MANAGER_EMAIL,
   createAdministratorRoleCommands,
 } = require("./administrator_role_commands");
 const {
@@ -78,18 +79,29 @@ async function notifyActiveAdministrators(notification) {
   const roles = await admin.firestore().collection("administrator_roles")
     .where("active", "==", true)
     .get();
-  if (roles.empty) {
+  const recipientUids = new Set(roles.docs.map((role) => role.id).filter(Boolean));
+  if (recipientUids.size === 0 && PRIMARY_ADMIN_MANAGER_EMAIL) {
+    try {
+      const primaryUser = await admin.auth().getUserByEmail(PRIMARY_ADMIN_MANAGER_EMAIL);
+      if (primaryUser && primaryUser.uid) {
+        recipientUids.add(primaryUser.uid);
+      }
+    } catch {
+      // Primary admin account may not exist in local/test emulators
+    }
+  }
+  if (recipientUids.size === 0) {
     console.warn("Administrator notification skipped: no active roles");
     return;
   }
-  await Promise.all(roles.docs.map((role) => {
-    const collection = admin.firestore().collection("users").doc(role.id)
+  await Promise.all(Array.from(recipientUids).map((recipientUid) => {
+    const collection = admin.firestore().collection("users").doc(recipientUid)
       .collection("notifications");
     const reference = notificationId ?
       collection.doc(notificationId) : collection.doc();
     return reference.set({
       ...payload,
-      recipientUid: role.id,
+      recipientUid,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     }, {merge: true});
   }));
@@ -1411,6 +1423,10 @@ exports.toggleSavedShopProduct = onCall(
 exports.submitShopVendorApplication = onCall(
   protectedCallableOptions,
   shopStoreCommands.submitShopVendorApplication,
+);
+exports.listMyShopVendorApplications = onCall(
+  protectedCallableOptions,
+  shopStoreCommands.listMyShopVendorApplications,
 );
 exports.getShopAdminDashboard = onCall(
   protectedCallableOptions,

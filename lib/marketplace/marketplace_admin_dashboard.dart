@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+
 import '../core/accessibility/pipe_status_feedback.dart';
 import 'marketplace_admin_access.dart';
 import 'marketplace_admin_role_manager.dart';
@@ -14,10 +16,7 @@ import 'marketplace_reporting.dart';
 import 'marketplace_tax_compliance_admin_page.dart';
 
 class MarketplaceAdminDashboard extends StatefulWidget {
-  const MarketplaceAdminDashboard({
-    super.key,
-    this.initialTabIndex = 0,
-  });
+  const MarketplaceAdminDashboard({super.key, this.initialTabIndex = 0});
 
   final int initialTabIndex;
 
@@ -139,8 +138,11 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
       }
     } catch (e) {
       if (mounted) {
-        PipeFeedback.show(context,
-            message: 'Save flags failed: $e', tone: PipeStatusTone.error);
+        PipeFeedback.show(
+          context,
+          message: 'Save flags failed: $e',
+          tone: PipeStatusTone.error,
+        );
       }
     }
   }
@@ -164,9 +166,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   @override
   Widget build(BuildContext context) {
     if (_isLoadingAuth) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (!_isAuthorized) {
@@ -198,152 +198,255 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.purple.shade700,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Icon(Icons.admin_panel_settings,
-                  color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 10),
-            const Flexible(
-              child: Text(
-                'PIPE BUYER ADMIN PORTAL',
-                overflow: TextOverflow.ellipsis,
-                style:
-                    TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.8),
-              ),
-            ),
-          ],
-        ),
-        actions: MediaQuery.sizeOf(context).width >= 1220
-            ? [
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: OutlinedButton.icon(
-                    onPressed: _switchToRegularUserView,
-                    icon: const Icon(Icons.visibility_outlined, size: 18),
-                    label: const Text('View What Everyone Else Sees'),
+    final Stream<QuerySnapshot<Map<String, dynamic>>>? pendingAppsStream =
+        Firebase.apps.isNotEmpty
+            ? FirebaseFirestore.instance
+                .collection('shop_vendor_applications')
+                .where(
+                  'status',
+                  whereIn: const <String>['pending', 'under_review'],
+                )
+                .limit(50)
+                .snapshots()
+            : null;
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: pendingAppsStream,
+      builder: (context, pendingSnap) {
+        final pendingVendorApps = pendingSnap.data?.docs.length ?? 0;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade700,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(
+                    Icons.admin_panel_settings,
+                    color: Colors.white,
+                    size: 20,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: OutlinedButton.icon(
-                    onPressed: () =>
-                        MarketplaceNavigation.openShopAdmin(context),
-                    icon: const Icon(Icons.shopping_bag_outlined, size: 18),
-                    label: const Text('Store & Affiliate Admin'),
+                const SizedBox(width: 10),
+                const Flexible(
+                  child: Text(
+                    'PIPE BUYER ADMIN PORTAL',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: OutlinedButton.icon(
-                    onPressed: () =>
-                        MarketplaceNavigation.openPartnerAdmin(context),
-                    icon: const Icon(Icons.handshake_outlined, size: 18),
-                    label: const Text('Partner With Us Queue'),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: OutlinedButton.icon(
-                    onPressed: () =>
-                        MarketplaceNavigation.openInsuranceAdmin(context),
-                    icon: const Icon(Icons.shield_outlined, size: 18),
-                    label: const Text('Commercial Insurance Admin'),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: FilledButton.icon(
-                    onPressed: () =>
-                        MarketplaceNavigation.openYellowPagesAdmin(context),
-                    icon: const Icon(Icons.menu_book_outlined, size: 18),
-                    label: const Text('Oilfield Directory Admin & Flagged'),
-                  ),
-                ),
-              ]
-            : [
-                IconButton(
-                  tooltip: 'View what everyone else sees',
-                  onPressed: _switchToRegularUserView,
-                  icon: const Icon(Icons.visibility_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Store & Affiliate Admin',
-                  onPressed: () => MarketplaceNavigation.openShopAdmin(context),
-                  icon: const Icon(Icons.shopping_bag_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Partner With Us Queue',
-                  onPressed: () =>
-                      MarketplaceNavigation.openPartnerAdmin(context),
-                  icon: const Icon(Icons.handshake_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Commercial Insurance Admin',
-                  onPressed: () =>
-                      MarketplaceNavigation.openInsuranceAdmin(context),
-                  icon: const Icon(Icons.shield_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Oilfield Directory Admin & Flagged',
-                  onPressed: () =>
-                      MarketplaceNavigation.openYellowPagesAdmin(context),
-                  icon: const Icon(Icons.menu_book_outlined),
                 ),
               ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          tabs: const [
-            Tab(
-                icon: Icon(Icons.analytics_outlined),
-                text: 'Marketplace Intelligence'),
-            Tab(
-                icon: Icon(Icons.gavel_outlined),
-                text: '🔨 Auctions Engine & Control Board'),
-            Tab(
-                icon: Icon(Icons.payments_outlined),
-                text: 'Transaction Records'),
-            Tab(
-                icon: Icon(Icons.account_balance_outlined),
-                text: 'Billing & Provider Readiness'),
-            Tab(
-                icon: Icon(Icons.people_outline),
-                text: 'Users, Permissions & Restrictions'),
-            Tab(
-                icon: Icon(Icons.fact_check_outlined),
-                text: 'Moderation & Safety'),
-            Tab(
-                icon: Icon(Icons.local_shipping_outlined),
-                text: 'Freight & Dispatch'),
-            Tab(
-                icon: Icon(Icons.admin_panel_settings_outlined),
-                text: '⚙️ Admin Settings'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildAnalyticsTab(),
-          _buildAuctionsTab(),
-          _buildTransactionsTab(),
-          _buildBankingGatewaysTab(),
-          _buildUsersTab(),
-          _buildModerationTab(),
-          _buildDispatchTab(),
-          _buildSystemConfigTab(),
-        ],
-      ),
+            ),
+            actions: MediaQuery.sizeOf(context).width >= 1220
+                ? [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: _switchToRegularUserView,
+                        icon: const Icon(Icons.visibility_outlined, size: 18),
+                        label: const Text('View What Everyone Else Sees'),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: () => MarketplaceNavigation.openShopAdmin(
+                          context,
+                          initialSection:
+                              pendingVendorApps > 0 ? 'applications' : '',
+                        ),
+                        icon: Badge(
+                          isLabelVisible: pendingVendorApps > 0,
+                          label: Text('$pendingVendorApps'),
+                          child: const Icon(
+                            Icons.shopping_bag_outlined,
+                            size: 18,
+                          ),
+                        ),
+                        label: const Text('Store & Affiliate Admin'),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            MarketplaceNavigation.openPartnerAdmin(context),
+                        icon: const Icon(Icons.handshake_outlined, size: 18),
+                        label: const Text('Partner With Us Queue'),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            MarketplaceNavigation.openInsuranceAdmin(context),
+                        icon: const Icon(Icons.shield_outlined, size: 18),
+                        label: const Text('Commercial Insurance Admin'),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: FilledButton.icon(
+                        onPressed: () =>
+                            MarketplaceNavigation.openYellowPagesAdmin(context),
+                        icon: const Icon(Icons.menu_book_outlined, size: 18),
+                        label: const Text('Oilfield Directory Admin & Flagged'),
+                      ),
+                    ),
+                  ]
+                : [
+                    IconButton(
+                      tooltip: 'View what everyone else sees',
+                      onPressed: _switchToRegularUserView,
+                      icon: const Icon(Icons.visibility_outlined),
+                    ),
+                    IconButton(
+                      tooltip: 'Store & Affiliate Admin',
+                      onPressed: () => MarketplaceNavigation.openShopAdmin(
+                        context,
+                        initialSection:
+                            pendingVendorApps > 0 ? 'applications' : '',
+                      ),
+                      icon: Badge(
+                        isLabelVisible: pendingVendorApps > 0,
+                        label: Text('$pendingVendorApps'),
+                        child: const Icon(Icons.shopping_bag_outlined),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Partner With Us Queue',
+                      onPressed: () =>
+                          MarketplaceNavigation.openPartnerAdmin(context),
+                      icon: const Icon(Icons.handshake_outlined),
+                    ),
+                    IconButton(
+                      tooltip: 'Commercial Insurance Admin',
+                      onPressed: () =>
+                          MarketplaceNavigation.openInsuranceAdmin(context),
+                      icon: const Icon(Icons.shield_outlined),
+                    ),
+                    IconButton(
+                      tooltip: 'Oilfield Directory Admin & Flagged',
+                      onPressed: () =>
+                          MarketplaceNavigation.openYellowPagesAdmin(context),
+                      icon: const Icon(Icons.menu_book_outlined),
+                    ),
+                  ],
+            bottom: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              tabs: const [
+                Tab(
+                  icon: Icon(Icons.analytics_outlined),
+                  text: 'Marketplace Intelligence',
+                ),
+                Tab(
+                  icon: Icon(Icons.gavel_outlined),
+                  text: '🔨 Auctions Engine & Control Board',
+                ),
+                Tab(
+                  icon: Icon(Icons.payments_outlined),
+                  text: 'Transaction Records',
+                ),
+                Tab(
+                  icon: Icon(Icons.account_balance_outlined),
+                  text: 'Billing & Provider Readiness',
+                ),
+                Tab(
+                  icon: Icon(Icons.people_outline),
+                  text: 'Users, Permissions & Restrictions',
+                ),
+                Tab(
+                  icon: Icon(Icons.fact_check_outlined),
+                  text: 'Moderation & Safety',
+                ),
+                Tab(
+                  icon: Icon(Icons.local_shipping_outlined),
+                  text: 'Freight & Dispatch',
+                ),
+                Tab(
+                  icon: Icon(Icons.admin_panel_settings_outlined),
+                  text: '⚙️ Admin Settings',
+                ),
+              ],
+            ),
+          ),
+          body: Column(
+            children: [
+              if (pendingVendorApps > 0)
+                Material(
+                  color: const Color(0xFFEFF6FF),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.notifications_active_rounded,
+                              color: Color(0xFF1D4ED8),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Text(
+                                '$pendingVendorApps OEM, Brand, or Distributor Listing Request(s) awaiting Admin review.',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        FilledButton.tonalIcon(
+                          onPressed: () => MarketplaceNavigation.openShopAdmin(
+                            context,
+                            initialSection: 'applications',
+                          ),
+                          icon: const Icon(Icons.storefront_outlined, size: 16),
+                          label: const Text('Review Applications'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildAnalyticsTab(),
+                    _buildAuctionsTab(),
+                    _buildTransactionsTab(),
+                    _buildBankingGatewaysTab(),
+                    _buildUsersTab(),
+                    _buildModerationTab(),
+                    _buildDispatchTab(),
+                    _buildSystemConfigTab(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -366,85 +469,85 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             'deals': 0,
             'volume': 0.0,
             'flag': '🇺🇸',
-            'region': 'Permian/Bakken/Gulf'
+            'region': 'Permian/Bakken/Gulf',
           },
           'Canada': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇨🇦',
-            'region': 'WCSB Alberta/SK'
+            'region': 'WCSB Alberta/SK',
           },
           'Saudi Arabia': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇸🇦',
-            'region': 'Ghawar / Aramco'
+            'region': 'Ghawar / Aramco',
           },
           'UAE': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇦🇪',
-            'region': 'Abu Dhabi / ADNOC'
+            'region': 'Abu Dhabi / ADNOC',
           },
           'Qatar': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇶🇦',
-            'region': 'North Field LNG'
+            'region': 'North Field LNG',
           },
           'Kuwait': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇰🇼',
-            'region': 'Burgan Field'
+            'region': 'Burgan Field',
           },
           'Norway': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇳🇴',
-            'region': 'North Sea Equinor'
+            'region': 'North Sea Equinor',
           },
           'United Kingdom': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇬🇧',
-            'region': 'UKCS / Aberdeen'
+            'region': 'UKCS / Aberdeen',
           },
           'Russia': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇷🇺',
-            'region': 'Yamal / W. Siberia'
+            'region': 'Yamal / W. Siberia',
           },
           'Mexico': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇲🇽',
-            'region': 'Pemex Gulf Basins'
+            'region': 'Pemex Gulf Basins',
           },
           'Brazil': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇧🇷',
-            'region': 'Santos Pre-Salt'
+            'region': 'Santos Pre-Salt',
           },
           'Australia': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇦🇺',
-            'region': 'Queensland LNG'
+            'region': 'Queensland LNG',
           },
           'China': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇨🇳',
-            'region': 'Tarim / Sichuan'
+            'region': 'Tarim / Sichuan',
           },
           'Nigeria': {
             'deals': 0,
             'volume': 0.0,
             'flag': '🇳🇬',
-            'region': 'Niger Delta'
+            'region': 'Niger Delta',
           },
         };
 
@@ -463,7 +566,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               '7" Casing': 0,
               '9 5/8" Casing': 0,
               '13 3/8" Casing': 0,
-            }
+            },
           },
           'Line Pipe & Pipeline Equipment': {
             'icon': Icons.route,
@@ -474,7 +577,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               'DSAW Large OD Pipeline': 0,
               'Seamless High-Pressure Line Pipe': 0,
               'Poly-Lined Pipeline Jointing': 0,
-            }
+            },
           },
           'Structural Pipe & Piling': {
             'icon': Icons.foundation,
@@ -484,7 +587,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               'Structural Road Crossing Casing': 0,
               'Foundation Piling Pipe': 0,
               'Surplus Steel Culverts': 0,
-            }
+            },
           },
           'Drill Pipe & Heavy Collars': {
             'icon': Icons.build_circle,
@@ -494,7 +597,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               'API Drill Pipe Joints': 0,
               'Spiral Drill Collars': 0,
               'Heavy Weight Drill Pipe (HWDP)': 0,
-            }
+            },
           },
           'Wellhead Valves & Pressure Control': {
             'icon': Icons.settings_input_component,
@@ -505,7 +608,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               'Christmas Tree Assemblies': 0,
               'BOP Stack Ram Components': 0,
               'Choke & Kill Manifolds': 0,
-            }
+            },
           },
           'Tanks, Vessels & Production Units': {
             'icon': Icons.propane_tank,
@@ -515,7 +618,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               '500 BBL Mobile Frac Tanks': 0,
               '3-Phase Test Separators': 0,
               'Glycol Dehydration Towers': 0,
-            }
+            },
           },
           'Rigs & Heavy Drilling Equipment': {
             'icon': Icons.precision_manufacturing,
@@ -525,7 +628,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               '1500 HP AC Drawworks': 0,
               'Top Drive Motors': 0,
               'Triplex Mud Pumps': 0,
-            }
+            },
           },
           'Hauling Trailers & Freight Logistics': {
             'icon': Icons.local_shipping,
@@ -534,7 +637,7 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             'items': <String, int>{
               '48ft Pipe Bunk Flatbeds': 0,
               'Hotshot Rig Hauling Jobs': 0,
-            }
+            },
           },
         };
 
@@ -693,48 +796,69 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                     children: [
                       const Icon(Icons.tune, color: Colors.blue),
                       const SizedBox(width: 8),
-                      const Text('TIME GRANULARITY:',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 11)),
+                      const Text(
+                        'TIME GRANULARITY:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       DropdownButton<String>(
                         value: _selectedGranularity,
-                        onChanged: (val) => setState(() =>
-                            _selectedGranularity =
-                                val ?? 'Month (Month-by-Month)'),
+                        onChanged: (val) => setState(
+                          () => _selectedGranularity =
+                              val ?? 'Month (Month-by-Month)',
+                        ),
                         items: [
                           'Day (Daily Breakdown)',
                           'Week (Weekly Breakdown)',
                           'Month (Month-by-Month)',
                           'Quarter (Quarterly Breakdown)',
                         ]
-                            .map((t) => DropdownMenuItem(
+                            .map(
+                              (t) => DropdownMenuItem(
                                 value: t,
-                                child: Text(t,
-                                    style: const TextStyle(fontSize: 12))))
+                                child: Text(
+                                  t,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            )
                             .toList(),
                       ),
                       const SizedBox(width: 16),
-                      const Text('PRODUCT FILTER:',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 11)),
+                      const Text(
+                        'PRODUCT FILTER:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       DropdownButton<String>(
                         value: _selectedCategoryFilter,
-                        onChanged: (val) => setState(() =>
-                            _selectedCategoryFilter = val ?? 'All Categories'),
+                        onChanged: (val) => setState(
+                          () =>
+                              _selectedCategoryFilter = val ?? 'All Categories',
+                        ),
                         items: [
                           'All Categories',
                           'OCTG Casing & Tubing',
                           'Line Pipe',
                           'Structural Pipe',
                           'Valves & Wellheads',
-                          'Rig & Drilling Equipment'
+                          'Rig & Drilling Equipment',
                         ]
-                            .map((c) => DropdownMenuItem(
+                            .map(
+                              (c) => DropdownMenuItem(
                                 value: c,
-                                child: Text(c,
-                                    style: const TextStyle(fontSize: 12))))
+                                child: Text(
+                                  c,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            )
                             .toList(),
                       ),
                     ],
@@ -742,42 +866,63 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('PLATFORM FINANCIAL PERFORMANCE',
-                  style: _sectionTitleStyle),
+              const Text(
+                'PLATFORM FINANCIAL PERFORMANCE',
+                style: _sectionTitleStyle,
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   _metricCard(
-                      'GROSS MARKETPLACE VOLUME',
-                      '\$${totalVolume.toStringAsFixed(2)}',
-                      Icons.trending_up,
-                      Colors.blue),
+                    'GROSS MARKETPLACE VOLUME',
+                    '\$${totalVolume.toStringAsFixed(2)}',
+                    Icons.trending_up,
+                    Colors.blue,
+                  ),
                   const SizedBox(width: 12),
-                  _metricCard('PAYMENT REVENUE', 'Not active',
-                      Icons.account_balance_wallet_outlined, Colors.grey),
+                  _metricCard(
+                    'PAYMENT REVENUE',
+                    'Not active',
+                    Icons.account_balance_wallet_outlined,
+                    Colors.grey,
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _metricCard('COMMISSION SCHEDULE', 'Draft only',
-                      Icons.percent_outlined, Colors.grey),
+                  _metricCard(
+                    'COMMISSION SCHEDULE',
+                    'Draft only',
+                    Icons.percent_outlined,
+                    Colors.grey,
+                  ),
                   const SizedBox(width: 12),
-                  _metricCard('PROVIDER SETTLEMENT', 'Not connected',
-                      Icons.account_balance_outlined, Colors.grey),
+                  _metricCard(
+                    'PROVIDER SETTLEMENT',
+                    'Not connected',
+                    Icons.account_balance_outlined,
+                    Colors.grey,
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
               Row(
                 children: [
-                  const Text('GLOBAL REGIONAL ENERGY SALES DISTRIBUTION',
-                      style: _sectionTitleStyle),
+                  const Text(
+                    'GLOBAL REGIONAL ENERGY SALES DISTRIBUTION',
+                    style: _sectionTitleStyle,
+                  ),
                   const Spacer(),
                   Chip(
-                    avatar:
-                        const Icon(Icons.public, size: 14, color: Colors.blue),
+                    avatar: const Icon(
+                      Icons.public,
+                      size: 14,
+                      color: Colors.blue,
+                    ),
                     label: Text(
-                        '${dynamicCountryMarkets.length} Energy Markets Active'),
+                      '${dynamicCountryMarkets.length} Energy Markets Active',
+                    ),
                     backgroundColor: Colors.blue.shade50,
                   ),
                 ],
@@ -806,9 +951,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                         side: BorderSide(
-                            color: deals > 0
-                                ? Colors.blue.shade300
-                                : Colors.grey.shade200),
+                          color: deals > 0
+                              ? Colors.blue.shade300
+                              : Colors.grey.shade200,
+                        ),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
@@ -817,20 +963,25 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                           children: [
                             Row(
                               children: [
-                                Text(flag,
-                                    style: const TextStyle(fontSize: 16)),
+                                Text(
+                                  flag,
+                                  style: const TextStyle(fontSize: 16),
+                                ),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
                                     countryName.toUpperCase(),
                                     style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: deals > 0
                                         ? Colors.green.shade50
@@ -840,26 +991,32 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                                   child: Text(
                                     '$deals Deals',
                                     style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: deals > 0
-                                            ? Colors.green.shade800
-                                            : Colors.grey),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: deals > 0
+                                          ? Colors.green.shade800
+                                          : Colors.grey,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 4),
-                            Text(reg,
-                                style: const TextStyle(
-                                    fontSize: 10, color: Colors.grey)),
+                            Text(
+                              reg,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                            ),
                             const SizedBox(height: 6),
                             Text(
                               '\$${vol.toStringAsFixed(2)} Vol',
                               style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 13,
-                                  color: Colors.blueGrey.shade900),
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                                color: Colors.blueGrey.shade900,
+                              ),
                             ),
                           ],
                         ),
@@ -871,20 +1028,28 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               const SizedBox(height: 28),
               Row(
                 children: [
-                  const Text('MARKETPLACE ITEM TYPES & PIECES SOLD',
-                      style: _sectionTitleStyle),
+                  const Text(
+                    'MARKETPLACE ITEM TYPES & PIECES SOLD',
+                    style: _sectionTitleStyle,
+                  ),
                   const Spacer(),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                        color: Colors.purple.shade50,
-                        borderRadius: BorderRadius.circular(12)),
-                    child: const Text('COLLAPSED BY DEFAULT ✓',
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple)),
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'COLLAPSED BY DEFAULT ✓',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -915,19 +1080,27 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8)),
-                      child:
-                          Icon(catIcon, color: Colors.blue.shade800, size: 20),
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        catIcon,
+                        color: Colors.blue.shade800,
+                        size: 20,
+                      ),
                     ),
                     title: Text(
                       catTitle.toUpperCase(),
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 13),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.blue.shade100,
                         borderRadius: BorderRadius.circular(16),
@@ -935,9 +1108,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                       child: Text(
                         '# $totalSold Sold • \$${totalVol.toStringAsFixed(0)}',
                         style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 12,
-                            color: Colors.blue.shade900),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                          color: Colors.blue.shade900,
+                        ),
                       ),
                     ),
                     children: [
@@ -948,25 +1122,33 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                             const Divider(),
                             ...itemBreakdown.entries.map((item) {
                               return Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.circle,
-                                        size: 8, color: Colors.blue),
+                                    const Icon(
+                                      Icons.circle,
+                                      size: 8,
+                                      color: Colors.blue,
+                                    ),
                                     const SizedBox(width: 10),
                                     Expanded(
-                                      child: Text(item.key,
-                                          style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600)),
+                                      child: Text(
+                                        item.key,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ),
                                     Text(
                                       '${item.value} Pieces Sold',
                                       style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -980,8 +1162,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 );
               }),
               const SizedBox(height: 28),
-              Text('TIMELINE BREAKDOWN ($_selectedGranularity)',
-                  style: _sectionTitleStyle),
+              Text(
+                'TIMELINE BREAKDOWN ($_selectedGranularity)',
+                style: _sectionTitleStyle,
+              ),
               const SizedBox(height: 12),
               Card(
                 child: Padding(
@@ -991,31 +1175,38 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                         ? [
                             const Text(
                               'No timeline transactions recorded yet. Live sales activity will populate here.',
-                              style:
-                                  TextStyle(color: Colors.grey, fontSize: 12),
-                            )
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
                           ]
                         : granularTimelineVolume.entries.map((tEntry) {
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 6),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.calendar_today,
-                                      size: 14, color: Colors.purple),
+                                  const Icon(
+                                    Icons.calendar_today,
+                                    size: 14,
+                                    color: Colors.purple,
+                                  ),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
                                       tEntry.key,
                                       style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
                                   Text(
                                     '\$${tEntry.value.toStringAsFixed(2)} Sales Volume',
                                     style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.green),
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1052,49 +1243,49 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             'bids': 0,
             'volume': 0.0,
             'flag': '🇺🇸',
-            'region': 'Permian/Bakken/Gulf'
+            'region': 'Permian/Bakken/Gulf',
           },
           'Canada': {
             'bids': 0,
             'volume': 0.0,
             'flag': '🇨🇦',
-            'region': 'WCSB Alberta/SK'
+            'region': 'WCSB Alberta/SK',
           },
           'Saudi Arabia': {
             'bids': 0,
             'volume': 0.0,
             'flag': '🇸🇦',
-            'region': 'Ghawar / Aramco'
+            'region': 'Ghawar / Aramco',
           },
           'UAE': {
             'bids': 0,
             'volume': 0.0,
             'flag': '🇦🇪',
-            'region': 'Abu Dhabi / ADNOC'
+            'region': 'Abu Dhabi / ADNOC',
           },
           'Norway': {
             'bids': 0,
             'volume': 0.0,
             'flag': '🇳🇴',
-            'region': 'North Sea Equinor'
+            'region': 'North Sea Equinor',
           },
           'United Kingdom': {
             'bids': 0,
             'volume': 0.0,
             'flag': '🇬🇧',
-            'region': 'UKCS / Aberdeen'
+            'region': 'UKCS / Aberdeen',
           },
           'Mexico': {
             'bids': 0,
             'volume': 0.0,
             'flag': '🇲🇽',
-            'region': 'Pemex Gulf Basins'
+            'region': 'Pemex Gulf Basins',
           },
           'Australia': {
             'bids': 0,
             'volume': 0.0,
             'flag': '🇦🇺',
-            'region': 'Queensland LNG'
+            'region': 'Queensland LNG',
           },
         };
 
@@ -1197,47 +1388,68 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                   children: [
                     const Icon(Icons.tune, color: Colors.deepOrange),
                     const SizedBox(width: 8),
-                    const Text('AUCTION GRANULARITY:',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 11)),
+                    const Text(
+                      'AUCTION GRANULARITY:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     DropdownButton<String>(
                       value: _auctionGranularity,
-                      onChanged: (val) => setState(() => _auctionGranularity =
-                          val ?? 'Month (Month-by-Month)'),
+                      onChanged: (val) => setState(
+                        () => _auctionGranularity =
+                            val ?? 'Month (Month-by-Month)',
+                      ),
                       items: [
                         'Day (Daily Breakdown)',
                         'Week (Weekly Breakdown)',
                         'Month (Month-by-Month)',
                         'Quarter (Quarterly Breakdown)',
                       ]
-                          .map((t) => DropdownMenuItem(
+                          .map(
+                            (t) => DropdownMenuItem(
                               value: t,
-                              child: Text(t,
-                                  style: const TextStyle(fontSize: 12))))
+                              child: Text(
+                                t,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          )
                           .toList(),
                     ),
                     const SizedBox(width: 16),
-                    const Text('AUCTION CATEGORY:',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 11)),
+                    const Text(
+                      'AUCTION CATEGORY:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     DropdownButton<String>(
                       value: _auctionCategoryFilter,
-                      onChanged: (val) => setState(() =>
-                          _auctionCategoryFilter = val ?? 'All Categories'),
+                      onChanged: (val) => setState(
+                        () => _auctionCategoryFilter = val ?? 'All Categories',
+                      ),
                       items: [
                         'All Categories',
                         'OCTG Casing & Tubing',
                         'Line Pipe',
                         'Structural Pipe',
                         'Valves & Wellheads',
-                        'Rig Equipment'
+                        'Rig Equipment',
                       ]
-                          .map((c) => DropdownMenuItem(
+                          .map(
+                            (c) => DropdownMenuItem(
                               value: c,
-                              child: Text(c,
-                                  style: const TextStyle(fontSize: 12))))
+                              child: Text(
+                                c,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          )
                           .toList(),
                     ),
                   ],
@@ -1247,32 +1459,44 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             const SizedBox(height: 16),
 
             // Mirrored Analytics Metrics Cards for Auctions
-            const Text('AUCTIONS FINANCIAL PERFORMANCE',
-                style: _sectionTitleStyle),
+            const Text(
+              'AUCTIONS FINANCIAL PERFORMANCE',
+              style: _sectionTitleStyle,
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
                 _metricCard(
-                    'GROSS AUCTION BID VOLUME',
-                    '\$${grossAuctionVolume.toStringAsFixed(2)}',
-                    Icons.gavel,
-                    Colors.deepOrange),
+                  'GROSS AUCTION BID VOLUME',
+                  '\$${grossAuctionVolume.toStringAsFixed(2)}',
+                  Icons.gavel,
+                  Colors.deepOrange,
+                ),
                 const SizedBox(width: 12),
-                _metricCard('AUCTION PAYMENT FEES', 'Not active',
-                    Icons.account_balance_wallet_outlined, Colors.grey),
+                _metricCard(
+                  'AUCTION PAYMENT FEES',
+                  'Not active',
+                  Icons.account_balance_wallet_outlined,
+                  Colors.grey,
+                ),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                _metricCard('TOTAL TIMED AUCTIONS', '${docs.length} Lots',
-                    Icons.inventory_2, Colors.blue),
+                _metricCard(
+                  'TOTAL TIMED AUCTIONS',
+                  '${docs.length} Lots',
+                  Icons.inventory_2,
+                  Colors.blue,
+                ),
                 const SizedBox(width: 12),
                 _metricCard(
-                    'RESERVE MET RATE',
-                    '${docs.isEmpty ? 0 : ((reserveMetCount / docs.length) * 100).toStringAsFixed(0)}%',
-                    Icons.check_circle_outline,
-                    Colors.purple),
+                  'RESERVE MET RATE',
+                  '${docs.isEmpty ? 0 : ((reserveMetCount / docs.length) * 100).toStringAsFixed(0)}%',
+                  Icons.check_circle_outline,
+                  Colors.purple,
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -1280,14 +1504,20 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             // Mirrored Global Energy Auction Distribution
             Row(
               children: [
-                const Text('GLOBAL AUCTION REGIONAL DISTRIBUTION',
-                    style: _sectionTitleStyle),
+                const Text(
+                  'GLOBAL AUCTION REGIONAL DISTRIBUTION',
+                  style: _sectionTitleStyle,
+                ),
                 const Spacer(),
                 Chip(
-                  avatar: const Icon(Icons.public,
-                      size: 14, color: Colors.deepOrange),
-                  label:
-                      Text('${auctionCountryMarkets.length} Auction Markets'),
+                  avatar: const Icon(
+                    Icons.public,
+                    size: 14,
+                    color: Colors.deepOrange,
+                  ),
+                  label: Text(
+                    '${auctionCountryMarkets.length} Auction Markets',
+                  ),
                   backgroundColor: Colors.deepOrange.shade50,
                 ),
               ],
@@ -1310,9 +1540,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                       side: BorderSide(
-                          color: bids > 0
-                              ? Colors.deepOrange.shade300
-                              : Colors.grey.shade200),
+                        color: bids > 0
+                            ? Colors.deepOrange.shade300
+                            : Colors.grey.shade200,
+                      ),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
@@ -1324,36 +1555,47 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                               Text(flag, style: const TextStyle(fontSize: 16)),
                               const SizedBox(width: 6),
                               Expanded(
-                                child: Text(country.toUpperCase(),
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12)),
+                                child: Text(
+                                  country.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: bids > 0
                                       ? Colors.deepOrange.shade50
                                       : Colors.grey.shade100,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: Text('$bids Auctions',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: bids > 0
-                                            ? Colors.deepOrange.shade900
-                                            : Colors.grey)),
+                                child: Text(
+                                  '$bids Auctions',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: bids > 0
+                                        ? Colors.deepOrange.shade900
+                                        : Colors.grey,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Text('\$${vol.toStringAsFixed(2)} Bid Vol',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 13,
-                                  color: Colors.blueGrey.shade900)),
+                          Text(
+                            '\$${vol.toStringAsFixed(2)} Bid Vol',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                              color: Colors.blueGrey.shade900,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1366,20 +1608,28 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             // Mirrored Collapsible Auction Categories (Collapsed First)
             Row(
               children: [
-                const Text('AUCTION ITEM CATEGORIES',
-                    style: _sectionTitleStyle),
+                const Text(
+                  'AUCTION ITEM CATEGORIES',
+                  style: _sectionTitleStyle,
+                ),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                      color: Colors.deepOrange.shade50,
-                      borderRadius: BorderRadius.circular(12)),
-                  child: const Text('COLLAPSED BY DEFAULT ✓',
-                      style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.deepOrange)),
+                    color: Colors.deepOrange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'COLLAPSED BY DEFAULT ✓',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepOrange,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1402,32 +1652,47 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                        color: Colors.deepOrange.shade50,
-                        borderRadius: BorderRadius.circular(8)),
-                    child:
-                        Icon(icon, color: Colors.deepOrange.shade800, size: 20),
+                      color: Colors.deepOrange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      icon,
+                      color: Colors.deepOrange.shade800,
+                      size: 20,
+                    ),
                   ),
-                  title: Text(title.toUpperCase(),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 13)),
+                  title: Text(
+                    title.toUpperCase(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
                   trailing: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                        color: Colors.deepOrange.shade100,
-                        borderRadius: BorderRadius.circular(16)),
-                    child: Text('# $lots Lots • \$${vol.toStringAsFixed(0)}',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 12,
-                            color: Colors.deepOrange.shade900)),
+                      color: Colors.deepOrange.shade100,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '# $lots Lots • \$${vol.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        color: Colors.deepOrange.shade900,
+                      ),
+                    ),
                   ),
                   children: const [
                     Padding(
                       padding: EdgeInsets.all(16),
                       child: Text(
-                          'Live lot bidding details expand here during active timed auctions.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        'Live lot bidding details expand here during active timed auctions.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
                     ),
                   ],
                 ),
@@ -1437,8 +1702,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             const SizedBox(height: 28),
 
             // LIVE TIMED AUCTIONS MONITOR & MASTER ADMIN OVERRIDES
-            const Text('LIVE TIMED AUCTIONS CONTROL BOARD',
-                style: _sectionTitleStyle),
+            const Text(
+              'LIVE TIMED AUCTIONS CONTROL BOARD',
+              style: _sectionTitleStyle,
+            ),
             const SizedBox(height: 12),
 
             if (docs.isEmpty)
@@ -1447,13 +1714,18 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                   padding: const EdgeInsets.all(32),
                   child: Column(
                     children: [
-                      Icon(Icons.gavel_outlined,
-                          size: 48, color: Colors.grey.shade400),
+                      Icon(
+                        Icons.gavel_outlined,
+                        size: 48,
+                        color: Colors.grey.shade400,
+                      ),
                       const SizedBox(height: 12),
                       const Text(
                         'No Timed Auctions Currently Active',
                         style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       const Text(
@@ -1489,7 +1761,9 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                               child: Text(
                                 title,
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
                             Chip(
@@ -1501,9 +1775,9 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                                 color:
                                     reserveMet ? Colors.green : Colors.orange,
                               ),
-                              label: Text(reserveMet
-                                  ? 'RESERVE MET'
-                                  : 'RESERVE NOT MET'),
+                              label: Text(
+                                reserveMet ? 'RESERVE MET' : 'RESERVE NOT MET',
+                              ),
                               backgroundColor: reserveMet
                                   ? Colors.green.shade50
                                   : Colors.orange.shade50,
@@ -1522,24 +1796,30 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                             OutlinedButton.icon(
                               onPressed: () =>
                                   _adminAuctionAction(listingId, 'force_end'),
-                              icon:
-                                  const Icon(Icons.gavel, color: Colors.purple),
+                              icon: const Icon(
+                                Icons.gavel,
+                                color: Colors.purple,
+                              ),
                               label: const Text('Force End & Settle'),
                             ),
                             const SizedBox(width: 8),
                             OutlinedButton.icon(
                               onPressed: () =>
                                   _adminAuctionAction(listingId, 'extend_24h'),
-                              icon: const Icon(Icons.more_time,
-                                  color: Colors.blue),
+                              icon: const Icon(
+                                Icons.more_time,
+                                color: Colors.blue,
+                              ),
                               label: const Text('Extend +24 Hours'),
                             ),
                             const SizedBox(width: 8),
                             OutlinedButton.icon(
                               onPressed: () =>
                                   _adminAuctionAction(listingId, 'cancel'),
-                              icon: const Icon(Icons.cancel_outlined,
-                                  color: Colors.red),
+                              icon: const Icon(
+                                Icons.cancel_outlined,
+                                color: Colors.red,
+                              ),
                               label: const Text('Cancel Auction'),
                             ),
                           ],
@@ -1593,8 +1873,11 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
       }
     } catch (e) {
       if (mounted) {
-        PipeFeedback.show(context,
-            message: 'Auction action failed: $e', tone: PipeStatusTone.error);
+        PipeFeedback.show(
+          context,
+          message: 'Auction action failed: $e',
+          tone: PipeStatusTone.error,
+        );
       }
     }
   }
@@ -1629,8 +1912,11 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    const Icon(Icons.menu_book_outlined,
-                        color: Color(0xFFFF6A00), size: 30),
+                    const Icon(
+                      Icons.menu_book_outlined,
+                      color: Color(0xFFFF6A00),
+                      size: 30,
+                    ),
                     const SizedBox(width: 14),
                     const Expanded(
                       child: Column(
@@ -1669,8 +1955,11 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    const Icon(Icons.shopping_bag_outlined,
-                        color: Color(0xFF0F52BA), size: 30),
+                    const Icon(
+                      Icons.shopping_bag_outlined,
+                      color: Color(0xFF0F52BA),
+                      size: 30,
+                    ),
                     const SizedBox(width: 14),
                     const Expanded(
                       child: Column(
@@ -1748,10 +2037,13 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             const SizedBox(height: 12),
             if (reports.isEmpty)
               const Center(
-                  child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text(
-                          'No active moderation reports queued. System clean ✓')))
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text(
+                    'No active moderation reports queued. System clean ✓',
+                  ),
+                ),
+              )
             else
               ...reports.map((r) {
                 final data = r.data();
@@ -1760,7 +2052,8 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                     leading: const Icon(Icons.flag, color: Colors.orange),
                     title: Text('${data['reason'] ?? 'Reported Content'}'),
                     subtitle: Text(
-                        'Target: ${data['targetId'] ?? data['targetType']}'),
+                      'Target: ${data['targetId'] ?? data['targetType']}',
+                    ),
                   ),
                 );
               }),
@@ -1793,19 +2086,23 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
             const SizedBox(height: 12),
             if (jobs.isEmpty)
               const Center(
-                  child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child:
-                          Text('No freight dispatch jobs active currently.')))
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text('No freight dispatch jobs active currently.'),
+                ),
+              )
             else
               ...jobs.map((j) {
                 final data = j.data();
                 return Card(
                   child: ListTile(
-                    leading: const Icon(Icons.local_shipping,
-                        color: Color(0xFF0878E8)),
-                    title:
-                        Text('${data['cargoDescription'] ?? 'Pipe Haul Job'}'),
+                    leading: const Icon(
+                      Icons.local_shipping,
+                      color: Color(0xFF0878E8),
+                    ),
+                    title: Text(
+                      '${data['cargoDescription'] ?? 'Pipe Haul Job'}',
+                    ),
                     subtitle: Text('Status: ${data['status'] ?? 'open'}'),
                   ),
                 );
@@ -2108,67 +2405,89 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                   onChanged: (val) =>
                       setState(() => _regulatedListingsEnabled = val),
                   title: const Text(
-                      'Real Estate, Land, Lots & Businesses (Site & Property)',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                    'Real Estate, Land, Lots & Businesses (Site & Property)',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: const Text(
-                      'Allow users to list and browse lots, land, real estate, commercial/industrial properties, and businesses for sale'),
+                    'Allow users to list and browse lots, land, real estate, commercial/industrial properties, and businesses for sale',
+                  ),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _paidFeaturesEnabled,
                   onChanged: (val) =>
                       setState(() => _paidFeaturesEnabled = val),
-                  title: const Text('Paid Listing Boosts & Featured Upgrades',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text(
+                    'Paid Listing Boosts & Featured Upgrades',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: const Text(
-                      'Allow sellers to purchase optional paid listing boosts during listing creation and management'),
+                    'Allow sellers to purchase optional paid listing boosts during listing creation and management',
+                  ),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _auctionsEnabled,
                   onChanged: (val) => setState(() => _auctionsEnabled = val),
-                  title: const Text('Timed Auctions Engine Active',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text(
+                    'Timed Auctions Engine Active',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: const Text(
-                      'Allow sellers to launch timed auctions with reserve prices'),
+                    'Allow sellers to launch timed auctions with reserve prices',
+                  ),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _offersEnabled,
                   onChanged: (val) => setState(() => _offersEnabled = val),
-                  title: const Text('Buyer Offers & Counter-Offers Active',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text(
+                    'Buyer Offers & Counter-Offers Active',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: const Text(
-                      'Allow buyers and sellers to negotiate structured offers on listings'),
+                    'Allow buyers and sellers to negotiate structured offers on listings',
+                  ),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _dispatchEnabled,
                   onChanged: (val) => setState(() => _dispatchEnabled = val),
-                  title: const Text('Heavy Haul & Dispatch Board Active',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text(
+                    'Heavy Haul & Dispatch Board Active',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: const Text(
-                      'Allow shippers and verified carriers to post and bid on transport loads'),
+                    'Allow shippers and verified carriers to post and bid on transport loads',
+                  ),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _wantedMatchingEnabled,
                   onChanged: (val) =>
                       setState(() => _wantedMatchingEnabled = val),
-                  title: const Text('Wanted Request Radar Matching Active',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text(
+                    'Wanted Request Radar Matching Active',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: const Text(
-                      'Pair buyer request ads with newly posted seller inventory'),
+                    'Pair buyer request ads with newly posted seller inventory',
+                  ),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _maintenanceMode,
                   onChanged: (val) => setState(() => _maintenanceMode = val),
-                  title: const Text('Platform Maintenance Mode',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, color: Colors.red)),
+                  title: const Text(
+                    'Platform Maintenance Mode',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
                   subtitle: const Text(
-                      'Temporarily pause new listing creation for maintenance'),
+                    'Temporarily pause new listing creation for maintenance',
+                  ),
                 ),
                 const SizedBox(height: 16),
                 FilledButton.icon(
@@ -2203,9 +2522,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                     child: Text(
                       label,
                       style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade700),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                   ),
                 ],
@@ -2214,7 +2534,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
               Text(
                 value,
                 style: TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.w900, color: color),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: color,
+                ),
               ),
             ],
           ),
@@ -2223,8 +2546,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
     );
   }
 
-  Widget _explanationBanner(
-      {required String title, required String explanation}) {
+  Widget _explanationBanner({
+    required String title,
+    required String explanation,
+  }) {
     return Card(
       elevation: 0,
       color: Colors.purple.shade50,
@@ -2245,9 +2570,10 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
                   Text(
                     title.toUpperCase(),
                     style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: Colors.purple.shade900),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.purple.shade900,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(

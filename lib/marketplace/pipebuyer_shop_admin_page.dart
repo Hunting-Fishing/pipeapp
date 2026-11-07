@@ -26,6 +26,7 @@ class PipeBuyerShopAdminPage extends StatefulWidget {
     this.sessionOverride,
     this.embedded = false,
     this.initialTabIndex = 0,
+    this.initialSection = '',
   });
 
   final PipeBuyerShopClient? client;
@@ -33,6 +34,7 @@ class PipeBuyerShopAdminPage extends StatefulWidget {
   final Future<PipeBuyerShopRoleSession> Function()? sessionOverride;
   final bool embedded;
   final int initialTabIndex;
+  final String initialSection;
 
   @override
   State<PipeBuyerShopAdminPage> createState() => _PipeBuyerShopAdminPageState();
@@ -58,6 +60,9 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
   List<PipeBuyerProductSuggestion> _suggestions =
       const <PipeBuyerProductSuggestion>[];
   String _suggestionStatusFilter = 'all';
+  String _applicationStatusFilter = 'all';
+  String _applicationQuery = '';
+  bool _appliedInitialSection = false;
 
   String _catalogQuery = '';
   String _catalogCategory = '';
@@ -82,6 +87,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
   final _utmSourceController = TextEditingController();
   final _utmMediumController = TextEditingController();
   final _disclosureController = TextEditingController();
+  final _adminEmailsController = TextEditingController();
   final _linkTesterController = TextEditingController(
     text: 'https://www.amazon.com/dp/B077H7JP1D',
   );
@@ -102,13 +108,47 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
     return 4;
   }
 
+  int? get _applicationsTabIndex {
+    if (!_session.canReviewVendors) return null;
+    return _session.canManageSettingsAndRoles ? 5 : 4;
+  }
+
+  int? _sectionIndexForSession(String rawSection) {
+    final normalized = rawSection.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    return switch (normalized) {
+      'overview' => 0,
+      'catalog' || 'links' => 1,
+      'suggestions' => 2,
+      'platforms' => 3,
+      'settings' || 'tags' => _session.canManageSettingsAndRoles ? 4 : null,
+      'applications' || 'vendors' => _applicationsTabIndex,
+      'roles' || 'staff' => _session.canManageSettingsAndRoles ? 6 : null,
+      _ => null,
+    };
+  }
+
   void _syncTabController() {
     final targetLength = _expectedTabCount;
-    if (_tabController.length == targetLength) return;
+    int desiredIndex = _tabController.index;
+    if (!_appliedInitialSection && widget.initialSection.trim().isNotEmpty) {
+      final resolved = _sectionIndexForSession(widget.initialSection);
+      if (resolved != null) {
+        desiredIndex = resolved;
+        _appliedInitialSection = true;
+      }
+    }
+    desiredIndex = desiredIndex.clamp(0, targetLength - 1);
+    if (_tabController.length == targetLength) {
+      if (_tabController.index != desiredIndex) {
+        _tabController.index = desiredIndex;
+      }
+      return;
+    }
     final old = _tabController;
     _tabController = TabController(
       length: targetLength,
-      initialIndex: old.index.clamp(0, targetLength - 1),
+      initialIndex: desiredIndex,
       vsync: this,
     );
     old.dispose();
@@ -156,6 +196,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
     _utmSourceController.dispose();
     _utmMediumController.dispose();
     _disclosureController.dispose();
+    _adminEmailsController.dispose();
     _linkTesterController.dispose();
     _staffEmailController.dispose();
     super.dispose();
@@ -214,9 +255,9 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
     });
     try {
       final snapFuture = _client.getAdminDashboard();
-      final suggestionsFuture = _client
-          .listProductSuggestions()
-          .catchError((_) => const <PipeBuyerProductSuggestion>[]);
+      final suggestionsFuture = _client.listProductSuggestions().catchError(
+            (_) => const <PipeBuyerProductSuggestion>[],
+          );
       final snap = await snapFuture;
       final suggestions = await suggestionsFuture;
       if (!mounted) return;
@@ -265,6 +306,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
     _utmSourceController.text = settings.defaultUtmSource;
     _utmMediumController.text = settings.defaultUtmMedium;
     _disclosureController.text = settings.disclosureText;
+    _adminEmailsController.text = settings.adminNotificationEmails.join(', ');
     _storeEnabled = settings.storeEnabled;
     _vendorAppsOpen = settings.vendorApplicationsOpen;
     _forceOverrideTag = settings.forceOverrideAmazonTag;
@@ -297,14 +339,20 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
           : _disclosureController.text.trim(),
       priceDisclaimerText: _settings.priceDisclaimerText,
       hiddenStarterIds: _settings.hiddenStarterIds,
+      adminNotificationEmails: _adminEmailsController.text
+          .split(RegExp(r'[,;\n]+'))
+          .map((e) => e.trim().toLowerCase())
+          .where((e) => e.contains('@') && e.contains('.'))
+          .toList(growable: false),
     );
   }
 
   Future<void> _saveSettings() async {
     setState(() => _savingSettings = true);
     try {
-      final updated =
-          await _client.updateStoreSettings(_draftSettingsFromForm());
+      final updated = await _client.updateStoreSettings(
+        _draftSettingsFromForm(),
+      );
       if (!mounted) return;
       setState(() {
         _settings = updated;
@@ -534,10 +582,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
         false;
     if (!confirmed || !mounted) return;
     try {
-      await _client.deleteProduct(
-        productId: product.id,
-        title: product.title,
-      );
+      await _client.deleteProduct(productId: product.id, title: product.title);
       if (!mounted) return;
       PipeFeedback.show(
         context,
@@ -643,17 +688,24 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
 
   Future<void> _reviewApplication(
     String applicationId,
-    String decision,
-  ) async {
+    String decision, {
+    String reviewNotes = '',
+    bool notifyApplicant = true,
+  }) async {
     try {
       await _client.reviewVendorApplication(
         applicationId: applicationId,
         status: decision,
+        reviewNotes: reviewNotes,
+        notifyApplicant: notifyApplicant,
       );
       if (!mounted) return;
+      final label = decision.replaceAll('_', ' ');
       PipeFeedback.show(
         context,
-        message: 'Application marked as $decision.',
+        message: notifyApplicant
+            ? 'Application marked as $label and partner notified.'
+            : 'Application marked as $label.',
         tone: PipeStatusTone.success,
       );
       await _reloadDashboard();
@@ -665,6 +717,31 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
         tone: PipeStatusTone.error,
       );
     }
+  }
+
+  Future<void> _openReviewApplicationDialog(
+    Map<String, dynamic> app, {
+    String initialDecision = 'approved',
+  }) async {
+    final id = app['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+
+    final result = await showDialog<
+        ({String decision, String notes, bool notifyApplicant})>(
+      context: context,
+      builder: (_) => _VendorApplicationReviewDialog(
+        app: app,
+        initialDecision: initialDecision,
+      ),
+    );
+
+    if (result == null || !mounted) return;
+    await _reviewApplication(
+      id,
+      result.decision,
+      reviewNotes: result.notes,
+      notifyApplicant: result.notifyApplicant,
+    );
   }
 
   Future<void> _grantStaffRole() async {
@@ -739,9 +816,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
       if (widget.embedded) {
         return const Center(child: CircularProgressIndicator());
       }
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (!_session.authorized) {
       return _buildUnauthorizedView(context);
@@ -872,8 +947,10 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                             ),
                             FilledButton.icon(
                               onPressed: () => _openProductEditor(),
-                              icon:
-                                  const Icon(Icons.add_link_rounded, size: 18),
+                              icon: const Icon(
+                                Icons.add_link_rounded,
+                                size: 18,
+                              ),
                               label: const Text('Add Affiliate Link'),
                             ),
                           ],
@@ -1175,8 +1252,9 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
               FilledButton.tonalIcon(
                 onPressed: _hidingStarters ? null : _hideAllStarterItems,
                 style: FilledButton.styleFrom(
-                  backgroundColor:
-                      PipeBuyerColors.warning.withValues(alpha: .18),
+                  backgroundColor: PipeBuyerColors.warning.withValues(
+                    alpha: .18,
+                  ),
                   foregroundColor: PipeBuyerColors.ink,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -1209,8 +1287,16 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
     final activeProducts =
         _allManageableProducts.where((p) => p.status == 'active').length;
     final liveUploadCount = _firestoreProducts.length;
-    final pendingApps =
-        (_analytics['pendingApplicationCount'] as num?)?.toInt() ?? 0;
+    final pendingApps = (_analytics['pendingApplicationCount'] as num?)
+            ?.toInt() ??
+        _applications
+            .where((a) => (a['status']?.toString() ?? 'pending') == 'pending')
+            .length;
+    final openApps = (_analytics['openApplicationCount'] as num?)?.toInt() ??
+        _applications.where((a) {
+          final s = (a['status']?.toString() ?? 'pending');
+          return s == 'pending' || s == 'under_review';
+        }).length;
 
     final bySource = _analytics['clicksBySource'] is Map
         ? Map<String, dynamic>.from(_analytics['clicksBySource'] as Map)
@@ -1435,6 +1521,57 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
           ],
         ),
         const SizedBox(height: 14),
+        if (_session.canReviewVendors && openApps > 0)
+          Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: PipeBuyerColors.industrialBlue.withValues(alpha: .40),
+              ),
+            ),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.notifications_active_rounded,
+                      color: PipeBuyerColors.industrialBlue,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        '$openApps brand, OEM, or distributor listing request(s) waiting for Admin review.',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: PipeBuyerColors.ink,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    final idx = _applicationsTabIndex;
+                    if (idx != null) {
+                      _tabController.animateTo(idx);
+                    }
+                  },
+                  icon: const Icon(Icons.storefront_outlined, size: 16),
+                  label: const Text('Review Partner Requests'),
+                ),
+              ],
+            ),
+          ),
         if (_suggestions.any((s) => s.isPending))
           Container(
             margin: const EdgeInsets.only(bottom: 14),
@@ -1555,7 +1692,9 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                                     ),
                                     decoration: BoxDecoration(
                                       color: PipeBuyerColors.surfaceMuted,
-                                      borderRadius: BorderRadius.circular(999),
+                                      borderRadius: BorderRadius.circular(
+                                        999,
+                                      ),
                                     ),
                                     child: Text(
                                       spec.regions,
@@ -1818,8 +1957,10 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   ConstrainedBox(
-                    constraints:
-                        const BoxConstraints(minWidth: 240, maxWidth: 420),
+                    constraints: const BoxConstraints(
+                      minWidth: 240,
+                      maxWidth: 420,
+                    ),
                     child: TextField(
                       decoration: const InputDecoration(
                         hintText:
@@ -1866,10 +2007,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                           ...subcatOptions.map(
                             (sub) => DropdownMenuItem(
                               value: sub,
-                              child: Text(
-                                sub,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                              child: Text(sub, overflow: TextOverflow.ellipsis),
                             ),
                           ),
                         ],
@@ -1941,9 +2079,8 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                           selected: selected,
                           selectedColor: PipeBuyerColors.orangeSoft,
                           visualDensity: VisualDensity.compact,
-                          onSelected: (_) => setState(
-                            () => _catalogPlatformGroup = entry.$1,
-                          ),
+                          onSelected: (_) =>
+                              setState(() => _catalogPlatformGroup = entry.$1),
                         ),
                       );
                     }),
@@ -2153,10 +2290,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    platform.bestFor,
-                    style: const TextStyle(fontSize: 13),
-                  ),
+                  Text(platform.bestFor, style: const TextStyle(fontSize: 13)),
                   const SizedBox(height: 4),
                   Text(
                     'Link Format: ${platform.trackingHint}',
@@ -2228,8 +2362,10 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                 const SizedBox(height: 6),
                 const Text(
                   'Enter your official Amazon Associates Tracking IDs. Every Amazon link in the Store and in-app contextual cards automatically injects the matching regional Associate tag.',
-                  style:
-                      TextStyle(color: PipeBuyerColors.muted, fontSize: 12.5),
+                  style: TextStyle(
+                    color: PipeBuyerColors.muted,
+                    fontSize: 12.5,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 SwitchListTile(
@@ -2249,6 +2385,18 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                   ),
                   value: _vendorAppsOpen,
                   onChanged: (v) => setState(() => _vendorAppsOpen = v),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _adminEmailsController,
+                  decoration: const InputDecoration(
+                    labelText:
+                        'Vendor & Brand Portal Alert Emails (comma-separated)',
+                    hintText: 'partnerships@pipebuyer.com, fleet@pipebuyer.com',
+                    helperText:
+                        'All active Administrators & Store Managers are notified automatically via push, in-app & email; add extra partnership inboxes here.',
+                    prefixIcon: Icon(Icons.notifications_active_outlined),
+                  ),
                 ),
                 const Divider(height: 24),
                 TextField(
@@ -2399,8 +2547,10 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                   contentPadding: EdgeInsets.zero,
                   title: const Text(
                     'Force Override Existing ?tag= on Pasted Amazon Links',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                    ),
                   ),
                   subtitle: const Text(
                     'When off, SiteStripe pre-tagged URLs keep their tag while untagged URLs receive the Store default tag.',
@@ -2517,120 +2667,605 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
   }
 
   Widget _buildApplicationsTab() {
-    if (_applications.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'No distributor, brand, or business vendor applications submitted yet.',
-            style: TextStyle(color: PipeBuyerColors.muted),
-          ),
-        ),
-      );
-    }
+    final pendingCount = _applications
+        .where((a) => (a['status']?.toString() ?? 'pending') == 'pending')
+        .length;
+    final underReviewCount = _applications
+        .where((a) => (a['status']?.toString() ?? '') == 'under_review')
+        .length;
+    final approvedCount = _applications
+        .where((a) => (a['status']?.toString() ?? '') == 'approved')
+        .length;
+    final waitlistedCount = _applications
+        .where((a) => (a['status']?.toString() ?? '') == 'waitlisted')
+        .length;
+    final declinedCount = _applications
+        .where((a) => (a['status']?.toString() ?? '') == 'declined')
+        .length;
 
-    return ListView.separated(
+    final query = _applicationQuery.trim().toLowerCase();
+    final filtered = _applications.where((app) {
+      final status = (app['status']?.toString() ?? 'pending').toLowerCase();
+      if (_applicationStatusFilter != 'all' &&
+          status != _applicationStatusFilter) {
+        return false;
+      }
+      if (query.isEmpty) return true;
+      final haystack = <String>[
+        app['companyName']?.toString() ?? '',
+        app['contactName']?.toString() ?? '',
+        app['contactTitle']?.toString() ?? '',
+        app['email']?.toString() ?? '',
+        app['headquartersLocation']?.toString() ?? '',
+        app['id']?.toString() ?? '',
+        if (app['brandsCarried'] is Iterable)
+          ...(app['brandsCarried'] as Iterable).map((e) => e.toString()),
+      ].join(' ').toLowerCase();
+      return haystack.contains(query);
+    }).toList(growable: false);
+
+    return ListView(
       padding: const EdgeInsets.all(16),
-      itemCount: _applications.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final app = _applications[index];
-        final id = app['id']?.toString() ?? '';
-        final status = app['status']?.toString() ?? 'pending';
-        final brands = (app['brandsCarried'] is Iterable)
-            ? (app['brandsCarried'] as Iterable).join(', ')
-            : '';
-        final categories = (app['categories'] is Iterable)
-            ? (app['categories'] as Iterable).join(', ')
-            : '';
-
-        return Card(
+      children: [
+        Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Expanded(
-                      child: Text(
-                        app['companyName']?.toString() ?? 'Applicant',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'OEM, Brand & Distributor Listing Requests',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Review Caterpillar, Brandt Tractor, Milwaukee, Snap-on & authorized partner submissions. Approving creates a verified partner record and notifies the applicant.',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: PipeBuyerColors.muted,
+                          ),
+                        ),
+                      ],
                     ),
-                    Chip(
-                      label: Text(status.toUpperCase()),
-                      backgroundColor: status == 'approved'
-                          ? PipeBuyerColors.success.withValues(alpha: .15)
-                          : PipeBuyerColors.orangeSoft,
+                    OutlinedButton.icon(
+                      onPressed: _reloadDashboard,
+                      icon: const Icon(Icons.refresh_rounded, size: 17),
+                      label: const Text('Refresh'),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Track: ${app['partnershipTrack']} • Contact: ${app['contactName']} (${app['email']} • ${app['phone']})',
-                  style: const TextStyle(fontSize: 12.5),
-                ),
-                if (brands.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Brands: $brands',
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                if (categories.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      'Categories: $categories • Size: ${app['estimatedSkuCount'] ?? ''}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: PipeBuyerColors.muted,
-                      ),
-                    ),
-                  ),
-                if ((app['catalogNotes']?.toString() ?? '').isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      app['catalogNotes'].toString(),
-                      style: const TextStyle(fontSize: 12.5),
-                    ),
-                  ),
                 const SizedBox(height: 12),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText:
+                        'Search company, brand, contact, territory, or reference ID',
+                    prefixIcon: Icon(Icons.search_rounded),
+                    isDense: true,
+                  ),
+                  onChanged: (v) => setState(() => _applicationQuery = v),
+                ),
+                const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: status == 'approved'
-                          ? null
-                          : () => _reviewApplication(id, 'approved'),
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: const Text('Approve Partner'),
+                  children: <({String key, String label})>[
+                    (
+                      key: 'all',
+                      label: 'All (${_applications.length})',
                     ),
-                    OutlinedButton(
-                      onPressed: () => _reviewApplication(id, 'waitlisted'),
-                      child: const Text('Waitlist'),
+                    (key: 'pending', label: 'Pending ($pendingCount)'),
+                    (
+                      key: 'under_review',
+                      label: 'Under Review ($underReviewCount)',
                     ),
-                    TextButton(
-                      onPressed: () => _reviewApplication(id, 'declined'),
-                      child: const Text('Decline'),
+                    (
+                      key: 'approved',
+                      label: 'Approved ($approvedCount)',
                     ),
-                  ],
+                    (
+                      key: 'waitlisted',
+                      label: 'Waitlisted ($waitlistedCount)',
+                    ),
+                    (
+                      key: 'declined',
+                      label: 'Declined ($declinedCount)',
+                    ),
+                  ].map((chip) {
+                    final selected = _applicationStatusFilter == chip.key;
+                    return ChoiceChip(
+                      label: Text(chip.label),
+                      selected: selected,
+                      onSelected: (_) => setState(
+                        () => _applicationStatusFilter = chip.key,
+                      ),
+                    );
+                  }).toList(growable: false),
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+        const SizedBox(height: 12),
+        if (_applications.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: Text(
+                  'No distributor, brand, or business vendor applications submitted yet.',
+                  style: TextStyle(color: PipeBuyerColors.muted),
+                ),
+              ),
+            ),
+          )
+        else if (filtered.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: Text(
+                  'No partner requests match the current filter.',
+                  style: TextStyle(color: PipeBuyerColors.muted),
+                ),
+              ),
+            ),
+          )
+        else
+          ...filtered.map((app) {
+            final id = app['id']?.toString() ?? '';
+            final companyName = app['companyName']?.toString() ?? 'Applicant';
+            final status =
+                (app['status']?.toString() ?? 'pending').toLowerCase();
+            final trackCode = app['partnershipTrack']?.toString() ?? '';
+            final trackLabel = PipeBuyerShopTaxonomy.vendorTrackLabel(
+              trackCode,
+            );
+            final authLevel = app['authorizationLevel']?.toString() ?? '';
+            final authLabel = authLevel.isNotEmpty
+                ? PipeBuyerShopTaxonomy.vendorAuthLevelLabel(authLevel)
+                : '';
+            final contactName = app['contactName']?.toString() ?? '';
+            final contactTitle = app['contactTitle']?.toString() ?? '';
+            final email = app['email']?.toString() ?? '';
+            final phone = app['phone']?.toString() ?? '';
+            final hq = app['headquartersLocation']?.toString() ?? '';
+            final websiteUrl = app['websiteUrl']?.toString() ?? '';
+            final sampleCatalogUrl = app['sampleCatalogUrl']?.toString() ?? '';
+            final brandsList = (app['brandsCarried'] is Iterable)
+                ? (app['brandsCarried'] as Iterable)
+                    .map((e) => e.toString())
+                    .where((s) => s.isNotEmpty)
+                    .toList(growable: false)
+                : const <String>[];
+            final rawCategories = (app['categories'] is Iterable)
+                ? (app['categories'] as Iterable)
+                    .map((e) => e.toString())
+                    .where((s) => s.isNotEmpty)
+                    .toList(growable: false)
+                : const <String>[];
+            final categoryLabels = rawCategories
+                .map(PipeBuyerShopTaxonomy.vendorCategoryLabel)
+                .join(', ');
+            final placements = (app['requestedPlacements'] is Iterable)
+                ? (app['requestedPlacements'] as Iterable)
+                    .map(
+                      (e) => PipeBuyerShopTaxonomy.vendorPlacementLabel(
+                        e.toString(),
+                      ),
+                    )
+                    .where((s) => s.isNotEmpty)
+                    .toList(growable: false)
+                : const <String>[];
+            final regions = (app['fulfillmentRegions'] is Iterable)
+                ? (app['fulfillmentRegions'] as Iterable)
+                    .map((e) => e.toString())
+                    .where((s) => s.isNotEmpty)
+                    .join(', ')
+                : '';
+            final integrationCode =
+                app['catalogIntegrationMethod']?.toString() ?? '';
+            final integrationLabel = integrationCode.isNotEmpty
+                ? PipeBuyerShopTaxonomy.vendorIntegrationLabel(integrationCode)
+                : '';
+            final estimatedSku = app['estimatedSkuCount']?.toString() ?? '';
+            final affiliateDetails =
+                app['affiliateProgramDetails']?.toString() ?? '';
+            final catalogNotes = app['catalogNotes']?.toString() ?? '';
+            final reviewNotes = app['reviewNotes']?.toString() ?? '';
+            final notifSummary = app['notificationSummary'] is Map
+                ? Map<String, dynamic>.from(app['notificationSummary'] as Map)
+                : const <String, dynamic>{};
+            final adminAlertsCount =
+                (notifSummary['inAppNotifiedCount'] as num?)?.toInt() ?? 0;
+            final emailAlertsCount =
+                (notifSummary['adminEmailSentCount'] as num?)?.toInt() ?? 0;
+
+            Color badgeBg;
+            Color badgeFg;
+            if (status == 'approved') {
+              badgeBg = PipeBuyerColors.success.withValues(alpha: .15);
+              badgeFg = PipeBuyerColors.success;
+            } else if (status == 'declined') {
+              badgeBg = PipeBuyerColors.danger.withValues(alpha: .12);
+              badgeFg = PipeBuyerColors.danger;
+            } else if (status == 'under_review') {
+              badgeBg = PipeBuyerColors.industrialBlue.withValues(alpha: .14);
+              badgeFg = PipeBuyerColors.industrialBlue;
+            } else {
+              badgeBg = PipeBuyerColors.orangeSoft;
+              badgeFg = PipeBuyerColors.orange;
+            }
+
+            String? firstStoreCategory;
+            for (final code in rawCategories) {
+              if (PipeBuyerShopTaxonomy.categoryByCode(code) != null) {
+                firstStoreCategory = code;
+                break;
+              }
+            }
+            firstStoreCategory ??= rawCategories.contains('heavy_equipment_oem')
+                ? 'hydraulics_fleet_shop'
+                : 'power_hand_tools';
+
+            final initialSource = trackCode == 'industrial_distributor'
+                ? PipeBuyerShopSourceType.distributorAffiliate
+                : (trackCode == 'verified_business_vendor'
+                    ? PipeBuyerShopSourceType.vendorCatalog
+                    : PipeBuyerShopSourceType.brandPartner);
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.domain_verification_outlined,
+                                size: 20,
+                                color: PipeBuyerColors.industrialBlue,
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  companyName,
+                                  style: const TextStyle(
+                                    fontSize: 16.5,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (id.isNotEmpty)
+                                ActionChip(
+                                  avatar: const Icon(
+                                    Icons.copy_rounded,
+                                    size: 14,
+                                  ),
+                                  label: Text(
+                                    'Ref: ${id.length > 10 ? id.substring(0, 10) : id}',
+                                    style: const TextStyle(fontSize: 11.5),
+                                  ),
+                                  onPressed: () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(text: id),
+                                    );
+                                    if (!mounted) return;
+                                    PipeFeedback.show(
+                                      context,
+                                      message:
+                                          'Copied application ID $id to clipboard.',
+                                      tone: PipeStatusTone.info,
+                                    );
+                                  },
+                                ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: badgeBg,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  status.replaceAll('_', ' ').toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: badgeFg,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        [
+                          'Track: $trackLabel',
+                          if (authLabel.isNotEmpty) authLabel,
+                          if (regions.isNotEmpty) 'Regions: $regions',
+                        ].join(' • '),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: PipeBuyerColors.industrialBlue,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        [
+                          'Contact: $contactName${contactTitle.isNotEmpty ? ' ($contactTitle)' : ''}',
+                          if (email.isNotEmpty) email,
+                          if (phone.isNotEmpty) phone,
+                          if (hq.isNotEmpty) 'Territory/HQ: $hq',
+                        ].join(' • '),
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
+                      if (websiteUrl.isNotEmpty ||
+                          sampleCatalogUrl.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 14,
+                          runSpacing: 4,
+                          children: [
+                            if (websiteUrl.isNotEmpty)
+                              InkWell(
+                                onTap: PipeBuyerShopUrlBuilder.isSafeHttpsUrl(
+                                  websiteUrl,
+                                )
+                                    ? () => launchUrl(
+                                          Uri.parse(websiteUrl),
+                                          mode: LaunchMode.externalApplication,
+                                        )
+                                    : null,
+                                child: Text(
+                                  'Website: $websiteUrl',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: PipeBuyerColors.industrialBlue,
+                                    decoration: TextDecoration.underline,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            if (sampleCatalogUrl.isNotEmpty)
+                              InkWell(
+                                onTap: PipeBuyerShopUrlBuilder.isSafeHttpsUrl(
+                                  sampleCatalogUrl,
+                                )
+                                    ? () => launchUrl(
+                                          Uri.parse(sampleCatalogUrl),
+                                          mode: LaunchMode.externalApplication,
+                                        )
+                                    : null,
+                                child: Text(
+                                  'Sample Inventory / Catalog: $sampleCatalogUrl',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: PipeBuyerColors.industrialBlue,
+                                    decoration: TextDecoration.underline,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                      if (brandsList.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            'Brands: ${brandsList.join(', ')}',
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      if (categoryLabels.isNotEmpty ||
+                          estimatedSku.isNotEmpty ||
+                          integrationLabel.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Text(
+                            [
+                              if (categoryLabels.isNotEmpty)
+                                'Categories: $categoryLabels',
+                              if (estimatedSku.isNotEmpty)
+                                'Size: $estimatedSku',
+                              if (integrationLabel.isNotEmpty)
+                                'Onboarding: $integrationLabel',
+                            ].join(' • '),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: PipeBuyerColors.muted,
+                            ),
+                          ),
+                        ),
+                      if (placements.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: placements
+                              .map(
+                                (label) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: PipeBuyerColors.surfaceMuted,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: PipeBuyerColors.line,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    label,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(growable: false),
+                        ),
+                      ],
+                      if (affiliateDetails.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            'Affiliate / Dealer Program: $affiliateDetails',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: PipeBuyerColors.slate,
+                            ),
+                          ),
+                        ),
+                      if (catalogNotes.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            catalogNotes,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      if (adminAlertsCount > 0 || emailAlertsCount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            'Admin Alerts Dispatched: $adminAlertsCount in-app/push${emailAlertsCount > 0 ? ' • $emailAlertsCount email(s)' : ''}',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: PipeBuyerColors.success,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      if (reviewNotes.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: PipeBuyerColors.surfaceMuted,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: PipeBuyerColors.line),
+                          ),
+                          child: Text(
+                            'Admin Decision Notes: $reviewNotes',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilledButton.icon(
+                            key: Key('vendor_approve_$id'),
+                            onPressed: status == 'approved'
+                                ? null
+                                : () => _reviewApplication(id, 'approved'),
+                            icon: const Icon(Icons.check_rounded, size: 18),
+                            label: const Text('Approve Partner'),
+                          ),
+                          FilledButton.tonalIcon(
+                            key: Key('vendor_under_review_$id'),
+                            onPressed: status == 'under_review'
+                                ? null
+                                : () => _reviewApplication(id, 'under_review'),
+                            icon: const Icon(
+                              Icons.manage_search_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('Under Review'),
+                          ),
+                          OutlinedButton.icon(
+                            key: Key('vendor_dialog_$id'),
+                            onPressed: () => _openReviewApplicationDialog(
+                              app,
+                              initialDecision:
+                                  status == 'pending' ? 'approved' : status,
+                            ),
+                            icon: const Icon(
+                              Icons.mark_email_read_outlined,
+                              size: 17,
+                            ),
+                            label: const Text('Review & Message'),
+                          ),
+                          OutlinedButton.icon(
+                            key: Key('vendor_add_product_$id'),
+                            onPressed: () => _openProductEditor(
+                              initialSourceType: initialSource,
+                              initialVendorName: companyName,
+                              initialSuggestedTitle: brandsList.isNotEmpty
+                                  ? '${brandsList.first} '
+                                  : '',
+                              initialSuggestedUrl: sampleCatalogUrl.isNotEmpty
+                                  ? sampleCatalogUrl
+                                  : websiteUrl,
+                              initialCategoryCode: firstStoreCategory,
+                              initialSuggestionNotes: catalogNotes,
+                            ),
+                            icon: const Icon(Icons.add_link_rounded, size: 17),
+                            label: const Text('+ Add Brand Product'),
+                          ),
+                          OutlinedButton(
+                            onPressed: () =>
+                                _reviewApplication(id, 'waitlisted'),
+                            child: const Text('Waitlist'),
+                          ),
+                          TextButton(
+                            onPressed: () => _reviewApplication(id, 'declined'),
+                            child: const Text('Decline'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+      ],
     );
   }
 
@@ -3065,14 +3700,13 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                     if (s.productUrl.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       InkWell(
-                        onTap: PipeBuyerShopUrlBuilder.isSafeHttpsUrl(
-                          s.productUrl,
-                        )
-                            ? () => launchUrl(
-                                  Uri.parse(s.productUrl),
-                                  mode: LaunchMode.externalApplication,
-                                )
-                            : null,
+                        onTap:
+                            PipeBuyerShopUrlBuilder.isSafeHttpsUrl(s.productUrl)
+                                ? () => launchUrl(
+                                      Uri.parse(s.productUrl),
+                                      mode: LaunchMode.externalApplication,
+                                    )
+                                : null,
                         child: Text(
                           s.productUrl,
                           maxLines: 1,
@@ -3148,10 +3782,9 @@ class _RolePermissionSummaryRow extends StatelessWidget {
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: DefaultTextStyle.of(context).style.copyWith(
-                      fontSize: 12.5,
-                      height: 1.35,
-                    ),
+                style: DefaultTextStyle.of(context)
+                    .style
+                    .copyWith(fontSize: 12.5, height: 1.35),
                 children: [
                   TextSpan(
                     text: '$roleTitle: ',
@@ -3379,8 +4012,9 @@ class _AdminCatalogProductCard extends StatelessWidget {
                                   ? 'YOUR LIVE LINK'
                                   : 'DEMO TEMPLATE',
                               bg: isLiveCustom
-                                  ? PipeBuyerColors.industrialBlue
-                                      .withValues(alpha: .12)
+                                  ? PipeBuyerColors.industrialBlue.withValues(
+                                      alpha: .12,
+                                    )
                                   : const Color(0xFFFEF3C7),
                               fg: isLiveCustom
                                   ? PipeBuyerColors.industrialBlue
@@ -3545,11 +4179,7 @@ class _SmallStatusPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: fg),
       ),
     );
   }
@@ -3734,9 +4364,7 @@ class _PipeBuyerAffiliateLinkEditorDialogState
           ? e.title
           : (e == null ? suggestedTitle : ''),
     );
-    _titleController = TextEditingController(
-      text: e?.title ?? suggestedTitle,
-    );
+    _titleController = TextEditingController(text: e?.title ?? suggestedTitle);
     _brandController = TextEditingController(text: e?.brand ?? '');
     _vendorController = TextEditingController(text: initialVendor);
     _asinController = TextEditingController(text: e?.asin ?? '');
@@ -3749,8 +4377,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
     _descriptionController = TextEditingController(
       text: e?.description ?? suggestedNotes,
     );
-    _highlightsController =
-        TextEditingController(text: e?.highlights.join('\n') ?? '');
+    _highlightsController = TextEditingController(
+      text: e?.highlights.join('\n') ?? '',
+    );
     _categoryCode = e?.categoryCode ?? validInitialCat;
     _subcategory = (e?.subcategory.trim().isNotEmpty ?? false)
         ? e!.subcategory.trim()
@@ -3865,8 +4494,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
       }
       if (widget.existing == null) {
         _categoryCode = parsed.suggestedCategoryCode;
-        final validSubs =
-            PipeBuyerShopTaxonomy.subcategoriesForCategory(_categoryCode);
+        final validSubs = PipeBuyerShopTaxonomy.subcategoriesForCategory(
+          _categoryCode,
+        );
         if (parsed.suggestedSubcategory.isNotEmpty &&
             validSubs.contains(parsed.suggestedSubcategory)) {
           _subcategory = parsed.suggestedSubcategory;
@@ -3957,8 +4587,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
       }
       if (widget.existing == null && remote.suggestedCategoryCode.isNotEmpty) {
         _categoryCode = remote.suggestedCategoryCode;
-        final validSubs =
-            PipeBuyerShopTaxonomy.subcategoriesForCategory(_categoryCode);
+        final validSubs = PipeBuyerShopTaxonomy.subcategoriesForCategory(
+          _categoryCode,
+        );
         if (remote.suggestedSubcategory.isNotEmpty &&
             validSubs.contains(remote.suggestedSubcategory)) {
           _subcategory = remote.suggestedSubcategory;
@@ -4058,8 +4689,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
         _priceController.text = candidate.priceDisplay;
       }
       _categoryCode = candidate.categoryCode;
-      final validSubs =
-          PipeBuyerShopTaxonomy.subcategoriesForCategory(_categoryCode);
+      final validSubs = PipeBuyerShopTaxonomy.subcategoriesForCategory(
+        _categoryCode,
+      );
       _subcategory = validSubs.contains(candidate.subcategory)
           ? candidate.subcategory
           : _defaultSubcategoryFor(_categoryCode);
@@ -4378,8 +5010,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: PipeBuyerColors.industrialBlue
-                                  .withValues(alpha: .28),
+                              color: PipeBuyerColors.industrialBlue.withValues(
+                                alpha: .28,
+                              ),
                             ),
                           ),
                           child: Column(
@@ -4481,8 +5114,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                             color: const Color(0xFFFFFBEB),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: PipeBuyerColors.warning
-                                  .withValues(alpha: .45),
+                              color: PipeBuyerColors.warning.withValues(
+                                alpha: .45,
+                              ),
                             ),
                           ),
                           child: Row(
@@ -4753,8 +5387,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _titleController,
-                  decoration:
-                      const InputDecoration(labelText: 'Product Title *'),
+                  decoration: const InputDecoration(
+                    labelText: 'Product Title *',
+                  ),
                   validator: (v) => (v == null || v.trim().length < 3)
                       ? 'Enter product title (at least 3 characters).'
                       : null,
@@ -4788,8 +5423,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                       child: DropdownButtonFormField<String>(
                         isExpanded: true,
                         initialValue: _categoryCode,
-                        decoration:
-                            const InputDecoration(labelText: 'Store Category'),
+                        decoration: const InputDecoration(
+                          labelText: 'Store Category',
+                        ),
                         items: PipeBuyerShopTaxonomy.categories
                             .map(
                               (c) => DropdownMenuItem(
@@ -4806,7 +5442,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                             setState(() {
                               _categoryCode = v;
                               final subs = PipeBuyerShopTaxonomy
-                                  .subcategoriesForCategory(v);
+                                  .subcategoriesForCategory(
+                                v,
+                              );
                               if (!subs.contains(_subcategory)) {
                                 _subcategory = _defaultSubcategoryFor(v);
                               }
@@ -4892,8 +5530,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                             _parsedPreview = parsed;
                             if (parsed != null &&
                                 parsed.eligibleCountries.isNotEmpty) {
-                              _eligibleCountries =
-                                  List<String>.from(parsed.eligibleCountries);
+                              _eligibleCountries = List<String>.from(
+                                parsed.eligibleCountries,
+                              );
                             }
                           });
                           if (parsed != null &&
@@ -5007,8 +5646,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                             color: const Color(0xFFFFFBEB),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: PipeBuyerColors.warning
-                                  .withValues(alpha: .40),
+                              color: PipeBuyerColors.warning.withValues(
+                                alpha: .40,
+                              ),
                             ),
                           ),
                           child: Row(
@@ -5066,8 +5706,9 @@ class _PipeBuyerAffiliateLinkEditorDialogState
                         key: ValueKey<String>('source_${_sourceType.code}'),
                         isExpanded: true,
                         initialValue: _sourceType,
-                        decoration:
-                            const InputDecoration(labelText: 'Partner Channel'),
+                        decoration: const InputDecoration(
+                          labelText: 'Partner Channel',
+                        ),
                         items: PipeBuyerShopSourceType.values
                             .map(
                               (s) => DropdownMenuItem(
@@ -5165,10 +5806,7 @@ class _PipeBuyerAffiliateLinkEditorDialogState
 }
 
 class _ComplianceBadge extends StatelessWidget {
-  const _ComplianceBadge({
-    required this.ok,
-    required this.label,
-  });
+  const _ComplianceBadge({required this.ok, required this.label});
 
   final bool ok;
   final String label;
@@ -5459,10 +6097,8 @@ class _PipeBuyerBulkSpreadsheetImportDialogState
                     children: _parsed.invalidRows
                         .take(5)
                         .map(
-                          (msg) => Text(
-                            msg,
-                            style: const TextStyle(fontSize: 11.5),
-                          ),
+                          (msg) =>
+                              Text(msg, style: const TextStyle(fontSize: 11.5)),
                         )
                         .toList(growable: false),
                   ),
@@ -5508,6 +6144,131 @@ class _PipeBuyerBulkSpreadsheetImportDialogState
                 ? 'Publishing...'
                 : 'Publish $readyCount Ready Item${readyCount == 1 ? '' : 's'}',
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _VendorApplicationReviewDialog extends StatefulWidget {
+  const _VendorApplicationReviewDialog({
+    required this.app,
+    required this.initialDecision,
+  });
+
+  final Map<String, dynamic> app;
+  final String initialDecision;
+
+  @override
+  State<_VendorApplicationReviewDialog> createState() =>
+      _VendorApplicationReviewDialogState();
+}
+
+class _VendorApplicationReviewDialogState
+    extends State<_VendorApplicationReviewDialog> {
+  late final TextEditingController _notesController;
+  late String _selectedDecision;
+  bool _sendNotification = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDecision = widget.initialDecision;
+    _notesController = TextEditingController(
+      text: widget.app['reviewNotes']?.toString() ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final company = widget.app['companyName']?.toString() ?? 'Partner';
+    final contact = widget.app['contactName']?.toString() ?? 'applicant';
+    final email = widget.app['email']?.toString() ?? '';
+
+    return AlertDialog(
+      title: Text('Review $company'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: _selectedDecision,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Decision Status',
+                  prefixIcon: Icon(Icons.fact_check_outlined),
+                ),
+                items: const <DropdownMenuItem<String>>[
+                  DropdownMenuItem(
+                    value: 'under_review',
+                    child: Text('Under Admin Review'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'approved',
+                    child: Text('Approved Partner'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'waitlisted',
+                    child: Text('Waitlisted'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'declined',
+                    child: Text('Declined'),
+                  ),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedDecision = val);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _notesController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Message / Onboarding Notes to Partner',
+                  hintText:
+                      'e.g., Approved for Storefront & Heavy Equipment catalog onboarding. Reply with CSV/XML feed.',
+                ),
+              ),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _sendNotification,
+                onChanged: (val) =>
+                    setState(() => _sendNotification = val ?? true),
+                title: Text(
+                  'Email & notify $contact ($email)',
+                  style: const TextStyle(fontSize: 12.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(null),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: () => Navigator.of(context).pop((
+            decision: _selectedDecision,
+            notes: _notesController.text.trim(),
+            notifyApplicant: _sendNotification,
+          )),
+          icon: const Icon(Icons.send_rounded, size: 17),
+          label: const Text('Save Decision'),
         ),
       ],
     );

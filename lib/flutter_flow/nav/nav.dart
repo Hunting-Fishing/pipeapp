@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '/backend/backend.dart';
 import '/backend/schema/structs/index.dart';
 
@@ -36,6 +37,7 @@ import '/marketplace/pipebuyer_shop_vendor_apply_page.dart';
 import '/marketplace/pipebuyer_yellow_pages_directory_page.dart';
 
 export 'package:go_router/go_router.dart';
+
 export 'serialization_util.dart';
 
 const kTransitionInfoKey = '__transition_info__';
@@ -198,11 +200,9 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           path: '/conversations/:conversationId',
           requireAuth: true,
           builder: (context, params) => MarketplaceConversationRoutePage(
-            conversationId: params.getParam<String>(
-                  'conversationId',
-                  ParamType.string,
-                ) ??
-                '',
+            conversationId:
+                params.getParam<String>('conversationId', ParamType.string) ??
+                    '',
           ),
         ),
         FFRoute(
@@ -410,7 +410,10 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
           name: MarketplaceDeepLinks.shopAdminRouteName,
           path: MarketplaceDeepLinks.shopAdminPath,
           requireAuth: true,
-          builder: (context, params) => const PipeBuyerShopAdminPage(),
+          builder: (context, params) => PipeBuyerShopAdminPage(
+            initialSection:
+                params.getParam<String>('tab', ParamType.string) ?? '',
+          ),
         ),
         FFRoute(
           name: MarketplaceDeepLinks.privacyRouteName,
@@ -540,17 +543,15 @@ class FFParameters {
       asyncParams.containsKey(param.key) && param.value is String;
   bool get hasFutures => state.allParams.entries.any(isAsyncParam);
   Future<bool> completeFutures() => Future.wait(
-        state.allParams.entries.where(isAsyncParam).map(
-          (param) async {
-            final doc = await asyncParams[param.key]!(param.value)
-                .onError((_, __) => null);
-            if (doc != null) {
-              futureParamValues[param.key] = doc;
-              return true;
-            }
-            return false;
-          },
-        ),
+        state.allParams.entries.where(isAsyncParam).map((param) async {
+          final doc = await asyncParams[param.key]!(param.value)
+              .onError((_, __) => null);
+          if (doc != null) {
+            futureParamValues[param.key] = doc;
+            return true;
+          }
+          return false;
+        }),
       ).onError((_, __) => [false]).then((v) => v.every((e) => e));
 
   dynamic getParam<T>(
@@ -686,10 +687,8 @@ class RootPageContext {
         location != rootPageContext?.errorRoute;
   }
 
-  static Widget wrap(Widget child, {String? errorRoute}) => Provider.value(
-        value: RootPageContext(true, errorRoute),
-        child: child,
-      );
+  static Widget wrap(Widget child, {String? errorRoute}) =>
+      Provider.value(value: RootPageContext(true, errorRoute), child: child);
 }
 
 extension GoRouterLocationExtension on GoRouter {

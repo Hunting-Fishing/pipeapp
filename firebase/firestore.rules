@@ -996,8 +996,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    function canReviewShopVendors() {
+      return isAdmin() || (
+        signedIn() &&
+        verifiedEmail() &&
+        !('restricted' in request.auth.token && request.auth.token.restricted == true) &&
+        exists(/databases/$(database)/documents/shop_staff/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/shop_staff/$(request.auth.uid)).data.active == true &&
+        get(/databases/$(database)/documents/shop_staff/$(request.auth.uid)).data.role == 'store_manager'
+      );
+    }
+
     match /shop_vendor_applications/{applicationId} {
-      allow read: if isAdmin() ||
+      allow read: if canReviewShopVendors() ||
         (signedIn() && resource.data.submitterUid == request.auth.uid);
       allow write: if false;
     }

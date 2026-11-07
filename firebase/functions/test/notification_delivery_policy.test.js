@@ -91,3 +91,43 @@ test("only permanent messaging errors revoke an endpoint", () => {
   assert.equal(invalidEndpointErrorCode("messaging/internal-error"), false);
   assert.equal(invalidEndpointErrorCode("messaging/server-unavailable"), false);
 });
+
+test("vendor & brand portal notifications use critical delivery, safe copy, and allowlisted routes", () => {
+  const adminAlert = deliveryCopy({
+    type: "shop_vendor_application",
+    title: "Internal DB title with contact phone 555-0199",
+    body: "Internal DB body with private notes",
+    pushTitle: "New Brand / Vendor Request",
+    pushBody: "Brandt Tractor requested to list products on Pipe Buyer.",
+    route: "/admin/shop?tab=applications",
+  });
+  assert.equal(adminAlert.critical, true);
+  assert.equal(adminAlert.route, "/admin/shop?tab=applications");
+  assert.equal(adminAlert.title, "New Brand / Vendor Request");
+  assert.equal(
+      adminAlert.body,
+      "Brandt Tractor requested to list products on Pipe Buyer.",
+  );
+
+  // Default fallback route and copy when pushTitle/route are omitted
+  const defaultVendorAlert = deliveryCopy({
+    type: "shop_vendor_application",
+    body: "Must not leak arbitrary body",
+  });
+  assert.equal(defaultVendorAlert.critical, true);
+  assert.equal(defaultVendorAlert.route, "/admin/shop?tab=applications");
+  assert.equal(defaultVendorAlert.title, "New Brand / Vendor Request");
+  assert.doesNotMatch(defaultVendorAlert.body, /Must not leak/);
+
+  const statusUpdate = deliveryCopy({
+    type: "shop_vendor_application_status",
+    pushTitle: "Partner Application: Approved Partner",
+    pushBody: "Open Pipe Buyer to view the latest update for Milwaukee.",
+  });
+  assert.equal(statusUpdate.critical, true);
+  assert.equal(statusUpdate.route, "/shop/apply");
+  assert.equal(statusUpdate.title, "Partner Application: Approved Partner");
+
+  // Unrecognized admin routes still fail closed
+  assert.equal(routeForNotification({route: "/admin/secret"}), "/");
+});
