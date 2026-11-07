@@ -9,8 +9,10 @@ const {
   buildPublicShopProduct,
   doesProductShipToCountry,
   extractAmazonAsin,
+  extractAmazonSearchCandidates,
   extractHtmlProductMetadata,
   inferEligibleCountries,
+  inferSubcategoryFromText,
   normalizeStoreSettings,
   parseAmazonAffiliateSubmission,
   parseSafeHttpsUrl,
@@ -943,4 +945,132 @@ test("parseShopAffiliateLink unfurls shortlinks safely, extracts photos/countrie
   });
   assert.equal(hideRes.hiddenCount, 2);
   assert.ok(hideRes.hiddenStarterIds.includes("ridgid-36-aluminum-pipe-wrench"));
+});
+
+test("OneLink Canada preservation, subcategory inference, and SiteStripe Amazon product search rescue", async () => {
+  // 1. When amazonAssociateTagCa is empty, keep amazon.com + US tag so Amazon OneLink handles .com -> .ca attribution
+  const oneLinkSettings = normalizeStoreSettings({
+    amazonAssociateTagUs: "366industri09-20",
+    amazonAssociateTagCa: "",
+  });
+  const product = {
+    sourceType: "amazon_affiliate",
+    categoryCode: "pipe_welding_fab",
+    asin: "B0000224JH",
+    destinationUrl: "https://www.amazon.com/dp/B0000224JH?linkCode=ll1",
+  };
+  const usLink = new URL(buildMonetizedDestinationUrl(product, oneLinkSettings, {regionCode: "US"}));
+  const caOneLink = new URL(buildMonetizedDestinationUrl(product, oneLinkSettings, {regionCode: "CA"}));
+  assert.equal(usLink.hostname, "www.amazon.com");
+  assert.equal(usLink.searchParams.get("tag"), "366industri09-20");
+  assert.equal(caOneLink.hostname, "www.amazon.com");
+  assert.equal(caOneLink.searchParams.get("tag"), "366industri09-20");
+
+  // 2. Subcategory inference maps trade equipment to exact Store subcategories
+  assert.equal(
+      inferSubcategoryFromText("RIDGID 31110 Model 836 36-Inch Aluminum Straight Pipe Wrench", "pipe_welding_fab"),
+      "Pipe Wrenches, Chain Tongs & Vises",
+  );
+  assert.equal(
+      inferSubcategoryFromText("Lincoln Electric Viking 3350 Auto Darkening Welding Helmet", "pipe_welding_fab"),
+      "Welding Machines, Leads & Torches",
+  );
+  assert.equal(
+      inferSubcategoryFromText("Crosby G-209 Screw Pin Anchor Shackle 3/4", "rigging_hauling_cargo"),
+      "Shackles, Hooks, Swivels & Hardware",
+  );
+  assert.equal(
+      inferSubcategoryFromText("Mitutoyo 500-196-30 Digital Caliper Stainless", "measuring_inspection"),
+      "Pipe Calipers, Tally Tapes & Thread Gauges",
+  );
+
+  // 3. extractAmazonSearchCandidates parses Amazon search HTML into direct /dp/<ASIN>?tag=...&linkCode=ll1 SKUs
+  const sampleSearchHtml = `
+    <div data-component-type="s-search-result" data-asin="B0000224JH">
+      <h2><span>RIDGID 31110 Model 836 36-Inch Aluminum Straight Pipe Wrench</span></h2>
+      <img class="s-image" src="https://m.media-amazon.com/images/I/41xUYaUmGwL._AC_UY218_.jpg" />
+      <span class="a-price"><span class="a-offscreen">$245.99</span></span>
+    </div>
+    <div data-component-type="s-search-result" data-asin="B094RDL3QR">
+      <h2><span>Milwaukee 2767-20 M18 FUEL 1/2-Inch High Torque Impact Wrench</span></h2>
+      <img class="s-image" src="https://m.media-amazon.com/images/I/61abc123._AC_UL320_.jpg" />
+      <span class="a-price"><span class="a-offscreen">$279.90</span></span>
+    </div>
+  `;
+  const candidates = extractAmazonSearchCandidates(sampleSearchHtml, oneLinkSettings);
+  assert.equal(candidates.length, 2);
+  assert.equal(candidates[0].asin, "B0000224JH");
+  assert.equal(candidates[0].brand, "RIDGID");
+  assert.equal(candidates[0].categoryCode, "pipe_welding_fab");
+  assert.equal(candidates[0].subcategory, "Pipe Wrenches, Chain Tongs & Vises");
+  assert.equal(candidates[0].imageUrl, "https://m.media-amazon.com/images/I/41xUYaUmGwL._AC_SL1000_.jpg");
+  assert.equal(candidates[0].priceDisplay, "$245.99");
+  assert.match(candidates[0].destinationUrl, /^https:\/\/www\.amazon\.com\/dp\/B0000224JH\?/);
+  assert.match(candidates[0].destinationUrl, /tag=366industri09-20/);
+  assert.match(candidates[0].destinationUrl, /linkCode=ll1/);
+
+  // 4. parseShopAffiliateLink rescues search-page SiteStripe shortlinks AND supports searchQuery lookup
+  const store = new Map([
+    ["shop_settings/admin_config", {amazonAssociateTagUs: "366industri09-20", amazonAssociateTagCa: ""}],
+    ["shop_staff/joan_uid", {role: "store_manager", active: true, allowedPlatforms: ["all"]}],
+  ]);
+  const mockAdmin = {
+    firestore: Object.assign(
+        () => ({
+          collection: (col) => ({
+            doc: (id) => ({
+              id,
+              get: async () => ({
+                id,
+                exists: store.has(`${col}/${id}`),
+                data: () => store.get(`${col}/${id}`),
+              }),
+            }),
+          }),
+        }),
+        {FieldValue: {serverTimestamp: () => "TS", increment: (x) => x}},
+    ),
+  };
+  const fakeFetch = async (url) => {
+    if (url === "https://link.amazon/B0iZoQG46") {
+      return {
+        status: 302,
+        headers: {
+          get: (h) => (h.toLowerCase() === "location" ?
+            "https://www.amazon.com/s?k=RIDGID+31110+Model+836+Pipe+Wrench&tag=366industri09-20" :
+            null),
+        },
+      };
+    }
+    if (url.startsWith("https://www.amazon.com/s?k=")) {
+      return {
+        status: 200,
+        headers: {get: (h) => (h.toLowerCase() === "content-type" ? "text/html" : null)},
+        text: async () => sampleSearchHtml,
+      };
+    }
+    return {status: 404, headers: {get: () => null}, text: async () => ""};
+  };
+  const commands = createShopStoreCommands(mockAdmin, {fetchImpl: fakeFetch});
+  const joanReq = {
+    auth: {
+      uid: "joan_uid",
+      token: {email: "joan@example.com", email_verified: true, shopRole: "store_manager"},
+    },
+  };
+
+  const rescued = await commands.parseShopAffiliateLink({
+    ...joanReq,
+    data: {rawInput: "https://link.amazon/B0iZoQG46", fetchMetadata: true},
+  });
+  assert.equal(rescued.isSearchPageLink, true);
+  assert.equal(rescued.searchCandidates.length, 2);
+  assert.equal(rescued.searchCandidates[0].asin, "B0000224JH");
+
+  const finderRes = await commands.parseShopAffiliateLink({
+    ...joanReq,
+    data: {searchQuery: "RIDGID 31110 836"},
+  });
+  assert.equal(finderRes.searchCandidates.length, 2);
+  assert.equal(finderRes.searchCandidates[1].asin, "B094RDL3QR");
 });

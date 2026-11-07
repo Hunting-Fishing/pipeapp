@@ -483,13 +483,72 @@ class PipeBuyerShopClient {
         },
       );
       if (result.isEmpty ||
-          (result['destinationUrl']?.toString().trim().isEmpty ?? true)) {
+          ((result['destinationUrl']?.toString().trim().isEmpty ?? true) &&
+              result['searchCandidates'] is! List)) {
         return null;
       }
       return PipeBuyerParsedAffiliateSubmission.fromServerJson(result);
     } catch (_) {
       return null;
     }
+  }
+
+  Future<List<PipeBuyerAmazonSearchCandidate>> searchAmazonAffiliateProducts(
+    String query, {
+    PipeBuyerShopSettings? settings,
+  }) async {
+    final trimmed = query.trim();
+    if (trimmed.length < 2) return const <PipeBuyerAmazonSearchCandidate>[];
+
+    if (_firebaseReady || _functions != null) {
+      try {
+        final result = await _call(
+          'parseShopAffiliateLink',
+          <String, Object?>{
+            'searchQuery': trimmed,
+            'fetchMetadata': true,
+          },
+        );
+        final parsed =
+            PipeBuyerParsedAffiliateSubmission.fromServerJson(result);
+        if (parsed.searchCandidates.isNotEmpty) {
+          return parsed.searchCandidates;
+        }
+      } catch (_) {}
+    }
+
+    final effectiveSettings = settings ?? const PipeBuyerShopSettings();
+    final tokens = trimmed
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((t) => t.isNotEmpty)
+        .toList(growable: false);
+    final matches = PipeBuyerShopTaxonomy.starterCatalog.where((item) {
+      if (item.asin.isEmpty) return false;
+      final hay =
+          '${item.title} ${item.brand} ${item.subcategory} ${item.asin} ${item.tags.join(" ")}'
+              .toLowerCase();
+      return tokens.every(hay.contains);
+    }).take(6);
+
+    return matches
+        .map(
+          (item) => PipeBuyerAmazonSearchCandidate(
+            asin: item.asin,
+            title: item.title,
+            brand: item.brand,
+            categoryCode: item.categoryCode,
+            subcategory: item.subcategory,
+            imageUrl: item.imageUrl,
+            priceDisplay: item.priceDisplay,
+            destinationUrl: PipeBuyerShopUrlBuilder.buildMonetizedUrl(
+              item,
+              effectiveSettings,
+              regionCode: 'US',
+            ),
+          ),
+        )
+        .toList(growable: false);
   }
 
   Future<Set<String>> loadSavedProductIds() async {

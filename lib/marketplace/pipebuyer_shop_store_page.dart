@@ -1620,6 +1620,37 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
                     ],
                   ),
                   const SizedBox(height: 10),
+                  if (product.imageUrl.trim().isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      height: 210,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: PipeBuyerColors.surfaceMuted,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: PipeBuyerColors.line),
+                      ),
+                      child: CachedNetworkImage(
+                        imageUrl: product.imageUrl.trim(),
+                        fit: BoxFit.contain,
+                        placeholder: (_, __) => Center(
+                          child: SvgPicture.asset(
+                            product.effectiveIconAsset,
+                            height: 76,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Center(
+                          child: SvgPicture.asset(
+                            product.effectiveIconAsset,
+                            height: 76,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   Text(
                     product.title,
                     style: const TextStyle(
