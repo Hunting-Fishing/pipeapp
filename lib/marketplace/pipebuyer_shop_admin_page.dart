@@ -55,6 +55,9 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
   List<Map<String, dynamic>> _applications = const <Map<String, dynamic>>[];
   List<Map<String, dynamic>> _staff = const <Map<String, dynamic>>[];
   Map<String, dynamic> _analytics = const <String, dynamic>{};
+  List<PipeBuyerProductSuggestion> _suggestions =
+      const <PipeBuyerProductSuggestion>[];
+  String _suggestionStatusFilter = 'all';
 
   String _catalogQuery = '';
   String _catalogCategory = '';
@@ -94,9 +97,9 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
   bool _savingStaff = false;
 
   int get _expectedTabCount {
-    if (_session.canManageSettingsAndRoles) return 6;
-    if (_session.canReviewVendors) return 4;
-    return 3;
+    if (_session.canManageSettingsAndRoles) return 7;
+    if (_session.canReviewVendors) return 5;
+    return 4;
   }
 
   void _syncTabController() {
@@ -116,8 +119,8 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
     super.initState();
     _client = widget.client ?? PipeBuyerShopClient();
     _tabController = TabController(
-      length: 6,
-      initialIndex: widget.initialTabIndex.clamp(0, 5),
+      length: 7,
+      initialIndex: widget.initialTabIndex.clamp(0, 6),
       vsync: this,
     );
     _checkAdminAndLoad();
@@ -210,7 +213,12 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
       _loadError = null;
     });
     try {
-      final snap = await _client.getAdminDashboard();
+      final snapFuture = _client.getAdminDashboard();
+      final suggestionsFuture = _client
+          .listProductSuggestions()
+          .catchError((_) => const <PipeBuyerProductSuggestion>[]);
+      final snap = await snapFuture;
+      final suggestions = await suggestionsFuture;
       if (!mounted) return;
       _applySettingsToControllers(snap.settings);
       setState(() {
@@ -224,6 +232,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
         _applications = snap.applications;
         _staff = snap.staff;
         _analytics = snap.analytics;
+        _suggestions = suggestions;
         _loading = false;
       });
     } catch (error) {
@@ -354,10 +363,14 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
         .toList(growable: false);
   }
 
-  Future<void> _openProductEditor({
+  Future<String?> _openProductEditor({
     PipeBuyerShopProduct? existing,
     PipeBuyerShopSourceType? initialSourceType,
     String? initialVendorName,
+    String? initialSuggestedTitle,
+    String? initialSuggestedUrl,
+    String? initialCategoryCode,
+    String? initialSuggestionNotes,
   }) async {
     final result = await showDialog<String>(
       context: context,
@@ -367,9 +380,13 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
         existing: existing,
         initialSourceType: initialSourceType,
         initialVendorName: initialVendorName,
+        initialSuggestedTitle: initialSuggestedTitle,
+        initialSuggestedUrl: initialSuggestedUrl,
+        initialCategoryCode: initialCategoryCode,
+        initialSuggestionNotes: initialSuggestionNotes,
       ),
     );
-    if (!mounted) return;
+    if (!mounted) return null;
     if (result == 'saved') {
       PipeFeedback.show(
         context,
@@ -386,6 +403,59 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
         tone: PipeStatusTone.info,
       );
       await _reloadDashboard();
+    }
+    return result;
+  }
+
+  Future<void> _convertSuggestionToProduct(
+    PipeBuyerProductSuggestion suggestion,
+  ) async {
+    final result = await _openProductEditor(
+      initialSuggestedTitle: suggestion.productName,
+      initialSuggestedUrl: suggestion.productUrl,
+      initialCategoryCode: suggestion.categoryCode,
+      initialSuggestionNotes: suggestion.notes,
+    );
+    if (!mounted || result != 'saved') return;
+    try {
+      await _client.updateProductSuggestionStatus(
+        suggestionId: suggestion.id,
+        status: 'added',
+      );
+      if (!mounted) return;
+      await _reloadDashboard();
+    } catch (_) {
+      // Product already published cleanly; ignore status update failure.
+    }
+  }
+
+  Future<void> _updateSuggestionStatus(
+    PipeBuyerProductSuggestion suggestion,
+    String nextStatus,
+  ) async {
+    try {
+      await _client.updateProductSuggestionStatus(
+        suggestionId: suggestion.id,
+        status: nextStatus,
+      );
+      if (!mounted) return;
+      PipeFeedback.show(
+        context,
+        message: nextStatus == 'dismissed'
+            ? 'Suggestion dismissed.'
+            : nextStatus == 'added'
+                ? 'Marked suggestion as added to Store.'
+                : 'Suggestion reopened.',
+        tone: PipeStatusTone.info,
+      );
+      await _reloadDashboard();
+    } catch (error) {
+      if (!mounted) return;
+      PipeFeedback.show(
+        context,
+        message: error.toString().replaceFirst('Bad state: ', ''),
+        tone: PipeStatusTone.error,
+      );
     }
   }
 
@@ -680,6 +750,8 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
     final catalogItems = _allManageableProducts;
     final canSettingsAndRoles = _session.canManageSettingsAndRoles;
     final canVendors = _session.canReviewVendors;
+    final pendingSuggestionsCount =
+        _suggestions.where((s) => s.isPending).length;
 
     final tabs = <Widget>[
       const Tab(
@@ -689,6 +761,10 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
       Tab(
         icon: const Icon(Icons.inventory_2_outlined, size: 18),
         text: 'Affiliate Links (${catalogItems.length})',
+      ),
+      Tab(
+        icon: const Icon(Icons.lightbulb_outline_rounded, size: 18),
+        text: 'Suggestions ($pendingSuggestionsCount)',
       ),
       const Tab(
         icon: Icon(Icons.public_rounded, size: 18),
@@ -739,6 +815,7 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
                 children: [
                   _buildOverviewTab(),
                   _buildCatalogTab(catalogItems),
+                  _buildSuggestionsTab(),
                   _buildAffiliatePlatformsDirectoryTab(),
                   if (canSettingsAndRoles) _buildSettingsTab(),
                   if (canVendors) _buildApplicationsTab(),
@@ -1358,6 +1435,52 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
           ],
         ),
         const SizedBox(height: 14),
+        if (_suggestions.any((s) => s.isPending))
+          Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: PipeBuyerColors.orange.withValues(alpha: .40),
+              ),
+            ),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.lightbulb_rounded,
+                      color: PipeBuyerColors.orange,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        '${_suggestions.where((s) => s.isPending).length} shopper product suggestion(s) waiting for review — add requested gear with 1 click.',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: PipeBuyerColors.ink,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () => _tabController.animateTo(2),
+                  icon: const Icon(Icons.rate_review_outlined, size: 16),
+                  label: const Text('Review Suggestions'),
+                ),
+              ],
+            ),
+          ),
         _buildDemoStarterNoticeBanner(),
         const SizedBox(height: 6),
         const Text(
@@ -2735,6 +2858,269 @@ class _PipeBuyerShopAdminPageState extends State<PipeBuyerShopAdminPage>
       ],
     );
   }
+
+  Widget _buildSuggestionsTab() {
+    final pendingCount = _suggestions.where((s) => s.isPending).length;
+    final addedCount = _suggestions.where((s) => s.status == 'added').length;
+    final dismissedCount =
+        _suggestions.where((s) => s.status == 'dismissed').length;
+
+    final filtered = _suggestions.where((s) {
+      if (_suggestionStatusFilter == 'pending') return s.isPending;
+      if (_suggestionStatusFilter == 'added') return s.status == 'added';
+      if (_suggestionStatusFilter == 'dismissed') {
+        return s.status == 'dismissed';
+      }
+      return true;
+    }).toList(growable: false);
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.lightbulb_outline_rounded,
+                          color: PipeBuyerColors.orange,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Shopper Product Suggestions',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _reloadDashboard,
+                      icon: const Icon(Icons.refresh_rounded, size: 17),
+                      label: const Text('Refresh'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Public visitors who click "Know a helpful product not listed? Let us know!" on the Storefront submit item requests here. Click "Find & Add to Store" to auto-search Amazon SKUs or parse their link with your Associate tag.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: PipeBuyerColors.muted,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: Text('All (${_suggestions.length})'),
+                      selected: _suggestionStatusFilter == 'all',
+                      onSelected: (_) =>
+                          setState(() => _suggestionStatusFilter = 'all'),
+                    ),
+                    ChoiceChip(
+                      label: Text('Pending ($pendingCount)'),
+                      selected: _suggestionStatusFilter == 'pending',
+                      onSelected: (_) =>
+                          setState(() => _suggestionStatusFilter = 'pending'),
+                    ),
+                    ChoiceChip(
+                      label: Text('Added ($addedCount)'),
+                      selected: _suggestionStatusFilter == 'added',
+                      onSelected: (_) =>
+                          setState(() => _suggestionStatusFilter = 'added'),
+                    ),
+                    ChoiceChip(
+                      label: Text('Dismissed ($dismissedCount)'),
+                      selected: _suggestionStatusFilter == 'dismissed',
+                      onSelected: (_) =>
+                          setState(() => _suggestionStatusFilter = 'dismissed'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (filtered.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(28),
+              child: Center(
+                child: Text(
+                  'No shopper product suggestions in this view yet.',
+                  style: TextStyle(color: PipeBuyerColors.muted),
+                ),
+              ),
+            ),
+          )
+        else
+          ...filtered.map((s) {
+            final cat = PipeBuyerShopTaxonomy.categoryByCode(s.categoryCode);
+            final statusColor = switch (s.status) {
+              'added' => PipeBuyerColors.success,
+              'dismissed' => PipeBuyerColors.muted,
+              _ => PipeBuyerColors.orange,
+            };
+            final statusLabel = switch (s.status) {
+              'added' => 'ADDED TO STORE',
+              'dismissed' => 'DISMISSED',
+              _ => 'PENDING REVIEW',
+            };
+            return Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: .12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            statusLabel,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                        if (cat != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: PipeBuyerColors.surfaceMuted,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              cat.shortLabel,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        if (s.submitterName.isNotEmpty ||
+                            s.contactEmail.isNotEmpty)
+                          Text(
+                            'Suggested by ${s.submitterName.isNotEmpty ? s.submitterName : s.contactEmail}${s.submitterName.isNotEmpty && s.contactEmail.isNotEmpty ? " (${s.contactEmail})" : ""}',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: PipeBuyerColors.muted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      s.productName,
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (s.notes.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        s.notes,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: PipeBuyerColors.slate,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                    if (s.productUrl.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: PipeBuyerShopUrlBuilder.isSafeHttpsUrl(
+                          s.productUrl,
+                        )
+                            ? () => launchUrl(
+                                  Uri.parse(s.productUrl),
+                                  mode: LaunchMode.externalApplication,
+                                )
+                            : null,
+                        child: Text(
+                          s.productUrl,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: PipeBuyerColors.industrialBlue,
+                            decoration: TextDecoration.underline,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          key: Key('suggestion_add_${s.id}'),
+                          onPressed: () => _convertSuggestionToProduct(s),
+                          icon: const Icon(Icons.add_link_rounded, size: 17),
+                          label: const Text('Find & Add to Store'),
+                        ),
+                        if (s.status != 'dismissed')
+                          OutlinedButton.icon(
+                            key: Key('suggestion_dismiss_${s.id}'),
+                            onPressed: () =>
+                                _updateSuggestionStatus(s, 'dismissed'),
+                            icon: const Icon(Icons.close_rounded, size: 16),
+                            label: const Text('Dismiss'),
+                          ),
+                        if (s.status != 'pending')
+                          TextButton(
+                            onPressed: () =>
+                                _updateSuggestionStatus(s, 'pending'),
+                            child: const Text('Reopen'),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
 }
 
 class _RolePermissionSummaryRow extends StatelessWidget {
@@ -3177,6 +3563,10 @@ class PipeBuyerAffiliateLinkEditorDialog extends StatefulWidget {
     this.existing,
     this.initialSourceType,
     this.initialVendorName,
+    this.initialSuggestedTitle,
+    this.initialSuggestedUrl,
+    this.initialCategoryCode,
+    this.initialSuggestionNotes,
   });
 
   final PipeBuyerShopClient client;
@@ -3184,6 +3574,10 @@ class PipeBuyerAffiliateLinkEditorDialog extends StatefulWidget {
   final PipeBuyerShopProduct? existing;
   final PipeBuyerShopSourceType? initialSourceType;
   final String? initialVendorName;
+  final String? initialSuggestedTitle;
+  final String? initialSuggestedUrl;
+  final String? initialCategoryCode;
+  final String? initialSuggestionNotes;
 
   @override
   State<PipeBuyerAffiliateLinkEditorDialog> createState() =>
@@ -3321,28 +3715,43 @@ class _PipeBuyerAffiliateLinkEditorDialogState
         widget.initialVendorName ??
         _defaultVendorForSource(initialSource);
 
+    final suggestedTitle = (widget.initialSuggestedTitle ?? '').trim();
+    final suggestedUrl = (widget.initialSuggestedUrl ?? '').trim();
+    final suggestedNotes = (widget.initialSuggestionNotes ?? '').trim();
+    final validInitialCat = widget.initialCategoryCode != null &&
+            PipeBuyerShopTaxonomy.categoryByCode(widget.initialCategoryCode!) !=
+                null
+        ? widget.initialCategoryCode!
+        : 'power_hand_tools';
+
     _quickPasteController = TextEditingController(
-      text: e?.destinationUrl ?? '',
+      text: e?.destinationUrl ?? suggestedUrl,
     );
     _amazonSearchController = TextEditingController(
       text: (e != null &&
               e.sourceType == PipeBuyerShopSourceType.amazonAffiliate &&
               e.asin.isEmpty)
           ? e.title
-          : '',
+          : (e == null ? suggestedTitle : ''),
     );
-    _titleController = TextEditingController(text: e?.title ?? '');
+    _titleController = TextEditingController(
+      text: e?.title ?? suggestedTitle,
+    );
     _brandController = TextEditingController(text: e?.brand ?? '');
     _vendorController = TextEditingController(text: initialVendor);
     _asinController = TextEditingController(text: e?.asin ?? '');
-    _urlController = TextEditingController(text: e?.destinationUrl ?? '');
+    _urlController = TextEditingController(
+      text: e?.destinationUrl ?? suggestedUrl,
+    );
     _imageUrlController = TextEditingController(text: e?.imageUrl ?? '');
     _priceController = TextEditingController(text: e?.priceDisplay ?? '');
     _badgeController = TextEditingController(text: e?.badgeText ?? '');
-    _descriptionController = TextEditingController(text: e?.description ?? '');
+    _descriptionController = TextEditingController(
+      text: e?.description ?? suggestedNotes,
+    );
     _highlightsController =
         TextEditingController(text: e?.highlights.join('\n') ?? '');
-    _categoryCode = e?.categoryCode ?? 'power_hand_tools';
+    _categoryCode = e?.categoryCode ?? validInitialCat;
     _subcategory = (e?.subcategory.trim().isNotEmpty ?? false)
         ? e!.subcategory.trim()
         : _defaultSubcategoryFor(_categoryCode);
@@ -3356,6 +3765,17 @@ class _PipeBuyerAffiliateLinkEditorDialogState
         _urlController.text,
         widget.settings,
       );
+    }
+    if (e == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (suggestedUrl.isNotEmpty) {
+          _applySmartPaste(suggestedUrl);
+        } else if (suggestedTitle.length >= 2 &&
+            _sourceType == PipeBuyerShopSourceType.amazonAffiliate) {
+          _runAmazonProductSearch(suggestedTitle);
+        }
+      });
     }
   }
 

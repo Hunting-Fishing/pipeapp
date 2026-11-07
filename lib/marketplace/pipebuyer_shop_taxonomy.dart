@@ -350,6 +350,13 @@ class PipeBuyerShopProduct {
       ? fallbackIconAsset.trim()
       : category.iconAsset;
 
+  double? get numericPrice {
+    final cleaned = priceDisplay.replaceAll(',', '');
+    final match = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(cleaned);
+    if (match == null) return null;
+    return double.tryParse(match.group(1)!);
+  }
+
   factory PipeBuyerShopProduct.fromJson(Map<String, dynamic> json) {
     List<String> strList(Object? raw) {
       if (raw is String && raw.trim().isNotEmpty) {
@@ -1902,6 +1909,74 @@ class PipeBuyerParsedAffiliateSubmission {
       monetizedPreviewCa: json['monetizedPreviewCa']?.toString().trim() ?? '',
       searchCandidates: candidates,
       complianceWarnings: warnings,
+    );
+  }
+}
+
+class PipeBuyerProductSuggestion {
+  const PipeBuyerProductSuggestion({
+    required this.id,
+    required this.productName,
+    this.productUrl = '',
+    this.categoryCode = 'power_hand_tools',
+    this.notes = '',
+    this.submitterName = '',
+    this.contactEmail = '',
+    this.submitterUid,
+    this.status = 'pending',
+    this.createdAtIso = '',
+  });
+
+  final String id;
+  final String productName;
+  final String productUrl;
+  final String categoryCode;
+  final String notes;
+  final String submitterName;
+  final String contactEmail;
+  final String? submitterUid;
+  final String status;
+  final String createdAtIso;
+
+  bool get isPending => status == 'pending';
+
+  PipeBuyerShopCategory get category =>
+      PipeBuyerShopTaxonomy.categoryByCode(categoryCode) ??
+      PipeBuyerShopTaxonomy.categories.first;
+
+  factory PipeBuyerProductSuggestion.fromJson(
+    String id,
+    Map<String, dynamic> json,
+  ) {
+    final rawCreated = json['createdAt'];
+    var iso = '';
+    if (rawCreated != null) {
+      try {
+        // Supports Firestore Timestamp or ISO string
+        // ignore: avoid_dynamic_calls
+        final dynamic dyn = rawCreated;
+        if (dyn is String) {
+          iso = dyn;
+        } else {
+          // ignore: avoid_dynamic_calls
+          iso = (dyn.toDate() as DateTime).toIso8601String();
+        }
+      } catch (_) {
+        iso = rawCreated.toString();
+      }
+    }
+    return PipeBuyerProductSuggestion(
+      id: id,
+      productName: json['productName']?.toString().trim() ?? '',
+      productUrl: json['productUrl']?.toString().trim() ?? '',
+      categoryCode:
+          json['categoryCode']?.toString().trim() ?? 'power_hand_tools',
+      notes: json['notes']?.toString().trim() ?? '',
+      submitterName: json['submitterName']?.toString().trim() ?? '',
+      contactEmail: json['contactEmail']?.toString().trim() ?? '',
+      submitterUid: json['submitterUid']?.toString(),
+      status: json['status']?.toString().trim().toLowerCase() ?? 'pending',
+      createdAtIso: iso,
     );
   }
 }
@@ -3559,8 +3634,8 @@ abstract final class PipeBuyerShopTaxonomy {
     PipeBuyerShopProduct(
       id: 'ultrasonic-pipe-wall-thickness-gauge',
       title:
-          'Industrial-882 Digital Ultrasonic Pipe & Steel Wall Thickness Gauge (0.039"–8.858")',
-      brand: 'Industrial-882',
+          'WT100A Digital Ultrasonic Pipe & Steel Wall Thickness Gauge (0.039"–8.858")',
+      brand: 'GOYOJO NDT',
       vendorName: 'Amazon',
       sourceType: PipeBuyerShopSourceType.amazonAffiliate,
       categoryCode: 'measuring_inspection',

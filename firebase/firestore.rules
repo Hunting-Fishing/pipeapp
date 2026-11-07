@@ -1017,6 +1017,65 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    function isShopStaffMember() {
+      return isAdmin() || (
+        signedIn() &&
+        verifiedEmail() &&
+        !('restricted' in request.auth.token && request.auth.token.restricted == true) &&
+        exists(/databases/$(database)/documents/shop_staff/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/shop_staff/$(request.auth.uid)).data.active == true
+      );
+    }
+
+    function validShopProductSuggestionCreate() {
+      return request.resource.data.keys().hasOnly([
+          'productName',
+          'productUrl',
+          'categoryCode',
+          'notes',
+          'submitterName',
+          'contactEmail',
+          'submitterUid',
+          'status',
+          'createdAt'
+        ]) &&
+        request.resource.data.productName is string &&
+        request.resource.data.productName.size() >= 3 &&
+        request.resource.data.productName.size() <= 160 &&
+        request.resource.data.productUrl is string &&
+        request.resource.data.productUrl.size() <= 500 &&
+        (request.resource.data.productUrl == '' ||
+          request.resource.data.productUrl.matches('^https://.*')) &&
+        request.resource.data.categoryCode is string &&
+        request.resource.data.categoryCode.size() <= 64 &&
+        request.resource.data.notes is string &&
+        request.resource.data.notes.size() <= 600 &&
+        request.resource.data.submitterName is string &&
+        request.resource.data.submitterName.size() <= 120 &&
+        request.resource.data.contactEmail is string &&
+        request.resource.data.contactEmail.size() <= 254 &&
+        (
+          (!signedIn() && request.resource.data.submitterUid == null) ||
+          (signedIn() && request.resource.data.submitterUid == request.auth.uid)
+        ) &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.createdAt is timestamp;
+    }
+
+    match /shop_product_suggestions/{suggestionId} {
+      allow create: if validShopProductSuggestionCreate();
+      allow read: if isShopStaffMember();
+      allow update: if isShopStaffMember() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'reviewNotes',
+          'reviewedByUid',
+          'reviewedAt'
+        ]) &&
+        request.resource.data.status in ['pending', 'added', 'dismissed'];
+      allow delete: if isShopStaffMember();
+    }
+
     match /user_permissions/{targetUid} {
       allow read: if owns(targetUid) || isAdmin();
       allow write: if false;

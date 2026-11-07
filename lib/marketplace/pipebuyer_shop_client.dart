@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -901,5 +902,103 @@ class PipeBuyerShopClient {
         if (allowedPlatforms != null) 'allowedPlatforms': allowedPlatforms,
       },
     );
+  }
+
+  String get currentUserDisplayName =>
+      _resolvedAuth?.currentUser?.displayName?.trim() ?? '';
+
+  String get currentUserEmail =>
+      _resolvedAuth?.currentUser?.email?.trim() ?? '';
+
+  Future<String> submitProductSuggestion({
+    required String productName,
+    String productUrl = '',
+    String categoryCode = 'power_hand_tools',
+    String notes = '',
+    String submitterName = '',
+    String contactEmail = '',
+  }) async {
+    final trimmedName = productName.trim();
+    if (trimmedName.length < 3) {
+      throw StateError('Please enter at least 3 characters for the item name.');
+    }
+    var trimmedUrl = productUrl.trim();
+    if (trimmedUrl.isNotEmpty) {
+      if (!trimmedUrl.startsWith('http://') &&
+          !trimmedUrl.startsWith('https://')) {
+        trimmedUrl = 'https://$trimmedUrl';
+      } else if (trimmedUrl.startsWith('http://')) {
+        trimmedUrl = 'https://${trimmedUrl.substring(7)}';
+      }
+      if (!PipeBuyerShopUrlBuilder.isSafeHttpsUrl(trimmedUrl)) {
+        throw StateError(
+            'Please enter a valid https:// product link or leave it blank.');
+      }
+    }
+    if (!_firebaseReady) {
+      return 'local_suggestion_${DateTime.now().millisecondsSinceEpoch}';
+    }
+    final uid = _resolvedAuth?.currentUser?.uid;
+    final ref =
+        FirebaseFirestore.instance.collection('shop_product_suggestions').doc();
+    await ref.set(<String, Object?>{
+      'productName': trimmedName.length > 160
+          ? trimmedName.substring(0, 160)
+          : trimmedName,
+      'productUrl':
+          trimmedUrl.length > 500 ? trimmedUrl.substring(0, 500) : trimmedUrl,
+      'categoryCode': categoryCode.trim().isEmpty
+          ? 'power_hand_tools'
+          : categoryCode.trim(),
+      'notes': notes.trim().length > 600
+          ? notes.trim().substring(0, 600)
+          : notes.trim(),
+      'submitterName': submitterName.trim().length > 120
+          ? submitterName.trim().substring(0, 120)
+          : submitterName.trim(),
+      'contactEmail': contactEmail.trim().length > 254
+          ? contactEmail.trim().substring(0, 254)
+          : contactEmail.trim(),
+      'submitterUid': uid,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  Future<List<PipeBuyerProductSuggestion>> listProductSuggestions() async {
+    if (!_firebaseReady) return const <PipeBuyerProductSuggestion>[];
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('shop_product_suggestions')
+          .orderBy('createdAt', descending: true)
+          .limit(100)
+          .get();
+      return snap.docs
+          .map(
+            (doc) => PipeBuyerProductSuggestion.fromJson(doc.id, doc.data()),
+          )
+          .toList(growable: false);
+    } catch (_) {
+      return const <PipeBuyerProductSuggestion>[];
+    }
+  }
+
+  Future<void> updateProductSuggestionStatus({
+    required String suggestionId,
+    required String status,
+    String reviewNotes = '',
+  }) async {
+    if (!_firebaseReady) return;
+    final uid = _resolvedAuth?.currentUser?.uid;
+    await FirebaseFirestore.instance
+        .collection('shop_product_suggestions')
+        .doc(suggestionId)
+        .update(<String, Object?>{
+      'status': status.trim().toLowerCase(),
+      'reviewNotes': reviewNotes.trim(),
+      if (uid != null) 'reviewedByUid': uid,
+      'reviewedAt': FieldValue.serverTimestamp(),
+    });
   }
 }

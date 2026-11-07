@@ -1618,3 +1618,92 @@ test("Partner With Us and Commercial Insurance collections enforce public read p
   await assertSucceeds(getDoc(doc(adminDb, "insurance_rate_applications", "rapp-1")));
   await assertFails(setDoc(doc(buyerDb, "insurance_rate_applications", "forged"), {submitterUid: "buyer"}));
 });
+
+test("shop_product_suggestions allows public & signed-in item suggestions while restricting read/review to Store Staff & Admins", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, "shop_staff", "joan"), {
+      uid: "joan",
+      email: "joan@example.com",
+      role: "store_manager",
+      active: true,
+    });
+  });
+
+  const publicDb = testEnvironment.unauthenticatedContext().firestore();
+  const shopperDb = testEnvironment.authenticatedContext("shopper").firestore();
+  const joanDb = testEnvironment
+      .authenticatedContext("joan", {email_verified: true})
+      .firestore();
+  const adminDb = testEnvironment
+      .authenticatedContext("admin", administratorClaims)
+      .firestore();
+
+  const now = Timestamp.fromDate(new Date("2026-11-07T10:00:00.000Z"));
+
+  // Unauthenticated visitor can suggest a helpful product
+  await assertSucceeds(setDoc(doc(publicDb, "shop_product_suggestions", "sug-guest-1"), {
+    productName: "Klein Tools 935DAG Digital Angle Gauge",
+    productUrl: "https://www.amazon.com/dp/B07ZWW3BW5",
+    categoryCode: "measuring_inspection",
+    notes: "Essential magnetic bevel box for pipefitters",
+    submitterName: "Field Welder",
+    contactEmail: "",
+    submitterUid: null,
+    status: "pending",
+    createdAt: now,
+  }));
+
+  // Signed-in user can suggest a helpful product with matching uid
+  await assertSucceeds(setDoc(doc(shopperDb, "shop_product_suggestions", "sug-user-1"), {
+    productName: "Makita 18V Brushless Cordless Angle Grinder",
+    productUrl: "https://shopee.ph/Makita-Grinder",
+    categoryCode: "power_hand_tools",
+    notes: "Great cordless grinder",
+    submitterName: "Alex",
+    contactEmail: "alex@example.com",
+    submitterUid: "shopper",
+    status: "pending",
+    createdAt: now,
+  }));
+
+  // Forged status, non-HTTPS URL, or spoofed submitterUid are rejected
+  await assertFails(setDoc(doc(publicDb, "shop_product_suggestions", "sug-bad-1"), {
+    productName: "Klein Tools 935DAG",
+    productUrl: "javascript:alert(1)",
+    categoryCode: "measuring_inspection",
+    notes: "",
+    submitterName: "",
+    contactEmail: "",
+    submitterUid: null,
+    status: "pending",
+    createdAt: now,
+  }));
+  await assertFails(setDoc(doc(shopperDb, "shop_product_suggestions", "sug-bad-2"), {
+    productName: "Klein Tools 935DAG",
+    productUrl: "",
+    categoryCode: "measuring_inspection",
+    notes: "",
+    submitterName: "",
+    contactEmail: "",
+    submitterUid: "other-user",
+    status: "pending",
+    createdAt: now,
+  }));
+
+  // General public and ordinary shoppers cannot read or update suggestions
+  await assertFails(getDoc(doc(publicDb, "shop_product_suggestions", "sug-guest-1")));
+  await assertFails(getDoc(doc(shopperDb, "shop_product_suggestions", "sug-guest-1")));
+  await assertFails(updateDoc(doc(shopperDb, "shop_product_suggestions", "sug-guest-1"), {
+    status: "added",
+  }));
+
+  // Active Store Staff (Joan) and Administrators can read and mark suggestions added/dismissed
+  await assertSucceeds(getDoc(doc(joanDb, "shop_product_suggestions", "sug-guest-1")));
+  await assertSucceeds(getDoc(doc(adminDb, "shop_product_suggestions", "sug-user-1")));
+  await assertSucceeds(updateDoc(doc(joanDb, "shop_product_suggestions", "sug-guest-1"), {
+    status: "added",
+    reviewedByUid: "joan",
+    reviewedAt: now,
+  }));
+});
