@@ -187,7 +187,7 @@ class _PipeBuyerHomeShopShowcaseState extends State<PipeBuyerHomeShopShowcase> {
             builder: (context, constraints) {
               final cols = constraints.maxWidth >= 980
                   ? 4
-                  : constraints.maxWidth >= 560
+                  : constraints.maxWidth >= 340
                       ? 2
                       : 1;
               const gap = 10.0;
