@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_dispatch_request_service_page.dart';
+import 'marketplace_navigation.dart';
 import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_country_flag_icon.dart';
 import 'pipebuyer_list_services_page.dart';
@@ -525,6 +526,9 @@ class _PipeBuyerYellowPagesDirectoryPageState
             icon: const Icon(Icons.refresh),
           ),
         ],
+        bottom: const PipeBuyerGlobalHubBar(
+          currentHub: PipeBuyerGlobalHub.servicesDirectory,
+        ),
       ),
       body: Align(
         alignment: Alignment.topCenter,

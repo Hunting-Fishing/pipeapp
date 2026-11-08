@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_scoped_staff_dashboard.dart';
 import 'pipebuyer_contact_center_dashboard.dart';
 import 'pipebuyer_insurance_admin_page.dart';
@@ -20,6 +21,17 @@ class MarketplaceDestinationRequest {
   final int pageIndex;
 }
 
+enum PipeBuyerGlobalHub {
+  home,
+  browse,
+  sell,
+  servicesDirectory,
+  listServices,
+  insurance,
+  partnerWithUs,
+  dispatch,
+}
+
 /// Coordinates top-level marketplace navigation from pages pushed above the
 /// tab scaffold and from simple Home intent actions.
 class MarketplaceNavigation {
@@ -32,6 +44,8 @@ class MarketplaceNavigation {
   static final ValueNotifier<int?> accountSubTabRequests = ValueNotifier<int?>(
     null,
   );
+  static final ValueNotifier<String?> browseSearchRequests =
+      ValueNotifier<String?>(null);
 
   static void goHome(BuildContext context) {
     homeRequests.value++;
@@ -55,6 +69,11 @@ class MarketplaceNavigation {
       goToAccount(context, subTabIndex: 2);
 
   static void goToBrowse(BuildContext context) => goToDestination(context, 1);
+
+  static void goToBrowseWithSearch(BuildContext context, String query) {
+    browseSearchRequests.value = query.trim();
+    goToDestination(context, 1);
+  }
 
   static void goToSell(BuildContext context) => goToDestination(context, 2);
 
@@ -222,6 +241,173 @@ class MarketplaceNavigation {
       MaterialPageRoute<void>(
         builder: (_) => MarketplaceScopedStaffDashboard(
           initialShopTabIndex: initialShopTabIndex,
+        ),
+      ),
+    );
+  }
+}
+
+/// Persistent cross-hub navigation strip displayed in the AppBar of secondary
+/// hubs (Services Directory, List Services, Commercial Insurance, Partner With Us)
+/// so users always retain one-click access to every core Pipe Buyer surface.
+class PipeBuyerGlobalHubBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const PipeBuyerGlobalHubBar({
+    super.key,
+    required this.currentHub,
+  });
+
+  final PipeBuyerGlobalHub currentHub;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(42);
+
+  @override
+  Widget build(BuildContext context) {
+    const items = <({
+      PipeBuyerGlobalHub hub,
+      String label,
+      IconData icon,
+    })>[
+      (
+        hub: PipeBuyerGlobalHub.home,
+        label: 'Home',
+        icon: Icons.home_outlined,
+      ),
+      (
+        hub: PipeBuyerGlobalHub.browse,
+        label: 'Browse Inventory',
+        icon: Icons.storefront_outlined,
+      ),
+      (
+        hub: PipeBuyerGlobalHub.sell,
+        label: 'Sell / RFQ',
+        icon: Icons.add_box_outlined,
+      ),
+      (
+        hub: PipeBuyerGlobalHub.servicesDirectory,
+        label: 'Services Directory',
+        icon: Icons.manage_search_rounded,
+      ),
+      (
+        hub: PipeBuyerGlobalHub.listServices,
+        label: 'List Services',
+        icon: Icons.workspace_premium_outlined,
+      ),
+      (
+        hub: PipeBuyerGlobalHub.insurance,
+        label: 'Commercial Insurance',
+        icon: Icons.shield_outlined,
+      ),
+      (
+        hub: PipeBuyerGlobalHub.partnerWithUs,
+        label: 'Partner With Us',
+        icon: Icons.handshake_outlined,
+      ),
+      (
+        hub: PipeBuyerGlobalHub.dispatch,
+        label: 'Dispatch',
+        icon: Icons.local_shipping_outlined,
+      ),
+    ];
+
+    return Container(
+      height: 42,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        child: Row(
+          children: [
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0) const SizedBox(width: 6),
+              _GlobalHubPill(
+                label: items[i].label,
+                icon: items[i].icon,
+                selected: items[i].hub == currentHub,
+                onTap: () => _handleHubTap(context, items[i].hub),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleHubTap(BuildContext context, PipeBuyerGlobalHub target) {
+    if (target == currentHub) return;
+    switch (target) {
+      case PipeBuyerGlobalHub.home:
+        MarketplaceNavigation.goHome(context);
+      case PipeBuyerGlobalHub.browse:
+        MarketplaceNavigation.goToBrowse(context);
+      case PipeBuyerGlobalHub.sell:
+        MarketplaceNavigation.goToSell(context);
+      case PipeBuyerGlobalHub.dispatch:
+        MarketplaceNavigation.goToDispatch(context);
+      case PipeBuyerGlobalHub.servicesDirectory:
+        MarketplaceNavigation.openSearchServices(context);
+      case PipeBuyerGlobalHub.listServices:
+        MarketplaceNavigation.openListServices(context);
+      case PipeBuyerGlobalHub.insurance:
+        MarketplaceNavigation.openInsuranceHub(context);
+      case PipeBuyerGlobalHub.partnerWithUs:
+        MarketplaceNavigation.openPartnerWithUs(context);
+    }
+  }
+}
+
+class _GlobalHubPill extends StatelessWidget {
+  const _GlobalHubPill({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected
+          ? PipeBuyerColors.orange
+          : Colors.white.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: selected ? Colors.white : const Color(0xFFCBD5E1),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : const Color(0xFFE2E8F0),
+                  fontSize: 11.5,
+                  fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

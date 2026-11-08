@@ -1113,6 +1113,15 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
     _openCreate(wanted: true);
   }
 
+  void _handleBrowseSearchRequest() {
+    final query = MarketplaceNavigation.browseSearchRequests.value;
+    if (!mounted || query == null || !_features.marketplace) return;
+    setState(() {
+      _search = query;
+      _tab = 1;
+    });
+  }
+
   void _selectTab(int index) {
     setState(() => _tab = index);
     if (Navigator.of(context).canPop()) Navigator.of(context).pop();
@@ -1159,6 +1168,8 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
     MarketplaceNavigation.destinationRequests
         .addListener(_handleDestinationRequest);
     MarketplaceNavigation.wantedRequests.addListener(_handleWantedRequest);
+    MarketplaceNavigation.browseSearchRequests
+        .addListener(_handleBrowseSearchRequest);
     _authSubscription =
         FirebaseAuth.instance.authStateChanges().listen(_handleAuthChanged);
     _featureSubscription = _featureRepository.watch().listen(
@@ -1183,6 +1194,8 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
     MarketplaceNavigation.destinationRequests
         .removeListener(_handleDestinationRequest);
     MarketplaceNavigation.wantedRequests.removeListener(_handleWantedRequest);
+    MarketplaceNavigation.browseSearchRequests
+        .removeListener(_handleBrowseSearchRequest);
     _authSubscription?.cancel();
     _savedSubscription?.cancel();
     _featureSubscription?.cancel();
@@ -1975,7 +1988,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
   }
 
   Future<void> _reconcileAccountVerification(User initialUser) async {
-    if (_reconcilingVerification) return;
+    if (_reconcilingVerification || _authRouteOpen) return;
     _reconcilingVerification = true;
     try {
       var current = FirebaseAuth.instance.currentUser;
@@ -2000,6 +2013,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
           .collection('users')
           .doc(current.uid)
           .get();
+      if (!snapshot.exists) return;
       final data = snapshot.data() ?? const <String, dynamic>{};
       final serverEmailVerified = data['emailOwnershipVerified'] == true;
       final serverPhoneVerified = data['phoneOwnershipVerified'] == true;
@@ -2350,6 +2364,7 @@ class _HomePage extends StatelessWidget {
                 _FeaturedListings(
                   regulatedListingsEnabled: features.regulatedListings,
                   onBrowse: onBrowse,
+                  onList: onList,
                   saved: saved,
                   onSaved: onSaved,
                 ),
@@ -3027,12 +3042,14 @@ class _FeaturedListings extends StatelessWidget {
   const _FeaturedListings({
     required this.regulatedListingsEnabled,
     required this.onBrowse,
+    required this.onList,
     required this.saved,
     required this.onSaved,
   });
 
   final bool regulatedListingsEnabled;
   final VoidCallback onBrowse;
+  final VoidCallback onList;
   final Set<String> saved;
   final ValueChanged<MarketplaceListing> onSaved;
 
@@ -3075,11 +3092,9 @@ class _FeaturedListings extends StatelessWidget {
               .take(4)
               .toList(growable: false);
           if (live.isEmpty) {
-            return _HomeFeedNotice(
-              icon: LucideIcons.packageSearch,
-              message: 'No active listings yet.',
-              action: 'Browse marketplace',
-              onAction: onBrowse,
+            return _HomeFoundingInventoryShowcase(
+              onBrowse: onBrowse,
+              onList: onList,
             );
           }
           return LayoutBuilder(
@@ -3141,6 +3156,162 @@ class _HomeFeedNotice extends StatelessWidget {
       );
 }
 
+class _HomeFoundingInventoryShowcase extends StatelessWidget {
+  const _HomeFoundingInventoryShowcase({
+    required this.onBrowse,
+    required this.onList,
+  });
+
+  final VoidCallback onBrowse;
+  final VoidCallback onList;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('home_founding_inventory_card'),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFDCE5EF)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: PipeBuyerColors.orangeSoft,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: PipeBuyerColors.orange.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      LucideIcons.packagePlus,
+                      size: 13,
+                      color: PipeBuyerColors.orangePressed,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'FOUNDING SELLER ONBOARDING',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.6,
+                        color: PipeBuyerColors.orangePressed,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      LucideIcons.building2,
+                      size: 13,
+                      color: Color(0xFF1D4ED8),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      '63,000+ LIVE DIRECTORY COMPANIES',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.6,
+                        color: Color(0xFF1D4ED8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No active listings yet.',
+            style: TextStyle(
+              fontSize: 16.5,
+              fontWeight: FontWeight.w900,
+              color: PipeBuyerColors.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Publish founding pipe, tubulars, or heavy equipment inventory to reach buyers across North America, post a Wanted / RFQ request, or search 63,000+ verified oilfield service providers right now.',
+            style: TextStyle(
+              color: PipeBuyerColors.slate,
+              fontSize: 12.5,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: onList,
+                style: FilledButton.styleFrom(
+                  backgroundColor: PipeBuyerColors.orange,
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(LucideIcons.packagePlus, size: 16),
+                label: const Text('Publish inventory'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => MarketplaceNavigation.goToWanted(context),
+                icon: const Icon(LucideIcons.megaphone, size: 16),
+                label: const Text('Post Wanted / RFQ'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () =>
+                    MarketplaceNavigation.openSearchServices(context),
+                icon: const Icon(LucideIcons.building2, size: 16),
+                label: const Text('Search 63,000+ Directory'),
+              ),
+              TextButton(
+                onPressed: onBrowse,
+                child: const Text('Browse marketplace'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BrowsePage extends StatefulWidget {
   const _BrowsePage(
       {required this.features,
@@ -3176,16 +3347,26 @@ class _BrowsePageState extends State<_BrowsePage> {
   int _queryGeneration = 0;
   Timer? _searchDebounce;
   int _gridColumns = 4;
+  bool _specTableMode = false;
+  late final TextEditingController _searchController;
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController(text: widget.search);
     _loadPage(reset: true);
   }
 
   @override
   void didUpdateWidget(covariant _BrowsePage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.search != widget.search &&
+        _searchController.text != widget.search) {
+      _searchController.value = TextEditingValue(
+        text: widget.search,
+        selection: TextSelection.collapsed(offset: widget.search.length),
+      );
+    }
     if (oldWidget.category != widget.category) {
       final allowedConditions = marketplaceConditionsFor(widget.category, null);
       if (_filters.condition != null &&
@@ -3209,6 +3390,7 @@ class _BrowsePageState extends State<_BrowsePage> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -3320,9 +3502,20 @@ class _BrowsePageState extends State<_BrowsePage> {
                 style: TextStyle(color: _muted, fontSize: 12)),
             const SizedBox(height: 12),
             TextField(
+                controller: _searchController,
                 onChanged: widget.onSearch,
-                decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search),
+                decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: widget.search.trim().isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Clear search',
+                            onPressed: () {
+                              _searchController.clear();
+                              widget.onSearch('');
+                            },
+                            icon: const Icon(Icons.close_rounded, size: 18),
+                          ),
                     hintText: 'Search all live listings…',
                     helperText:
                         'Indexed keyword search covers live Marketplace inventory.')),
@@ -3338,6 +3531,12 @@ class _BrowsePageState extends State<_BrowsePage> {
                       icon: const Icon(Icons.grid_view_rounded, size: 18),
                       label: Text(widget.category ?? 'All categories'))),
               const SizedBox(width: 8),
+              IconButton.filledTonal(
+                  key: const Key('browse_save_search_alert_btn'),
+                  tooltip: 'Save search alert & manage keyword alerts',
+                  onPressed: _openSavedSearchAlertsModal,
+                  icon: const Icon(Icons.notifications_active_outlined)),
+              const SizedBox(width: 6),
               IconButton.filledTonal(
                   tooltip: 'Listing color key',
                   onPressed: () => showMarketplaceListingLegend(context),
@@ -3358,24 +3557,74 @@ class _BrowsePageState extends State<_BrowsePage> {
                       child: const Icon(Icons.tune_rounded))),
             ]),
             const SizedBox(height: 9),
-            Row(children: [
-              Text('${results.length} shown • ${_documents.length} loaded',
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w700)),
-              const Spacer(),
-              MarketplaceGridDensityBar(
-                selectedColumns: _gridColumns,
-                onChanged: (cols) => setState(() => _gridColumns = cols),
-              ),
-              if (widget.category != null) ...[
-                const SizedBox(width: 6),
-                ActionChip(
-                    avatar: const Icon(Icons.close, size: 15),
-                    label: Text(widget.category!,
-                        style: const TextStyle(fontSize: 11)),
-                    onPressed: () => widget.onCategory(null))
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text('${results.length} shown • ${_documents.length} loaded',
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    OutlinedButton.icon(
+                      key: const Key('browse_spec_table_toggle'),
+                      onPressed: () =>
+                          setState(() => _specTableMode = !_specTableMode),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        backgroundColor: _specTableMode
+                            ? PipeBuyerColors.orangeSoft
+                            : Colors.white,
+                        foregroundColor: _specTableMode
+                            ? PipeBuyerColors.orangePressed
+                            : PipeBuyerColors.ink,
+                        side: BorderSide(
+                          color: _specTableMode
+                              ? PipeBuyerColors.orange
+                              : const Color(0xFFD8E0E9),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                      ),
+                      icon: Icon(
+                        _specTableMode
+                            ? Icons.grid_view_rounded
+                            : Icons.table_rows_outlined,
+                        size: 16,
+                      ),
+                      label: Text(
+                        _specTableMode ? 'Grid Cards' : 'Spec Table',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (!_specTableMode) ...[
+                      const SizedBox(width: 6),
+                      MarketplaceGridDensityBar(
+                        selectedColumns: _gridColumns,
+                        onChanged: (cols) =>
+                            setState(() => _gridColumns = cols),
+                      ),
+                    ],
+                    if (widget.category != null) ...[
+                      const SizedBox(width: 6),
+                      ActionChip(
+                          avatar: const Icon(Icons.close, size: 15),
+                          label: Text(widget.category!,
+                              style: const TextStyle(fontSize: 11)),
+                          onPressed: () => widget.onCategory(null))
+                    ],
+                  ],
+                ),
               ],
-            ]),
+            ),
             if (_filters.activeCount > 0) ...[
               const SizedBox(height: 8),
               Wrap(spacing: 6, runSpacing: 6, children: [
@@ -3464,6 +3713,19 @@ class _BrowsePageState extends State<_BrowsePage> {
       );
     }
     final screenWidth = MediaQuery.of(context).size.width;
+    if (_specTableMode) {
+      return RefreshIndicator(
+        onRefresh: () => _loadPage(reset: true),
+        child: _MarketplaceSpecTableView(
+          results: results,
+          saved: widget.saved,
+          onSaved: widget.onSaved,
+          hasMore: _hasMore,
+          loading: _loading,
+          onLoadMore: _loadPage,
+        ),
+      );
+    }
     final effectiveCols =
         MarketplaceGridDensityBar.resolveColumns(screenWidth, _gridColumns);
     if (effectiveCols > 1) {
@@ -3783,6 +4045,579 @@ class _BrowsePageState extends State<_BrowsePage> {
     );
     if (value == '__all__') onCategory(null);
     if (value != null && value != '__all__') onCategory(value);
+  }
+
+  String _currentSearchAlertLabel() {
+    final parts = <String>[];
+    final q = widget.search.trim();
+    if (q.isNotEmpty) parts.add('"$q"');
+    if (widget.category != null && widget.category!.trim().isNotEmpty) {
+      parts.add(widget.category!.trim());
+    }
+    if (_filters.transactionType != null) {
+      parts.add(_filters.transactionType!);
+    }
+    if (_filters.condition != null) {
+      parts.add(_filters.condition!);
+    }
+    if (parts.isEmpty) return 'All live inventory alerts';
+    final joined = parts.join(' • ');
+    return joined.length <= 180 ? joined : joined.substring(0, 180);
+  }
+
+  List<String> _currentSearchAlertKeywords() {
+    final tokens = <String>[];
+    void addTokens(String? raw) {
+      if (raw == null || raw.trim().isEmpty) return;
+      for (final word in raw
+          .toLowerCase()
+          .split(RegExp(r'[^a-z0-9./-]+'))
+          .map((item) => item.trim())
+          .where((item) => item.length >= 2)) {
+        if (!tokens.contains(word) && tokens.length < 10) {
+          tokens.add(word);
+        }
+      }
+    }
+
+    addTokens(widget.search);
+    addTokens(widget.category);
+    addTokens(_filters.condition);
+    addTokens(_filters.transactionType);
+    if (tokens.isEmpty) {
+      tokens.add('pipe');
+    }
+    return tokens;
+  }
+
+  Future<void> _saveCurrentSearchAlert(BuildContext sheetContext) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      PipeFeedback.show(
+        context,
+        message: 'Sign in to save keyword & search alerts.',
+        tone: PipeStatusTone.warning,
+      );
+      return;
+    }
+    final label = _currentSearchAlertLabel();
+    final keywords = _currentSearchAlertKeywords();
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('watch_keywords')
+          .add({
+        'keywords': keywords,
+        'label': label,
+        'enabled': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (!mounted) return;
+      PipeFeedback.show(
+        context,
+        message: 'Search alert saved: $label',
+        tone: PipeStatusTone.success,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      PipeFeedback.show(
+        context,
+        message: 'Could not save search alert right now. Try again.',
+        tone: PipeStatusTone.error,
+      );
+    }
+  }
+
+  Future<void> _openSavedSearchAlertsModal() async {
+    final user = FirebaseAuth.instance.currentUser;
+    await PipeBuyerAdaptiveModal.show<void>(
+      context: context,
+      title: 'Saved Search & Keyword Alerts',
+      subtitle:
+          'Get notified when matching pipe, tubulars, or heavy equipment hits the market',
+      builder: (sheetContext) {
+        final currentLabel = _currentSearchAlertLabel();
+        final currentKeywords = _currentSearchAlertKeywords();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFDCE5EF)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'CURRENT SEARCH FILTER',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.6,
+                      color: PipeBuyerColors.orangePressed,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    currentLabel,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: PipeBuyerColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: currentKeywords
+                        .map(
+                          (kw) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(999),
+                              border:
+                                  Border.all(color: const Color(0xFFCBD5E1)),
+                            ),
+                            child: Text(
+                              kw,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    key: const Key('confirm_save_search_alert_btn'),
+                    onPressed: () => _saveCurrentSearchAlert(sheetContext),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: PipeBuyerColors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(
+                      Icons.notifications_active_outlined,
+                      size: 17,
+                    ),
+                    label: const Text('Save current search alert'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'YOUR SAVED ALERTS',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
+                color: PipeBuyerColors.slate,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (user == null)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'Sign in to view and manage your saved search alerts.',
+                  style: TextStyle(color: _muted, fontSize: 12.5),
+                ),
+              )
+            else
+              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .collection('watch_keywords')
+                    .limit(20)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(
+                        child: SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  }
+                  final docs = snapshot.data!.docs;
+                  if (docs.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'No saved search alerts yet. Save your active search above to receive alerts when matching inventory is published.',
+                        style: TextStyle(color: _muted, fontSize: 12.5),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: docs.map((doc) {
+                      final data = doc.data();
+                      final label = '${data['label'] ?? 'Saved search'}'.trim();
+                      final keywords = (data['keywords'] is List)
+                          ? (data['keywords'] as List)
+                              .map((e) => '$e'.trim())
+                              .where((e) => e.isNotEmpty)
+                              .toList()
+                          : const <String>[];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          dense: true,
+                          leading: const Icon(
+                            Icons.notifications_active_rounded,
+                            color: PipeBuyerColors.orange,
+                            size: 20,
+                          ),
+                          title: Text(
+                            label,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                          ),
+                          subtitle: keywords.isEmpty
+                              ? null
+                              : Text(
+                                  'Keywords: ${keywords.join(', ')}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 11.5),
+                                ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextButton(
+                                onPressed: () {
+                                  final query = keywords.join(' ');
+                                  _searchController.text = query;
+                                  widget.onSearch(query);
+                                  Navigator.of(sheetContext).pop();
+                                },
+                                child: const Text('Apply'),
+                              ),
+                              IconButton(
+                                tooltip: 'Remove alert',
+                                icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 18,
+                                ),
+                                onPressed: () => doc.reference.delete(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _MarketplaceSpecTableView extends StatelessWidget {
+  const _MarketplaceSpecTableView({
+    required this.results,
+    required this.saved,
+    required this.onSaved,
+    required this.hasMore,
+    required this.loading,
+    required this.onLoadMore,
+  });
+
+  final List<MarketplaceListing> results;
+  final Set<String> saved;
+  final ValueChanged<MarketplaceListing> onSaved;
+  final bool hasMore;
+  final bool loading;
+  final VoidCallback onLoadMore;
+
+  void _openListing(BuildContext context, MarketplaceListing item) {
+    if (item.documentId == null) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: _panel,
+        builder: (_) => _ListingDetails(item),
+      );
+    } else {
+      context.push(MarketplaceDeepLinks.listing(item.id));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFDCE5EF)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 920),
+              child: DataTable(
+                headingRowColor: const WidgetStatePropertyAll(
+                  Color(0xFFF1F5F9),
+                ),
+                dataRowMinHeight: 54,
+                dataRowMaxHeight: 68,
+                horizontalMargin: 16,
+                columnSpacing: 20,
+                columns: const [
+                  DataColumn(
+                    label: Text(
+                      'ASSET / TITLE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'CATEGORY & TYPE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'SPECS / CONDITION / QTY',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'LOCATION',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'PRICE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'ACTIONS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+                rows: results.map((item) {
+                  final isSaved = saved.contains(item.id);
+                  final specs = <String>[
+                    item.condition,
+                    if (item.quantity != null) '${item.quantity} pcs/units',
+                    ...item.summaryFacts.take(3),
+                  ].where((s) => s.trim().isNotEmpty).join(' • ');
+                  return DataRow(
+                    cells: [
+                      DataCell(
+                        SizedBox(
+                          width: 240,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                  color: PipeBuyerColors.ink,
+                                ),
+                              ),
+                              Text(
+                                item.sellerName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: _muted,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        onTap: () => _openListing(context, item),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 165,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.category,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              if (item.productType.trim().isNotEmpty)
+                                Text(
+                                  item.productType,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: _muted,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 230,
+                          child: Text(
+                            specs,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        SizedBox(
+                          width: 130,
+                          child: Text(
+                            item.location,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          item.price,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13,
+                            color: PipeBuyerColors.ink,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: isSaved ? 'Remove saved' : 'Save',
+                              onPressed: () => onSaved(item),
+                              icon: Icon(
+                                isSaved
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                                size: 19,
+                                color:
+                                    isSaved ? _orange : const Color(0xFF475569),
+                              ),
+                            ),
+                            OutlinedButton(
+                              onPressed: () => _openListing(context, item),
+                              style: OutlinedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                              ),
+                              child: const Text(
+                                'View / Offer',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
+        if (hasMore)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Center(
+              child: OutlinedButton.icon(
+                onPressed: loading ? null : onLoadMore,
+                icon: const Icon(Icons.expand_more),
+                label: Text(loading ? 'Loading more…' : 'Load more listings'),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 
@@ -5575,7 +6410,220 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
           timedBuyingEnabled: widget.auctionsEnabled,
           wantedEnabled: widget.wantedAdsEnabled,
         ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFDCE5EF)),
+          ),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.table_chart_outlined,
+                    size: 18,
+                    color: PipeBuyerColors.orange,
+                  ),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Have a pipe yard tally sheet or dealer spreadsheet? Paste a CSV / TSV row to pre-fill specs.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: PipeBuyerColors.ink,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              OutlinedButton.icon(
+                key: const Key('create_listing_csv_import_btn'),
+                onPressed: _openCsvQuickImportDialog,
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.upload_file_outlined, size: 16),
+                label: const Text(
+                  'Quick-Import CSV / Yard Row',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+
+  Future<void> _openCsvQuickImportDialog() async {
+    final csvController = TextEditingController();
+    final imported = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Quick-Import Yard Sheet / CSV Row'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 540),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Paste a comma- or tab-separated row from your pipe tally or equipment spreadsheet. Supported column order:',
+                style: TextStyle(fontSize: 12.5, color: _muted),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Title, Category, ProductType, Size/Model, Grade/Brand, Quantity, Price, Condition, Description',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('csv_import_text_input'),
+                controller: csvController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'CSV or Tab-Separated Row',
+                  hintText:
+                      'Enter or paste your inventory row (optional header row is automatically skipped)',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            key: const Key('csv_import_apply_btn'),
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(csvController.text.trim()),
+            icon: const Icon(Icons.check_rounded, size: 17),
+            label: const Text('Apply to Form'),
+          ),
+        ],
+      ),
+    );
+    csvController.dispose();
+    if (imported == null || imported.trim().isEmpty || !mounted) return;
+    _applyCsvRowToForm(imported);
+  }
+
+  void _applyCsvRowToForm(String rawInput) {
+    final lines = rawInput
+        .split(RegExp(r'\r?\n'))
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    if (lines.isEmpty) return;
+    var dataLine = lines.first;
+    if (lines.length > 1 &&
+        dataLine.toLowerCase().contains('title') &&
+        dataLine.toLowerCase().contains('category')) {
+      dataLine = lines[1];
+    }
+    final delimiter = dataLine.contains('\t') ? '\t' : ',';
+    final cols = dataLine.split(delimiter).map((c) => c.trim()).toList();
+    if (cols.isEmpty) return;
+
+    final categories = phase1MarketplaceCategories(
+      regulatedListingsEnabled: widget.regulatedListingsEnabled,
+    );
+
+    setState(() {
+      if (cols.isNotEmpty && cols[0].isNotEmpty) {
+        _title.text = cols[0];
+      }
+      if (cols.length > 1 && cols[1].isNotEmpty) {
+        final matchedCat = categories
+            .where(
+              (c) =>
+                  c.name.toLowerCase() == cols[1].toLowerCase() ||
+                  c.name.toLowerCase().contains(cols[1].toLowerCase()),
+            )
+            .firstOrNull;
+        if (matchedCat != null) {
+          _category = matchedCat.name;
+        }
+      }
+      final activeCat =
+          categories.where((c) => c.name == _category).firstOrNull;
+      if (cols.length > 2 && cols[2].isNotEmpty && activeCat != null) {
+        final matchedType = activeCat.types
+            .where((t) => t.toLowerCase() == cols[2].toLowerCase())
+            .firstOrNull;
+        if (matchedType != null) {
+          _productType = matchedType;
+        } else {
+          _productType = _otherCatalogValue;
+          _customProductType.text = cols[2];
+        }
+      }
+      if (cols.length > 3 && cols[3].isNotEmpty) {
+        if (_isPipeSelection) {
+          if (_pipeSizes.contains(cols[3])) {
+            _pipeSize = cols[3];
+          } else {
+            _pipeSize = _otherCatalogValue;
+            _customPipeSize.text = cols[3];
+          }
+        } else {
+          _model.text = cols[3];
+        }
+      }
+      if (cols.length > 4 && cols[4].isNotEmpty) {
+        if (_isPipeSelection) {
+          _pipeGrade = _otherCatalogValue;
+          _customPipeGrade.text = cols[4];
+        } else {
+          _brand.text = cols[4];
+        }
+      }
+      if (cols.length > 5 && cols[5].isNotEmpty) {
+        _quantity.text = cols[5].replaceAll(RegExp(r'[^0-9]'), '');
+      }
+      if (cols.length > 6 && cols[6].isNotEmpty) {
+        _price.text = cols[6].replaceAll(RegExp(r'[^0-9.]'), '');
+      }
+      if (cols.length > 7 && cols[7].isNotEmpty) {
+        final condOptions = marketplaceConditionsFor(_category, _productType);
+        final matchedCond = condOptions
+            .where((c) => c.toLowerCase().contains(cols[7].toLowerCase()))
+            .firstOrNull;
+        if (matchedCond != null) {
+          _condition = matchedCond;
+        }
+      }
+      if (cols.length > 8 && cols[8].isNotEmpty) {
+        _description.text = cols.sublist(8).join(', ');
+      }
+    });
+    PipeFeedback.show(
+      context,
+      message: 'Imported specifications into listing form.',
+      tone: PipeStatusTone.success,
     );
   }
 

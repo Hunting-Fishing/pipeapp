@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_navigation.dart';
 import 'pipebuyer_business_logo_uploader.dart';
 import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_partner_client.dart';
@@ -274,6 +275,9 @@ class _PipeBuyerPartnerWithUsPageState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Partner With Us'),
+        bottom: const PipeBuyerGlobalHubBar(
+          currentHub: PipeBuyerGlobalHub.partnerWithUs,
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
