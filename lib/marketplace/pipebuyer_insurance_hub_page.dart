@@ -5,6 +5,7 @@ import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_deep_links.dart';
+import 'marketplace_navigation.dart';
 import 'marketplace_public_information.dart';
 import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_insurance_client.dart';
@@ -65,10 +66,10 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
   final _contactNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _regionController = TextEditingController(text: 'TX');
+  final _regionController = TextEditingController();
   final _cityController = TextEditingController();
-  final _fleetCountController = TextEditingController(text: '5');
-  final _equipmentValueController = TextEditingController(text: '750000');
+  final _fleetCountController = TextEditingController();
+  final _equipmentValueController = TextEditingController();
   final _dotOrMcController = TextEditingController();
   final _effectiveDateController = TextEditingController();
   final _claimsSummaryController = TextEditingController();
@@ -76,7 +77,7 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
 
   String _rateCountryCode = 'US';
   String _annualRevenueBand = '2m_10m';
-  final Set<String> _rateOperatingBasins = <String>{'Permian Basin'};
+  final Set<String> _rateOperatingBasins = <String>{};
   final Set<String> _rateCoverageLines = <String>{
     'commercial_auto_fleet',
     'oilfield_general_liability',
@@ -452,6 +453,9 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
               ),
             ),
         ],
+        bottom: const PipeBuyerGlobalHubBar(
+          currentHub: PipeBuyerGlobalHub.insurance,
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
@@ -1297,7 +1301,8 @@ class _PipeBuyerInsuranceHubPageState extends State<PipeBuyerInsuranceHubPage> {
                       ),
                       FilledButton.icon(
                         onPressed: _startMultiCarrierQuote,
-                        icon: const Icon(Icons.request_quote_outlined, size: 18),
+                        icon:
+                            const Icon(Icons.request_quote_outlined, size: 18),
                         label: const Text('Submit Custom Rate Application'),
                       ),
                     ],

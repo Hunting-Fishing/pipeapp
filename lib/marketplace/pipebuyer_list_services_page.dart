@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_auth_page.dart';
+import 'marketplace_navigation.dart';
 import 'marketplace_subscription_billing_policy.dart';
 import 'pipebuyer_business_logo_uploader.dart';
 import 'pipebuyer_business_logo_widgets.dart';
@@ -354,6 +355,9 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
               : 'LIST SERVICES — OILFIELD DIRECTORY',
           style:
               const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5),
+        ),
+        bottom: const PipeBuyerGlobalHubBar(
+          currentHub: PipeBuyerGlobalHub.listServices,
         ),
       ),
       body: Center(

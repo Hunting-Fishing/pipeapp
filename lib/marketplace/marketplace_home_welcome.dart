@@ -738,6 +738,8 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 18),
+                        _MarketplaceHeroSearchBar(isMobile: isMobile),
                       ],
                     ),
                   ),
@@ -747,6 +749,153 @@ class _MarketplaceHomeHeroSurface extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _MarketplaceHeroSearchBar extends StatefulWidget {
+  const _MarketplaceHeroSearchBar({required this.isMobile});
+
+  final bool isMobile;
+
+  @override
+  State<_MarketplaceHeroSearchBar> createState() =>
+      _MarketplaceHeroSearchBarState();
+}
+
+class _MarketplaceHeroSearchBarState extends State<_MarketplaceHeroSearchBar> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _searchInventory() {
+    MarketplaceNavigation.goToBrowseWithSearch(
+      context,
+      _controller.text.trim(),
+    );
+  }
+
+  void _searchDirectory() {
+    MarketplaceNavigation.openSearchServices(
+      context,
+      initialQuery: _controller.text.trim(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(widget.isMobile ? 10 : 12),
+      decoration: BoxDecoration(
+        color: const Color(0xE80D1B2A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.24),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black45,
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            key: const Key('home_hero_search_input'),
+            controller: _controller,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => _searchInventory(),
+            style: const TextStyle(
+              color: Color(0xFF0F172A),
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                size: 20,
+                color: PipeBuyerColors.orange,
+              ),
+              hintText:
+                  'Search pipe (2-7/8, L80, casing), heavy iron, or 63,000+ service companies…',
+              hintStyle: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(11),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              FilledButton.icon(
+                key: const Key('home_hero_search_inventory_btn'),
+                onPressed: _searchInventory,
+                style: FilledButton.styleFrom(
+                  backgroundColor: PipeBuyerColors.orange,
+                  foregroundColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                ),
+                icon: const Icon(Icons.inventory_2_outlined, size: 16),
+                label: const Text(
+                  'Search Inventory',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+              OutlinedButton.icon(
+                key: const Key('home_hero_search_directory_btn'),
+                onPressed: _searchDirectory,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.45),
+                  ),
+                  backgroundColor: Colors.white.withValues(alpha: 0.10),
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.manage_search_rounded,
+                  size: 16,
+                  color: Color(0xFFF59E0B),
+                ),
+                label: const Text(
+                  'Search 63,000+ Directory',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

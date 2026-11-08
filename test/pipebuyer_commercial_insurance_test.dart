@@ -609,7 +609,32 @@ void main() {
         findsOneWidget,
       );
 
-      // Fill company & phone (email & contactName prefilled from signedIn client)
+      // Rate application fields start blank with no pre-populated demo numbers
+      expect(
+        tester
+            .widget<TextFormField>(find.byKey(const Key('rate_apply_region')))
+            .controller
+            ?.text,
+        isEmpty,
+      );
+      expect(
+        tester
+            .widget<TextFormField>(
+                find.byKey(const Key('rate_apply_fleet_count')))
+            .controller
+            ?.text,
+        isEmpty,
+      );
+      expect(
+        tester
+            .widget<TextFormField>(
+                find.byKey(const Key('rate_apply_equipment_value')))
+            .controller
+            ?.text,
+        isEmpty,
+      );
+
+      // Fill company, phone & region (email & contactName prefilled from signedIn client)
       await tester.enterText(
         find.byKey(const Key('rate_apply_company_name')),
         'Redwater Tubular & Hauling LLC',
@@ -617,6 +642,10 @@ void main() {
       await tester.enterText(
         find.byKey(const Key('rate_apply_phone')),
         '(432) 555-0194',
+      );
+      await tester.enterText(
+        find.byKey(const Key('rate_apply_region')),
+        'TX',
       );
       await tester.enterText(
         find.byKey(const Key('rate_apply_city')),
