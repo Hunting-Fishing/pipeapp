@@ -16,9 +16,14 @@ import 'marketplace_reporting.dart';
 import 'marketplace_tax_compliance_admin_page.dart';
 
 class MarketplaceAdminDashboard extends StatefulWidget {
-  const MarketplaceAdminDashboard({super.key, this.initialTabIndex = 0});
+  const MarketplaceAdminDashboard({
+    super.key,
+    this.initialTabIndex = 0,
+    this.embedded = false,
+  });
 
   final int initialTabIndex;
+  final bool embedded;
 
   @override
   State<MarketplaceAdminDashboard> createState() =>
@@ -166,35 +171,42 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
   @override
   Widget build(BuildContext context) {
     if (_isLoadingAuth) {
+      if (widget.embedded) {
+        return const Center(child: CircularProgressIndicator());
+      }
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (!_isAuthorized) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Admin Portal Access')),
-        body: Center(
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.shield_outlined, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                const Text(
-                  'Administrator Privileges Required',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'This account does not have the administrator role required for this workspace. Sign in with an approved administrator account and complete multi-factor authentication.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
+      final unauthorizedBody = Center(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.shield_outlined, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              const Text(
+                'Administrator Privileges Required',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This account does not have the administrator role required for this workspace. Sign in with an approved administrator account and complete multi-factor authentication.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.grey),
+              ),
+            ],
           ),
         ),
+      );
+      if (widget.embedded) {
+        return unauthorizedBody;
+      }
+      return Scaffold(
+        appBar: AppBar(title: const Text('Admin Portal Access')),
+        body: unauthorizedBody,
       );
     }
 
@@ -214,237 +226,284 @@ class _MarketplaceAdminDashboardState extends State<MarketplaceAdminDashboard>
       stream: pendingAppsStream,
       builder: (context, pendingSnap) {
         final pendingVendorApps = pendingSnap.data?.docs.length ?? 0;
-
-        return Scaffold(
-          appBar: AppBar(
-            title: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.purple.shade700,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(
-                    Icons.admin_panel_settings,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Flexible(
-                  child: Text(
-                    'PIPE BUYER ADMIN PORTAL',
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-              ],
+        final titleRow = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade700,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(
+                Icons.admin_panel_settings,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
-            actions: MediaQuery.sizeOf(context).width >= 1220
-                ? [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: OutlinedButton.icon(
-                        onPressed: _switchToRegularUserView,
-                        icon: const Icon(Icons.visibility_outlined, size: 18),
-                        label: const Text('View What Everyone Else Sees'),
+            const SizedBox(width: 10),
+            const Flexible(
+              child: Text(
+                'PIPE BUYER ADMIN PORTAL',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+          ],
+        );
+
+        final actionWidgets = MediaQuery.sizeOf(context).width >= 1220
+            ? <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: OutlinedButton.icon(
+                    onPressed: _switchToRegularUserView,
+                    icon: const Icon(Icons.visibility_outlined, size: 18),
+                    label: const Text('View What Everyone Else Sees'),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: OutlinedButton.icon(
+                    onPressed: () => MarketplaceNavigation.openShopAdmin(
+                      context,
+                      initialSection:
+                          pendingVendorApps > 0 ? 'applications' : '',
+                    ),
+                    icon: Badge(
+                      isLabelVisible: pendingVendorApps > 0,
+                      label: Text('$pendingVendorApps'),
+                      child: const Icon(
+                        Icons.shopping_bag_outlined,
+                        size: 18,
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: OutlinedButton.icon(
+                    label: const Text('Store & Affiliate Admin'),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        MarketplaceNavigation.openPartnerAdmin(context),
+                    icon: const Icon(Icons.handshake_outlined, size: 18),
+                    label: const Text('Partner With Us Queue'),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        MarketplaceNavigation.openInsuranceAdmin(context),
+                    icon: const Icon(Icons.shield_outlined, size: 18),
+                    label: const Text('Commercial Insurance Admin'),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: FilledButton.icon(
+                    onPressed: () =>
+                        MarketplaceNavigation.openYellowPagesAdmin(context),
+                    icon: const Icon(Icons.menu_book_outlined, size: 18),
+                    label: const Text('Oilfield Directory Admin & Flagged'),
+                  ),
+                ),
+              ]
+            : <Widget>[
+                IconButton(
+                  tooltip: 'View what everyone else sees',
+                  onPressed: _switchToRegularUserView,
+                  icon: const Icon(Icons.visibility_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Store & Affiliate Admin',
+                  onPressed: () => MarketplaceNavigation.openShopAdmin(
+                    context,
+                    initialSection: pendingVendorApps > 0 ? 'applications' : '',
+                  ),
+                  icon: Badge(
+                    isLabelVisible: pendingVendorApps > 0,
+                    label: Text('$pendingVendorApps'),
+                    child: const Icon(Icons.shopping_bag_outlined),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Partner With Us Queue',
+                  onPressed: () =>
+                      MarketplaceNavigation.openPartnerAdmin(context),
+                  icon: const Icon(Icons.handshake_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Commercial Insurance Admin',
+                  onPressed: () =>
+                      MarketplaceNavigation.openInsuranceAdmin(context),
+                  icon: const Icon(Icons.shield_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Oilfield Directory Admin & Flagged',
+                  onPressed: () =>
+                      MarketplaceNavigation.openYellowPagesAdmin(context),
+                  icon: const Icon(Icons.menu_book_outlined),
+                ),
+              ];
+
+        final tabBar = TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          tabs: const [
+            Tab(
+              icon: Icon(Icons.analytics_outlined),
+              text: 'Marketplace Intelligence',
+            ),
+            Tab(
+              icon: Icon(Icons.gavel_outlined),
+              text: '🔨 Auctions Engine & Control Board',
+            ),
+            Tab(
+              icon: Icon(Icons.payments_outlined),
+              text: 'Transaction Records',
+            ),
+            Tab(
+              icon: Icon(Icons.account_balance_outlined),
+              text: 'Billing & Provider Readiness',
+            ),
+            Tab(
+              icon: Icon(Icons.people_outline),
+              text: 'Users, Permissions & Restrictions',
+            ),
+            Tab(
+              icon: Icon(Icons.fact_check_outlined),
+              text: 'Moderation & Safety',
+            ),
+            Tab(
+              icon: Icon(Icons.local_shipping_outlined),
+              text: 'Freight & Dispatch',
+            ),
+            Tab(
+              icon: Icon(Icons.admin_panel_settings_outlined),
+              text: '⚙️ Admin Settings',
+            ),
+          ],
+        );
+
+        final portalBody = Column(
+          children: [
+            if (pendingVendorApps > 0)
+              Material(
+                color: const Color(0xFFEFF6FF),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.notifications_active_rounded,
+                            color: Color(0xFF1D4ED8),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Text(
+                              '$pendingVendorApps OEM, Brand, or Distributor Listing Request(s) awaiting Admin review.',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      FilledButton.tonalIcon(
                         onPressed: () => MarketplaceNavigation.openShopAdmin(
                           context,
-                          initialSection:
-                              pendingVendorApps > 0 ? 'applications' : '',
+                          initialSection: 'applications',
                         ),
-                        icon: Badge(
-                          isLabelVisible: pendingVendorApps > 0,
-                          label: Text('$pendingVendorApps'),
-                          child: const Icon(
-                            Icons.shopping_bag_outlined,
-                            size: 18,
-                          ),
-                        ),
-                        label: const Text('Store & Affiliate Admin'),
+                        icon: const Icon(Icons.storefront_outlined, size: 16),
+                        label: const Text('Review Applications'),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            MarketplaceNavigation.openPartnerAdmin(context),
-                        icon: const Icon(Icons.handshake_outlined, size: 18),
-                        label: const Text('Partner With Us Queue'),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            MarketplaceNavigation.openInsuranceAdmin(context),
-                        icon: const Icon(Icons.shield_outlined, size: 18),
-                        label: const Text('Commercial Insurance Admin'),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: FilledButton.icon(
-                        onPressed: () =>
-                            MarketplaceNavigation.openYellowPagesAdmin(context),
-                        icon: const Icon(Icons.menu_book_outlined, size: 18),
-                        label: const Text('Oilfield Directory Admin & Flagged'),
-                      ),
-                    ),
-                  ]
-                : [
-                    IconButton(
-                      tooltip: 'View what everyone else sees',
-                      onPressed: _switchToRegularUserView,
-                      icon: const Icon(Icons.visibility_outlined),
-                    ),
-                    IconButton(
-                      tooltip: 'Store & Affiliate Admin',
-                      onPressed: () => MarketplaceNavigation.openShopAdmin(
-                        context,
-                        initialSection:
-                            pendingVendorApps > 0 ? 'applications' : '',
-                      ),
-                      icon: Badge(
-                        isLabelVisible: pendingVendorApps > 0,
-                        label: Text('$pendingVendorApps'),
-                        child: const Icon(Icons.shopping_bag_outlined),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Partner With Us Queue',
-                      onPressed: () =>
-                          MarketplaceNavigation.openPartnerAdmin(context),
-                      icon: const Icon(Icons.handshake_outlined),
-                    ),
-                    IconButton(
-                      tooltip: 'Commercial Insurance Admin',
-                      onPressed: () =>
-                          MarketplaceNavigation.openInsuranceAdmin(context),
-                      icon: const Icon(Icons.shield_outlined),
-                    ),
-                    IconButton(
-                      tooltip: 'Oilfield Directory Admin & Flagged',
-                      onPressed: () =>
-                          MarketplaceNavigation.openYellowPagesAdmin(context),
-                      icon: const Icon(Icons.menu_book_outlined),
-                    ),
-                  ],
-            bottom: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: const [
-                Tab(
-                  icon: Icon(Icons.analytics_outlined),
-                  text: 'Marketplace Intelligence',
+                    ],
+                  ),
                 ),
-                Tab(
-                  icon: Icon(Icons.gavel_outlined),
-                  text: '🔨 Auctions Engine & Control Board',
-                ),
-                Tab(
-                  icon: Icon(Icons.payments_outlined),
-                  text: 'Transaction Records',
-                ),
-                Tab(
-                  icon: Icon(Icons.account_balance_outlined),
-                  text: 'Billing & Provider Readiness',
-                ),
-                Tab(
-                  icon: Icon(Icons.people_outline),
-                  text: 'Users, Permissions & Restrictions',
-                ),
-                Tab(
-                  icon: Icon(Icons.fact_check_outlined),
-                  text: 'Moderation & Safety',
-                ),
-                Tab(
-                  icon: Icon(Icons.local_shipping_outlined),
-                  text: 'Freight & Dispatch',
-                ),
-                Tab(
-                  icon: Icon(Icons.admin_panel_settings_outlined),
-                  text: '⚙️ Admin Settings',
-                ),
-              ],
+              ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildAnalyticsTab(),
+                  _buildAuctionsTab(),
+                  _buildTransactionsTab(),
+                  _buildBankingGatewaysTab(),
+                  _buildUsersTab(),
+                  _buildModerationTab(),
+                  _buildDispatchTab(),
+                  _buildSystemConfigTab(),
+                ],
+              ),
             ),
-          ),
-          body: Column(
-            children: [
-              if (pendingVendorApps > 0)
+          ],
+        );
+
+        if (widget.embedded) {
+          return Material(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Material(
-                  color: const Color(0xFFEFF6FF),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    child: Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                  color: Colors.white,
+                  elevation: 1,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 12, 8),
+                        child: Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            const Icon(
-                              Icons.notifications_active_rounded,
-                              color: Color(0xFF1D4ED8),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 10),
-                            Flexible(
-                              child: Text(
-                                '$pendingVendorApps OEM, Brand, or Distributor Listing Request(s) awaiting Admin review.',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                  color: Color(0xFF0F172A),
-                                ),
-                              ),
+                            titleRow,
+                            Wrap(
+                              spacing: 4,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: actionWidgets,
                             ),
                           ],
                         ),
-                        FilledButton.tonalIcon(
-                          onPressed: () => MarketplaceNavigation.openShopAdmin(
-                            context,
-                            initialSection: 'applications',
-                          ),
-                          icon: const Icon(Icons.storefront_outlined, size: 16),
-                          label: const Text('Review Applications'),
-                        ),
-                      ],
-                    ),
+                      ),
+                      tabBar,
+                    ],
                   ),
                 ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildAnalyticsTab(),
-                    _buildAuctionsTab(),
-                    _buildTransactionsTab(),
-                    _buildBankingGatewaysTab(),
-                    _buildUsersTab(),
-                    _buildModerationTab(),
-                    _buildDispatchTab(),
-                    _buildSystemConfigTab(),
-                  ],
-                ),
-              ),
-            ],
+                Expanded(child: portalBody),
+              ],
+            ),
+          );
+        }
+
+        return Scaffold(
+          appBar: AppBar(
+            title: titleRow,
+            actions: actionWidgets,
+            bottom: tabBar,
           ),
+          body: portalBody,
         );
       },
     );

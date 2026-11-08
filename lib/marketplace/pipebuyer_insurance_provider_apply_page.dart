@@ -191,6 +191,11 @@ class _PipeBuyerInsuranceProviderApplyPageState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const PipeBuyerOnboardingTrackBar(
+                  currentTrack:
+                      PipeBuyerOnboardingTrack.insuranceCarrierOnboarding,
+                ),
+                const SizedBox(height: 14),
                 _buildHeroCard(context),
                 const SizedBox(height: 16),
                 if (_receipt != null)

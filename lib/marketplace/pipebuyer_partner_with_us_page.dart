@@ -289,6 +289,10 @@ class _PipeBuyerPartnerWithUsPageState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const PipeBuyerOnboardingTrackBar(
+                    currentTrack: PipeBuyerOnboardingTrack.partnerSponsorship,
+                  ),
+                  const SizedBox(height: 14),
                   _PartnerHeroBanner(
                     onApplyTap: () =>
                         _scrollToSection(PartnerPageSection.apply),

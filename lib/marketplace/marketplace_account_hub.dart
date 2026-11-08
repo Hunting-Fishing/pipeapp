@@ -284,7 +284,7 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
                 onOpenTab: _tabs.animateTo,
               ),
               if (_isAdminUser)
-                const MarketplaceAdminDashboard()
+                const MarketplaceAdminDashboard(embedded: true)
               else if (_isScopedStaffUser)
                 const MarketplaceScopedStaffDashboard(embedded: true),
             ],

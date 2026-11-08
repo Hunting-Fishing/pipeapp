@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_scoped_staff_dashboard.dart';
@@ -49,14 +50,36 @@ class MarketplaceNavigation {
   static final ValueNotifier<String?> browseSearchRequests =
       ValueNotifier<String?>(null);
 
+  static void _popToRootOrGoHome(BuildContext context) {
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.popUntil((route) => route.isFirst);
+      return;
+    }
+    GoRouter.maybeOf(context)?.go('/');
+  }
+
+  static Future<T?> _pushOrReplace<T extends Object?>(
+    BuildContext context,
+    Widget page, {
+    required bool replaceCurrent,
+  }) {
+    final nav = Navigator.of(context);
+    final route = MaterialPageRoute<T>(builder: (_) => page);
+    if (replaceCurrent && nav.canPop()) {
+      return nav.pushReplacement<T, Object?>(route);
+    }
+    return nav.push<T>(route);
+  }
+
   static void goHome(BuildContext context) {
     homeRequests.value++;
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    _popToRootOrGoHome(context);
   }
 
   static void goToDestination(BuildContext context, int pageIndex) {
     destinationRequests.value = MarketplaceDestinationRequest(pageIndex);
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    _popToRootOrGoHome(context);
   }
 
   static void goToAccount(BuildContext context, {int? subTabIndex}) {
@@ -83,7 +106,7 @@ class MarketplaceNavigation {
 
   static void goToWanted(BuildContext context) {
     wantedRequests.value++;
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    _popToRootOrGoHome(context);
   }
 
   static Future<void> openSearchServices(
@@ -91,23 +114,27 @@ class MarketplaceNavigation {
     String initialQuery = '',
     String initialCategoryCode = '',
     String initialCountryCode = '',
+    bool replaceCurrent = false,
   }) {
-    return Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => PipeBuyerYellowPagesDirectoryPage(
-          initialQuery: initialQuery,
-          initialCategoryCode: initialCategoryCode,
-          initialCountryCode: initialCountryCode,
-        ),
+    return _pushOrReplace<void>(
+      context,
+      PipeBuyerYellowPagesDirectoryPage(
+        initialQuery: initialQuery,
+        initialCategoryCode: initialCategoryCode,
+        initialCountryCode: initialCountryCode,
       ),
+      replaceCurrent: replaceCurrent,
     );
   }
 
-  static Future<bool?> openListServices(BuildContext context) {
-    return Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => const PipeBuyerListServicesPage(),
-      ),
+  static Future<bool?> openListServices(
+    BuildContext context, {
+    bool replaceCurrent = false,
+  }) {
+    return _pushOrReplace<bool>(
+      context,
+      const PipeBuyerListServicesPage(),
+      replaceCurrent: replaceCurrent,
     );
   }
 
@@ -128,14 +155,15 @@ class MarketplaceNavigation {
     BuildContext context, {
     PartnerPageSection initialSection = PartnerPageSection.overview,
     String initialCategoryFilter = '',
+    bool replaceCurrent = false,
   }) {
-    return Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => PipeBuyerPartnerWithUsPage(
-          initialSection: initialSection,
-          initialCategoryFilter: initialCategoryFilter,
-        ),
+    return _pushOrReplace<void>(
+      context,
+      PipeBuyerPartnerWithUsPage(
+        initialSection: initialSection,
+        initialCategoryFilter: initialCategoryFilter,
       ),
+      replaceCurrent: replaceCurrent,
     );
   }
 
@@ -153,24 +181,28 @@ class MarketplaceNavigation {
     String initialQuery = '',
     String initialCoverageLine = '',
     String initialCountryCode = '',
+    bool replaceCurrent = false,
   }) {
-    return Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => PipeBuyerInsuranceHubPage(
-          initialTab: initialTab,
-          initialQuery: initialQuery,
-          initialCoverageLine: initialCoverageLine,
-          initialCountryCode: initialCountryCode,
-        ),
+    return _pushOrReplace<void>(
+      context,
+      PipeBuyerInsuranceHubPage(
+        initialTab: initialTab,
+        initialQuery: initialQuery,
+        initialCoverageLine: initialCoverageLine,
+        initialCountryCode: initialCountryCode,
       ),
+      replaceCurrent: replaceCurrent,
     );
   }
 
-  static Future<bool?> openInsuranceProviderApply(BuildContext context) {
-    return Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => const PipeBuyerInsuranceProviderApplyPage(),
-      ),
+  static Future<bool?> openInsuranceProviderApply(
+    BuildContext context, {
+    bool replaceCurrent = false,
+  }) {
+    return _pushOrReplace<bool>(
+      context,
+      const PipeBuyerInsuranceProviderApplyPage(),
+      replaceCurrent: replaceCurrent,
     );
   }
 
@@ -192,16 +224,17 @@ class MarketplaceNavigation {
     String initialCategoryCode = '',
     String initialBrand = '',
     String initialSourceCode = '',
+    bool replaceCurrent = false,
   }) {
-    return Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => PipeBuyerShopStorePage(
-          initialQuery: initialQuery,
-          initialCategoryCode: initialCategoryCode,
-          initialBrand: initialBrand,
-          initialSourceCode: initialSourceCode,
-        ),
+    return _pushOrReplace<void>(
+      context,
+      PipeBuyerShopStorePage(
+        initialQuery: initialQuery,
+        initialCategoryCode: initialCategoryCode,
+        initialBrand: initialBrand,
+        initialSourceCode: initialSourceCode,
       ),
+      replaceCurrent: replaceCurrent,
     );
   }
 
@@ -209,14 +242,15 @@ class MarketplaceNavigation {
     BuildContext context, {
     String initialTrack = 'industrial_distributor',
     String initialBrand = '',
+    bool replaceCurrent = false,
   }) {
-    return Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => PipeBuyerShopVendorApplyPage(
-          initialTrack: initialTrack,
-          initialBrand: initialBrand,
-        ),
+    return _pushOrReplace<bool>(
+      context,
+      PipeBuyerShopVendorApplyPage(
+        initialTrack: initialTrack,
+        initialBrand: initialBrand,
       ),
+      replaceCurrent: replaceCurrent,
     );
   }
 
@@ -363,19 +397,25 @@ class PipeBuyerGlobalHubBar extends StatelessWidget
       case PipeBuyerGlobalHub.sell:
         MarketplaceNavigation.goToSell(context);
       case PipeBuyerGlobalHub.shopStore:
-        MarketplaceNavigation.openShopStore(context);
+        MarketplaceNavigation.openShopStore(context, replaceCurrent: true);
       case PipeBuyerGlobalHub.shopVendorApply:
-        MarketplaceNavigation.openShopVendorApply(context);
+        MarketplaceNavigation.openShopVendorApply(
+          context,
+          replaceCurrent: true,
+        );
       case PipeBuyerGlobalHub.dispatch:
         MarketplaceNavigation.goToDispatch(context);
       case PipeBuyerGlobalHub.servicesDirectory:
-        MarketplaceNavigation.openSearchServices(context);
+        MarketplaceNavigation.openSearchServices(
+          context,
+          replaceCurrent: true,
+        );
       case PipeBuyerGlobalHub.listServices:
-        MarketplaceNavigation.openListServices(context);
+        MarketplaceNavigation.openListServices(context, replaceCurrent: true);
       case PipeBuyerGlobalHub.insurance:
-        MarketplaceNavigation.openInsuranceHub(context);
+        MarketplaceNavigation.openInsuranceHub(context, replaceCurrent: true);
       case PipeBuyerGlobalHub.partnerWithUs:
-        MarketplaceNavigation.openPartnerWithUs(context);
+        MarketplaceNavigation.openPartnerWithUs(context, replaceCurrent: true);
     }
   }
 }
@@ -425,6 +465,146 @@ class _GlobalHubPill extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+enum PipeBuyerOnboardingTrack {
+  partnerSponsorship,
+  storeVendorCatalog,
+  oilfieldDirectoryListing,
+  insuranceCarrierOnboarding,
+}
+
+/// Shared B2B onboarding track switcher displayed at the top of Pipe Buyer's
+/// 4 commercial onboarding surfaces so OEMs, brands, service providers, and
+/// insurance carriers can switch tracks in 1 click without hunting menus.
+class PipeBuyerOnboardingTrackBar extends StatelessWidget {
+  const PipeBuyerOnboardingTrackBar({
+    super.key,
+    required this.currentTrack,
+  });
+
+  final PipeBuyerOnboardingTrack currentTrack;
+
+  @override
+  Widget build(BuildContext context) {
+    const tracks = <({
+      PipeBuyerOnboardingTrack track,
+      String label,
+      IconData icon,
+    })>[
+      (
+        track: PipeBuyerOnboardingTrack.partnerSponsorship,
+        label: 'OEM & Brand Sponsorships',
+        icon: Icons.handshake_outlined,
+      ),
+      (
+        track: PipeBuyerOnboardingTrack.storeVendorCatalog,
+        label: 'Store Vendor & Brand Catalog',
+        icon: Icons.store_mall_directory_outlined,
+      ),
+      (
+        track: PipeBuyerOnboardingTrack.oilfieldDirectoryListing,
+        label: 'Oilfield Directory Listing',
+        icon: Icons.workspace_premium_outlined,
+      ),
+      (
+        track: PipeBuyerOnboardingTrack.insuranceCarrierOnboarding,
+        label: 'Insurance Carrier Onboarding',
+        icon: Icons.domain_add_outlined,
+      ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.alt_route_rounded,
+                size: 16,
+                color: PipeBuyerColors.orangePressed,
+              ),
+              SizedBox(width: 6),
+              Text(
+                'B2B ONBOARDING TRACK:',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                  color: PipeBuyerColors.slate,
+                ),
+              ),
+            ],
+          ),
+          for (final item in tracks)
+            ActionChip(
+              avatar: Icon(
+                item.icon,
+                size: 15,
+                color: item.track == currentTrack
+                    ? Colors.white
+                    : PipeBuyerColors.ink,
+              ),
+              label: Text(
+                item.label,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: item.track == currentTrack
+                      ? Colors.white
+                      : PipeBuyerColors.ink,
+                ),
+              ),
+              backgroundColor: item.track == currentTrack
+                  ? PipeBuyerColors.orange
+                  : const Color(0xFFF8FAFC),
+              side: BorderSide(
+                color: item.track == currentTrack
+                    ? PipeBuyerColors.orange
+                    : const Color(0xFFCBD5E1),
+              ),
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                if (item.track == currentTrack) return;
+                switch (item.track) {
+                  case PipeBuyerOnboardingTrack.partnerSponsorship:
+                    MarketplaceNavigation.openPartnerWithUs(
+                      context,
+                      initialSection: PartnerPageSection.apply,
+                      replaceCurrent: true,
+                    );
+                  case PipeBuyerOnboardingTrack.storeVendorCatalog:
+                    MarketplaceNavigation.openShopVendorApply(
+                      context,
+                      replaceCurrent: true,
+                    );
+                  case PipeBuyerOnboardingTrack.oilfieldDirectoryListing:
+                    MarketplaceNavigation.openListServices(
+                      context,
+                      replaceCurrent: true,
+                    );
+                  case PipeBuyerOnboardingTrack.insuranceCarrierOnboarding:
+                    MarketplaceNavigation.openInsuranceProviderApply(
+                      context,
+                      replaceCurrent: true,
+                    );
+                }
+              },
+            ),
+        ],
       ),
     );
   }
