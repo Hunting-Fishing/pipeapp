@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_navigation.dart';
 import 'pipebuyer_shop_client.dart';
 import 'pipebuyer_shop_taxonomy.dart';
 import 'pipebuyer_shop_vendor_apply_page.dart';
@@ -336,6 +337,9 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
           backgroundColor: _kShopeeOrange,
           foregroundColor: Colors.white,
           title: const Text('Pipe Buyer Store'),
+          bottom: const PipeBuyerGlobalHubBar(
+            currentHub: PipeBuyerGlobalHub.shopStore,
+          ),
         ),
         body: Center(
           child: Padding(
@@ -386,6 +390,9 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
         bottom: false,
         child: Column(
           children: [
+            const PipeBuyerGlobalHubBar(
+              currentHub: PipeBuyerGlobalHub.shopStore,
+            ),
             _buildShopeeHeader(context),
             Expanded(
               child: Align(

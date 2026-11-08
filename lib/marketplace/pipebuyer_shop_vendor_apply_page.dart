@@ -265,6 +265,9 @@ class _PipeBuyerShopVendorApplyPageState
         backgroundColor: PipeBuyerColors.ink,
         foregroundColor: Colors.white,
         title: const Text('Vendor, Distributor & Brand Portal'),
+        bottom: const PipeBuyerGlobalHubBar(
+          currentHub: PipeBuyerGlobalHub.shopVendorApply,
+        ),
       ),
       body: Align(
         alignment: Alignment.topCenter,
