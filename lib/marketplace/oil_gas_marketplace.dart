@@ -2340,55 +2340,128 @@ class _HomePage extends StatelessWidget {
   final ValueChanged<String> onCategory;
 
   @override
-  Widget build(BuildContext context) => Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1280),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-            children: [
-              const MarketplaceHomeWelcome(includeIntentAndTrust: false),
-              const Gap(12),
-              if (features.marketplace) ...[
-                _HomeCategoryStrip(
-                  regulatedListingsEnabled: features.regulatedListings,
-                  onCategory: (cat) => onCategory(cat ?? ''),
-                ),
-                _CompactHeading(
-                  'Live Marketplace Inventory',
-                  action: 'See all listings',
-                  onAction: onBrowse,
-                ),
-                _FeaturedListings(
-                  regulatedListingsEnabled: features.regulatedListings,
-                  onBrowse: onBrowse,
-                  onList: onList,
-                  saved: saved,
-                  onSaved: onSaved,
-                ),
-                const Gap(16),
-                const PipeBuyerHomeShopShowcase(),
-              ] else
-                _HomeServiceNotice(
-                  message:
-                      'Marketplace browsing and listing are temporarily paused.',
-                ),
-              const _CompactHeading('Platform Workflows & Services'),
-              _HomeQuickActions(
-                features: features,
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 680;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1280),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          children: [
+            const MarketplaceHomeWelcome(includeIntentAndTrust: false),
+            if (isMobile) ...[
+              const Gap(8),
+              const _HomeMobileQuickHubStrip(),
+            ],
+            const Gap(12),
+            if (features.marketplace) ...[
+              _HomeCategoryStrip(
+                regulatedListingsEnabled: features.regulatedListings,
+                onCategory: (cat) => onCategory(cat ?? ''),
+              ),
+              _CompactHeading(
+                'Live Marketplace Inventory',
+                action: 'See all listings',
+                onAction: onBrowse,
+              ),
+              _FeaturedListings(
+                regulatedListingsEnabled: features.regulatedListings,
                 onBrowse: onBrowse,
                 onList: onList,
-                onAuctions: onAuctions,
-                onDispatch: onDispatch,
+                saved: saved,
+                onSaved: onSaved,
               ),
-              const Gap(20),
-              const PipeBuyerSiteFooter(
-                currentSurface: PipeBuyerFooterSurface.home,
+              const Gap(16),
+              const PipeBuyerHomeShopShowcase(),
+            ] else
+              _HomeServiceNotice(
+                message:
+                    'Marketplace browsing and listing are temporarily paused.',
               ),
-            ],
-          ),
+            const _CompactHeading('Platform Workflows & Services'),
+            _HomeQuickActions(
+              features: features,
+              onBrowse: onBrowse,
+              onList: onList,
+              onAuctions: onAuctions,
+              onDispatch: onDispatch,
+            ),
+            const Gap(20),
+            const PipeBuyerSiteFooter(
+              currentSurface: PipeBuyerFooterSurface.home,
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
+}
+
+class _HomeMobileQuickHubStrip extends StatelessWidget {
+  const _HomeMobileQuickHubStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    final hubs =
+        <({String label, IconData icon, Color color, VoidCallback onTap})>[
+      (
+        label: '63k+ Directory',
+        icon: Icons.manage_search_rounded,
+        color: const Color(0xFFF59E0B),
+        onTap: () => MarketplaceNavigation.openSearchServices(context),
+      ),
+      (
+        label: 'Shop Store',
+        icon: Icons.shopping_bag_outlined,
+        color: PipeBuyerColors.orange,
+        onTap: () => MarketplaceNavigation.openShopStore(context),
+      ),
+      (
+        label: 'Insurance',
+        icon: Icons.shield_outlined,
+        color: const Color(0xFF0E7490),
+        onTap: () => MarketplaceNavigation.openInsuranceHub(context),
+      ),
+      (
+        label: 'Dispatch',
+        icon: Icons.local_shipping_outlined,
+        color: PipeBuyerColors.success,
+        onTap: () => MarketplaceNavigation.goToDispatch(context),
+      ),
+      (
+        label: 'Partner With Us',
+        icon: Icons.handshake_outlined,
+        color: PipeBuyerColors.orangePressed,
+        onTap: () => MarketplaceNavigation.openPartnerWithUs(context),
+      ),
+    ];
+
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: hubs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final hub = hubs[index];
+          return ActionChip(
+            avatar: Icon(hub.icon, size: 15, color: hub.color),
+            label: Text(
+              hub.label,
+              style:
+                  const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+            ),
+            backgroundColor: Colors.white,
+            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            visualDensity: VisualDensity.compact,
+            onPressed: hub.onTap,
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _HomeQuickActions extends StatelessWidget {
@@ -2470,13 +2543,6 @@ class _HomeQuickActions extends StatelessWidget {
         label: 'Shop tools & gear',
         color: PipeBuyerColors.orange,
         onTap: () => MarketplaceNavigation.openShopStore(context),
-      ),
-      _QuickAction(
-        icon: LucideIcons.handshake,
-        assetPath: IndustrialIconAssets.wantedEquipment,
-        label: 'Partner with us',
-        color: PipeBuyerColors.orangePressed,
-        onTap: () => MarketplaceNavigation.openPartnerWithUs(context),
       ),
     ];
 
@@ -2725,6 +2791,10 @@ class _QuickAction extends StatelessWidget {
       'Commercial insurance' => (
           'MSA-ready fleet, rig, cargo & liability rates',
           'Compare rates'
+        ),
+      'Shop tools & gear' => (
+          'Pipe wrenches, welding, rigging & FR gear',
+          'Shop store'
         ),
       'Partner with us' => (
           'Brand sponsorships, OEM deals & advertising',
@@ -4598,6 +4668,30 @@ class _CategoryPickerTile extends StatelessWidget {
                   ]))));
 }
 
+String _formatListingCardTitle(MarketplaceListing listing) {
+  final raw = listing.title.trim();
+  if (raw.isEmpty) return 'Untitled listing';
+  final isShortOrSingleWord = !raw.contains(' ') || raw.length < 12;
+  final isAllLower = raw == raw.toLowerCase();
+  if (isShortOrSingleWord || isAllLower) {
+    final titleCased = raw
+        .split(RegExp(r'\s+'))
+        .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+    final brand = '${listing.details['brand'] ?? ''}'.trim();
+    final model = '${listing.details['model'] ?? ''}'.trim();
+    final extra = [brand, model]
+        .where(
+            (s) => s.isNotEmpty && !raw.toLowerCase().contains(s.toLowerCase()))
+        .join(' ');
+    if (extra.isNotEmpty) {
+      return '$titleCased — $extra';
+    }
+    return titleCased;
+  }
+  return raw;
+}
+
 class _ListingCard extends StatelessWidget {
   const _ListingCard({
     required this.listing,
@@ -4831,7 +4925,7 @@ class _ListingCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      listing.title,
+                      _formatListingCardTitle(listing),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
