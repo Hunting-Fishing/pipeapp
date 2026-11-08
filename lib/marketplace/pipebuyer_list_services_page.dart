@@ -379,6 +379,11 @@ class _PipeBuyerListServicesPageState extends State<PipeBuyerListServicesPage> {
               : ListView(
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 40),
                   children: [
+                    const PipeBuyerOnboardingTrackBar(
+                      currentTrack:
+                          PipeBuyerOnboardingTrack.oilfieldDirectoryListing,
+                    ),
+                    const SizedBox(height: 14),
                     Container(
                       padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(

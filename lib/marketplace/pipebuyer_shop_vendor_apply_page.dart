@@ -8,6 +8,7 @@ import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_navigation.dart';
 import 'pipebuyer_shop_client.dart';
 import 'pipebuyer_shop_taxonomy.dart';
+import 'pipebuyer_site_footer.dart';
 
 class PipeBuyerShopVendorApplyPage extends StatefulWidget {
   const PipeBuyerShopVendorApplyPage({
@@ -278,6 +279,10 @@ class _PipeBuyerShopVendorApplyPageState
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 18, 16, 40),
                   children: [
+                    const PipeBuyerOnboardingTrackBar(
+                      currentTrack: PipeBuyerOnboardingTrack.storeVendorCatalog,
+                    ),
+                    const SizedBox(height: 14),
                     _buildHeroBanner(context),
                     if (!_vendorApplicationsOpen) ...[
                       const SizedBox(height: 14),
@@ -328,6 +333,8 @@ class _PipeBuyerShopVendorApplyPageState
                         ],
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    const PipeBuyerSiteFooter(),
                   ],
                 ),
         ),

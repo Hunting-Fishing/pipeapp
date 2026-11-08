@@ -1099,6 +1099,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
   void _handleDestinationRequest() {
     final request = MarketplaceNavigation.destinationRequests.value;
     if (!mounted || request == null) return;
+    MarketplaceNavigation.destinationRequests.value = null;
     final target = request.pageIndex;
     if ((target == 1 || target == 2 || target == 3) && !_features.marketplace) {
       return;
@@ -1116,6 +1117,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
   void _handleBrowseSearchRequest() {
     final query = MarketplaceNavigation.browseSearchRequests.value;
     if (!mounted || query == null || !_features.marketplace) return;
+    MarketplaceNavigation.browseSearchRequests.value = null;
     setState(() {
       _search = query;
       _tab = 1;
@@ -1124,12 +1126,16 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
 
   void _selectTab(int index) {
     setState(() => _tab = index);
-    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+    if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+      _scaffoldKey.currentState?.closeDrawer();
+    }
   }
 
   void _selectControlledTab(int index, bool enabled, String label) {
     if (!enabled) {
-      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+      if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+        _scaffoldKey.currentState?.closeDrawer();
+      }
       _showFeatureUnavailable(label);
       return;
     }
@@ -1163,7 +1169,18 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _tab = widget.initialTab.clamp(0, 6);
+    _tab = widget.initialTab.clamp(0, 7);
+    final pendingDest = MarketplaceNavigation.destinationRequests.value;
+    if (pendingDest != null) {
+      _tab = pendingDest.pageIndex.clamp(0, 7);
+      MarketplaceNavigation.destinationRequests.value = null;
+    }
+    final pendingSearch = MarketplaceNavigation.browseSearchRequests.value;
+    if (pendingSearch != null) {
+      _search = pendingSearch;
+      _tab = 1;
+      MarketplaceNavigation.browseSearchRequests.value = null;
+    }
     MarketplaceNavigation.homeRequests.addListener(_handleHomeRequest);
     MarketplaceNavigation.destinationRequests
         .addListener(_handleDestinationRequest);
@@ -1502,6 +1519,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
           onShopStore: () => MarketplaceNavigation.openShopStore(context),
           onShopVendorApply: () =>
               MarketplaceNavigation.openShopVendorApply(context),
+          onShopAdmin: () => MarketplaceNavigation.openShopAdmin(context),
         ),
         railLeading: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
@@ -4459,15 +4477,46 @@ class _MarketplaceSpecTableView extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                item.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                  color: PipeBuyerColors.ink,
-                                ),
+                              Row(
+                                children: [
+                                  if (_isDemoShowcaseListing(item)) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 5,
+                                        vertical: 1.5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFFBEB),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                          color: const Color(0xFFF59E0B),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'DEMO',
+                                        style: TextStyle(
+                                          color: Color(0xFFB45309),
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.4,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                  ],
+                                  Expanded(
+                                    child: Text(
+                                      _formatListingCardTitle(item),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13,
+                                        color: PipeBuyerColors.ink,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                               Text(
                                 item.sellerName,
@@ -4668,9 +4717,17 @@ class _CategoryPickerTile extends StatelessWidget {
                   ]))));
 }
 
+bool _isDemoShowcaseListing(MarketplaceListing listing) {
+  if (listing.details['isDemoShowcase'] == true) return true;
+  return listing.title.trim().toLowerCase().startsWith('demo listing:');
+}
+
 String _formatListingCardTitle(MarketplaceListing listing) {
-  final raw = listing.title.trim();
+  var raw = listing.title.trim();
   if (raw.isEmpty) return 'Untitled listing';
+  if (raw.toLowerCase().startsWith('demo listing:')) {
+    raw = raw.substring('demo listing:'.length).trim();
+  }
   final isShortOrSingleWord = !raw.contains(' ') || raw.length < 12;
   final isAllLower = raw == raw.toLowerCase();
   if (isShortOrSingleWord || isAllLower) {
@@ -4815,7 +4872,42 @@ class _ListingCard extends StatelessWidget {
                     left: 10,
                     child: Wrap(
                       spacing: 6,
+                      runSpacing: 4,
                       children: [
+                        if (_isDemoShowcaseListing(listing))
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFD97706), Color(0xFFB45309)],
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFFFDE68A),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome_rounded,
+                                  size: 11,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'DEMO SHOWCASE',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
@@ -5233,10 +5325,91 @@ class _ListingDetailsState extends State<_ListingDetails> {
               ),
             ],
             const SizedBox(height: 20),
+            if (_isDemoShowcaseListing(listing)) ...[
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFF59E0B)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 18,
+                          color: Color(0xFFB45309),
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'OFFICIAL DEMO SHOWCASE LISTING',
+                            style: TextStyle(
+                              color: Color(0xFF92400E),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'This sample listing demonstrates how completed OCTG, pipe, and heavy equipment listings appear to buyers — with structured technical specs, MTR status, tally details, and direct offer/freight workflows.',
+                      style: TextStyle(
+                        color: Color(0xFF78350F),
+                        fontSize: 12.5,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).maybePop();
+                            MarketplaceNavigation.goToSell(context);
+                          },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFD97706),
+                            foregroundColor: Colors.white,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.add_box_outlined, size: 16),
+                          label: const Text('Publish Your Own Inventory'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).maybePop();
+                            MarketplaceNavigation.goToWanted(context);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF92400E),
+                            side: const BorderSide(color: Color(0xFFD97706)),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.campaign_outlined, size: 16),
+                          label: const Text('Post Wanted / RFQ'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
             Text(listing.category.toUpperCase(),
                 style: const TextStyle(
                     color: _orange, fontWeight: FontWeight.w800, fontSize: 11)),
-            Text(listing.title,
+            Text(_formatListingCardTitle(listing),
                 style:
                     const TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
             const SizedBox(height: 8),
@@ -5726,7 +5899,71 @@ class _ListingDetailsState extends State<_ListingDetails> {
     }
   }
 
+  Future<void> _showDemoShowcasePreviewDialog({
+    required String title,
+    required String message,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(
+          Icons.auto_awesome_rounded,
+          color: Color(0xFFD97706),
+          size: 32,
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Text(
+            message,
+            style: const TextStyle(height: 1.45),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close Preview'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Navigator.of(context).maybePop();
+              MarketplaceNavigation.goToWanted(context);
+            },
+            icon: const Icon(Icons.campaign_outlined, size: 16),
+            label: const Text('Post Wanted / RFQ'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Navigator.of(context).maybePop();
+              MarketplaceNavigation.goToSell(context);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: _orange,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.add_box_outlined, size: 16),
+            label: const Text('List Equipment / Pipe'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _messageSeller() async {
+    if (_isDemoShowcaseListing(listing)) {
+      await _showDemoShowcasePreviewDialog(
+        title: 'Demo Showcase Messaging Preview',
+        message:
+            'This is Pipe Buyer’s official Demo Showcase listing. On live seller listings, clicking "Message seller" opens a direct, authenticated thread with the seller to request MTRs, inspection tallies, or pickup release coordinates.',
+      );
+      return;
+    }
     if (FirebaseAuth.instance.currentUser == null) {
       await Navigator.of(context)
           .push(MaterialPageRoute(builder: (_) => const MarketplaceAuthPage()));
@@ -5965,6 +6202,17 @@ class _ListingDetailsState extends State<_ListingDetails> {
     }
     if (requestedQty == null || requestedQty <= 0) {
       return _notice('Enter a valid quantity.');
+    }
+    if (_isDemoShowcaseListing(listing)) {
+      amount.dispose();
+      quantity.dispose();
+      note.dispose();
+      await _showDemoShowcasePreviewDialog(
+        title: 'Offer & Dispatch Preview Complete',
+        message:
+            'Your sample offer of \$${value.toStringAsFixed(2)} ($requestedQty units) was previewed on the Demo Showcase listing. On live listings, submitting an offer notifies the seller immediately and optionally opens your freight lane on the Dispatch Load Board.',
+      );
+      return;
     }
     try {
       await _actions.makeOffer(

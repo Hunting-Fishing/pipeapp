@@ -8,6 +8,7 @@ import 'marketplace_navigation.dart';
 import 'pipebuyer_shop_client.dart';
 import 'pipebuyer_shop_taxonomy.dart';
 import 'pipebuyer_shop_vendor_apply_page.dart';
+import 'pipebuyer_site_footer.dart';
 
 const Color _kShopeeOrange = Color(0xFFEE4D2D);
 const Color _kShopeeOrangeDark = Color(0xFFD73211);
@@ -449,6 +450,8 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
                         _buildSuggestProductBanner(context),
                         const SizedBox(height: 18),
                         _buildStoreFooter(context),
+                        const SizedBox(height: 18),
+                        const PipeBuyerSiteFooter(),
                       ],
                     ),
                   ),
@@ -2548,18 +2551,55 @@ class _ShopProductCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const Icon(
-                          Icons.star_rounded,
-                          size: 14,
-                          color: Color(0xFFF59E0B),
-                        ),
-                        const SizedBox(width: 2),
-                        const Text(
-                          '4.9',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: PipeBuyerColors.slate,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: product.sourceType ==
+                                    PipeBuyerShopSourceType.amazonAffiliate
+                                ? const Color(0xFFFFFBEB)
+                                : const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: product.sourceType ==
+                                      PipeBuyerShopSourceType.amazonAffiliate
+                                  ? const Color(0xFFFDE68A)
+                                  : const Color(0xFFA7F3D0),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                product.sourceType ==
+                                        PipeBuyerShopSourceType.amazonAffiliate
+                                    ? Icons.shopping_bag_outlined
+                                    : Icons.verified_outlined,
+                                size: 11,
+                                color: product.sourceType ==
+                                        PipeBuyerShopSourceType.amazonAffiliate
+                                    ? const Color(0xFFB45309)
+                                    : const Color(0xFF047857),
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                product.sourceType ==
+                                        PipeBuyerShopSourceType.amazonAffiliate
+                                    ? 'Amazon'
+                                    : 'Partner',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: product.sourceType ==
+                                          PipeBuyerShopSourceType
+                                              .amazonAffiliate
+                                      ? const Color(0xFFB45309)
+                                      : const Color(0xFF047857),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
