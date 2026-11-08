@@ -2348,14 +2348,12 @@ class _HomePage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
             children: [
               const MarketplaceHomeWelcome(includeIntentAndTrust: false),
-              const Gap(14),
+              const Gap(12),
               if (features.marketplace) ...[
                 _HomeCategoryStrip(
                   regulatedListingsEnabled: features.regulatedListings,
                   onCategory: (cat) => onCategory(cat ?? ''),
                 ),
-                const Gap(12),
-                const _SponsoredBrandPartnerBanner(),
                 _CompactHeading(
                   'Live Marketplace Inventory',
                   action: 'See all listings',
@@ -2368,7 +2366,7 @@ class _HomePage extends StatelessWidget {
                   saved: saved,
                   onSaved: onSaved,
                 ),
-                const Gap(18),
+                const Gap(16),
                 const PipeBuyerHomeShopShowcase(),
               ] else
                 _HomeServiceNotice(
@@ -2383,7 +2381,7 @@ class _HomePage extends StatelessWidget {
                 onAuctions: onAuctions,
                 onDispatch: onDispatch,
               ),
-              const Gap(24),
+              const Gap(20),
               const PipeBuyerSiteFooter(
                 currentSurface: PipeBuyerFooterSurface.home,
               ),
@@ -2489,10 +2487,10 @@ class _HomeQuickActions extends StatelessWidget {
     }
 
     return LayoutBuilder(builder: (context, constraints) {
-      const spacing = 12.0;
-      final columns = constraints.maxWidth >= 960
+      const spacing = 10.0;
+      final columns = constraints.maxWidth >= 920
           ? 4
-          : constraints.maxWidth >= 560
+          : constraints.maxWidth >= 340
               ? 2
               : 1;
       return AlignedGridView.count(
@@ -2524,21 +2522,21 @@ class _HomeCategoryStrip extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A0F172A),
-            blurRadius: 14,
-            offset: Offset(0, 4),
+            blurRadius: 12,
+            offset: Offset(0, 3),
           ),
         ],
       ),
       child: SizedBox(
-        height: 112,
+        height: 94,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: categories.length,
@@ -2550,37 +2548,37 @@ class _HomeCategoryStrip extends StatelessWidget {
                     IndustrialIconAssets.forLabel(item.name);
             return PipeBuyerInteractiveCard(
               onTap: () => onCategory(item.name),
-              borderRadius: 14,
+              borderRadius: 12,
               child: SizedBox(
-                width: 102,
+                width: 92,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(6, 7, 6, 6),
+                  padding: const EdgeInsets.fromLTRB(5, 6, 5, 5),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        width: 64,
-                        height: 64,
+                        width: 52,
+                        height: 52,
                         decoration: BoxDecoration(
                           color: PipeBuyerColors.studioSlate,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: PipeBuyerColors.studioRim),
                         ),
                         padding: const EdgeInsets.all(2),
                         child: IndustrialAssetIcon(
                           label: item.name,
                           assetPath: assetPath,
-                          size: 60,
-                          borderRadius: 12,
+                          size: 48,
+                          borderRadius: 10,
                           fit: BoxFit.contain,
                           fallback: Icon(
                             item.icon,
-                            size: 28,
+                            size: 24,
                             color: Colors.white,
                           ),
                         ),
                       ),
-                      const Gap(6),
+                      const Gap(5),
                       Expanded(
                         child: Center(
                           child: Text(
@@ -2589,8 +2587,8 @@ class _HomeCategoryStrip extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 10.6,
-                              height: 1.12,
+                              fontSize: 10.2,
+                              height: 1.1,
                               fontWeight: FontWeight.w800,
                               color: PipeBuyerColors.ink,
                             ),
@@ -2604,199 +2602,6 @@ class _HomeCategoryStrip extends StatelessWidget {
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-class _SponsoredBrandPartnerBanner extends StatelessWidget {
-  const _SponsoredBrandPartnerBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const Key('sponsored-brand-partner-banner'),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A0F172A),
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            height: 3.5,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  PipeBuyerColors.orange,
-                  Color(0xFFFF9A3D),
-                  PipeBuyerColors.orange,
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 680;
-                final copy = Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: PipeBuyerColors.studioSlate,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: PipeBuyerColors.studioRim),
-                      ),
-                      padding: const EdgeInsets.all(2),
-                      child: IndustrialAssetIcon(
-                        label: 'Sponsored Brand Advertisement',
-                        assetPath: IndustrialIconAssets.wantedEquipment,
-                        size: 46,
-                        borderRadius: 10,
-                        fallback: const Icon(
-                          LucideIcons.megaphone,
-                          color: PipeBuyerColors.orange,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                    const Gap(12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2.5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: PipeBuyerColors.orangeSoft,
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: PipeBuyerColors.orange
-                                        .withValues(alpha: 0.45),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'ADVERTISE',
-                                  style: TextStyle(
-                                    color: PipeBuyerColors.orangePressed,
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.6,
-                                  ),
-                                ),
-                              ),
-                              const Text(
-                                'PAID BRAND PLACEMENT',
-                                style: TextStyle(
-                                  color: PipeBuyerColors.muted,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.45,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Gap(3),
-                          const Text(
-                            'Feature Your Company Logo & Services Here',
-                            style: TextStyle(
-                              fontSize: 15.5,
-                              fontWeight: FontWeight.w900,
-                              color: PipeBuyerColors.ink,
-                            ),
-                          ),
-                          const Gap(2),
-                          const Text(
-                            'Paid Sponsor tier displays your official company logo, verified badge, website link & direct dispatch contact.',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: PipeBuyerColors.slate,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-
-                final buttons = Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton(
-                      onPressed: () =>
-                          MarketplaceNavigation.openSearchServices(context),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(0, 40),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 9,
-                        ),
-                      ),
-                      child: const Text('Directory'),
-                    ),
-                    FilledButton(
-                      onPressed: () =>
-                          MarketplaceNavigation.openPartnerWithUs(context),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: PipeBuyerColors.orange,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(0, 40),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 15,
-                          vertical: 9,
-                        ),
-                      ),
-                      child: const Text('Advertise Brand'),
-                    ),
-                  ],
-                );
-
-                if (!wide) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      copy,
-                      const Gap(10),
-                      buttons,
-                    ],
-                  );
-                }
-                return Row(
-                  children: [
-                    Expanded(child: copy),
-                    const Gap(12),
-                    buttons,
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -2929,80 +2734,98 @@ class _QuickAction extends StatelessWidget {
     };
     return PipeBuyerInteractiveCard(
       onTap: onTap,
-      borderRadius: 18,
+      borderRadius: 16,
       hoverBorderColor: color,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 112),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: PipeBuyerColors.studioSlate,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: PipeBuyerColors.studioRim),
-                ),
-                child: IndustrialAssetIcon(
-                  label: label,
-                  assetPath: assetPath,
-                  size: 66,
-                  borderRadius: 13,
-                  fallback: Icon(icon, color: PipeBuyerColors.orange, size: 28),
-                ),
-              ),
-              const Gap(12),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        height: 1.15,
-                        fontWeight: FontWeight.w900,
-                        color: PipeBuyerColors.ink,
+      child: LayoutBuilder(
+        builder: (context, cardConstraints) {
+          final compactTile = cardConstraints.maxWidth < 235;
+          final iconBoxSize = compactTile ? 44.0 : 56.0;
+          return ConstrainedBox(
+            constraints: BoxConstraints(minHeight: compactTile ? 82 : 90),
+            child: Padding(
+              padding: EdgeInsets.all(compactTile ? 10 : 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: iconBoxSize,
+                    height: iconBoxSize,
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: PipeBuyerColors.studioSlate,
+                      borderRadius:
+                          BorderRadius.circular(compactTile ? 11 : 13),
+                      border: Border.all(color: PipeBuyerColors.studioRim),
+                    ),
+                    child: IndustrialAssetIcon(
+                      label: label,
+                      assetPath: assetPath,
+                      size: iconBoxSize - 6,
+                      borderRadius: compactTile ? 9 : 11,
+                      fallback: Icon(
+                        icon,
+                        color: PipeBuyerColors.orange,
+                        size: compactTile ? 20 : 24,
                       ),
                     ),
-                    const Gap(4),
-                    Text(
-                      description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        height: 1.28,
-                        color: PipeBuyerColors.slate,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Gap(8),
-                    Row(
+                  ),
+                  SizedBox(width: compactTile ? 8 : 10),
+                  Expanded(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          actionLabel,
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: color,
-                            fontSize: 11.2,
-                            fontWeight: FontWeight.w800,
+                            fontSize: compactTile ? 12.5 : 14,
+                            height: 1.15,
+                            fontWeight: FontWeight.w900,
+                            color: PipeBuyerColors.ink,
                           ),
                         ),
-                        const Gap(4),
-                        Icon(LucideIcons.arrowRight, color: color, size: 13),
+                        const Gap(3),
+                        Text(
+                          description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: compactTile ? 10.5 : 11.2,
+                            height: 1.22,
+                            color: PipeBuyerColors.slate,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Gap(5),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                actionLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: color,
+                                  fontSize: compactTile ? 10.5 : 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const Gap(3),
+                            Icon(LucideIcons.arrowRight,
+                                color: color, size: 12),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -3095,31 +2918,71 @@ class _FeaturedListings extends StatelessWidget {
             return _HomeFoundingInventoryShowcase(
               onBrowse: onBrowse,
               onList: onList,
+              hasLiveListings: false,
             );
           }
           return LayoutBuilder(
             builder: (context, constraints) {
+              if (live.length == 1 && constraints.maxWidth >= 760) {
+                final item = live.first;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: _ListingCard(
+                        listing: item,
+                        saved: saved.contains(item.id),
+                        onSaved: () => onSaved(item),
+                        isGrid: true,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      flex: 7,
+                      child: _HomeFoundingInventoryShowcase(
+                        onBrowse: onBrowse,
+                        onList: onList,
+                        hasLiveListings: true,
+                      ),
+                    ),
+                  ],
+                );
+              }
               final crossAxisCount = constraints.maxWidth >= 1040
                   ? 4
                   : constraints.maxWidth >= 760
                       ? 3
                       : (constraints.maxWidth >= 360 ? 2 : 1);
-              return AlignedGridView.count(
-                crossAxisCount: crossAxisCount,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: live.length,
-                itemBuilder: (context, index) {
-                  final item = live[index];
-                  return _ListingCard(
-                    listing: item,
-                    saved: saved.contains(item.id),
-                    onSaved: () => onSaved(item),
-                    isGrid: true,
-                  );
-                },
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AlignedGridView.count(
+                    crossAxisCount: crossAxisCount,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: live.length,
+                    itemBuilder: (context, index) {
+                      final item = live[index];
+                      return _ListingCard(
+                        listing: item,
+                        saved: saved.contains(item.id),
+                        onSaved: () => onSaved(item),
+                        isGrid: true,
+                      );
+                    },
+                  ),
+                  if (live.length < 4) ...[
+                    const SizedBox(height: 12),
+                    _HomeFoundingInventoryShowcase(
+                      onBrowse: onBrowse,
+                      onList: onList,
+                      hasLiveListings: true,
+                    ),
+                  ],
+                ],
               );
             },
           );
@@ -3160,10 +3023,12 @@ class _HomeFoundingInventoryShowcase extends StatelessWidget {
   const _HomeFoundingInventoryShowcase({
     required this.onBrowse,
     required this.onList,
+    this.hasLiveListings = false,
   });
 
   final VoidCallback onBrowse;
   final VoidCallback onList;
+  final bool hasLiveListings;
 
   @override
   Widget build(BuildContext context) {
@@ -3257,21 +3122,25 @@ class _HomeFoundingInventoryShowcase extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            'No active listings yet.',
-            style: TextStyle(
+          Text(
+            hasLiveListings
+                ? 'Explore our Demo Showcase Listing — or publish your own inventory next.'
+                : 'No active listings yet.',
+            style: const TextStyle(
               fontSize: 16.5,
               fontWeight: FontWeight.w900,
               color: PipeBuyerColors.ink,
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Publish founding pipe, tubulars, or heavy equipment inventory to reach buyers across North America, post a Wanted / RFQ request, or search 63,000+ verified oilfield service providers right now.',
-            style: TextStyle(
+          const SizedBox(height: 6),
+          Text(
+            hasLiveListings
+                ? 'Click the Demo Listing to see how Pipe Buyer presents OCTG tally specs, EMI inspection certs, structured offers, and instant Dispatch hauling quotes — then list your own surplus pipe or equipment in minutes.'
+                : 'Publish founding pipe, tubulars, or heavy equipment inventory to reach buyers across North America, post a Wanted / RFQ request, or search 63,000+ verified oilfield service providers right now.',
+            style: const TextStyle(
               color: PipeBuyerColors.slate,
               fontSize: 12.5,
-              height: 1.4,
+              height: 1.42,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -3491,21 +3360,22 @@ class _BrowsePageState extends State<_BrowsePage> {
     }
     return Column(children: [
       Padding(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const _WelcomeUser(),
-            const SizedBox(height: 4),
-            const Text('Marketplace',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
-            const Text('Find equipment quickly by search, category or map.',
-                style: TextStyle(color: _muted, fontSize: 12)),
-            const SizedBox(height: 12),
-            TextField(
-                controller: _searchController,
-                onChanged: widget.onSearch,
-                decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
+            LayoutBuilder(
+              builder: (context, barConstraints) {
+                final wideBar = barConstraints.maxWidth >= 720;
+                final searchBox = TextField(
+                  controller: _searchController,
+                  onChanged: widget.onSearch,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 11,
+                    ),
+                    prefixIcon: const Icon(Icons.search, size: 20),
                     suffixIcon: widget.search.trim().isEmpty
                         ? null
                         : IconButton(
@@ -3516,47 +3386,98 @@ class _BrowsePageState extends State<_BrowsePage> {
                             },
                             icon: const Icon(Icons.close_rounded, size: 18),
                           ),
-                    hintText: 'Search all live listings…',
-                    helperText:
-                        'Indexed keyword search covers live Marketplace inventory.')),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(
-                  child: OutlinedButton.icon(
-                      onPressed: () => _showCategoryPicker(
+                    hintText:
+                        'Search pipe (2-7/8, L-80), pumps, rigs, or location…',
+                  ),
+                );
+                final filterControls = Row(
+                  mainAxisSize: wideBar ? MainAxisSize.min : MainAxisSize.max,
+                  children: [
+                    if (wideBar)
+                      OutlinedButton.icon(
+                        onPressed: () => _showCategoryPicker(
                           context,
                           widget.category,
                           widget.features.regulatedListings,
-                          widget.onCategory),
-                      icon: const Icon(Icons.grid_view_rounded, size: 18),
-                      label: Text(widget.category ?? 'All categories'))),
-              const SizedBox(width: 8),
-              IconButton.filledTonal(
-                  key: const Key('browse_save_search_alert_btn'),
-                  tooltip: 'Save search alert & manage keyword alerts',
-                  onPressed: _openSavedSearchAlertsModal,
-                  icon: const Icon(Icons.notifications_active_outlined)),
-              const SizedBox(width: 6),
-              IconButton.filledTonal(
-                  tooltip: 'Listing color key',
-                  onPressed: () => showMarketplaceListingLegend(context),
-                  icon: const Icon(Icons.info_outline_rounded)),
-              const SizedBox(width: 6),
-              IconButton.filledTonal(
-                  tooltip: 'Map view',
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const MarketplaceMapSheet())),
-                  icon: const Icon(Icons.map_outlined)),
-              const SizedBox(width: 6),
-              IconButton.filledTonal(
-                  tooltip: 'More filters',
-                  onPressed: _showFilters,
-                  icon: Badge(
-                      isLabelVisible: _filters.activeCount > 0,
-                      label: Text('${_filters.activeCount}'),
-                      child: const Icon(Icons.tune_rounded))),
-            ]),
-            const SizedBox(height: 9),
+                          widget.onCategory,
+                        ),
+                        icon: const Icon(Icons.grid_view_rounded, size: 17),
+                        label: Text(widget.category ?? 'All categories'),
+                      )
+                    else
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showCategoryPicker(
+                            context,
+                            widget.category,
+                            widget.features.regulatedListings,
+                            widget.onCategory,
+                          ),
+                          icon: const Icon(Icons.grid_view_rounded, size: 17),
+                          label: Text(
+                            widget.category ?? 'All categories',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(width: 6),
+                    IconButton.filledTonal(
+                      key: const Key('browse_save_search_alert_btn'),
+                      tooltip: 'Save search alert & manage keyword alerts',
+                      onPressed: _openSavedSearchAlertsModal,
+                      icon: const Icon(
+                        Icons.notifications_active_outlined,
+                        size: 19,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton.filledTonal(
+                      tooltip: 'Listing color key',
+                      onPressed: () => showMarketplaceListingLegend(context),
+                      icon: const Icon(Icons.info_outline_rounded, size: 19),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton.filledTonal(
+                      tooltip: 'Map view',
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MarketplaceMapSheet(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.map_outlined, size: 19),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton.filledTonal(
+                      tooltip: 'More filters',
+                      onPressed: _showFilters,
+                      icon: Badge(
+                        isLabelVisible: _filters.activeCount > 0,
+                        label: Text('${_filters.activeCount}'),
+                        child: const Icon(Icons.tune_rounded, size: 19),
+                      ),
+                    ),
+                  ],
+                );
+                if (wideBar) {
+                  return Row(
+                    children: [
+                      Expanded(child: searchBox),
+                      const SizedBox(width: 10),
+                      filterControls,
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    searchBox,
+                    const SizedBox(height: 8),
+                    filterControls,
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -4618,40 +4539,6 @@ class _MarketplaceSpecTableView extends StatelessWidget {
           ),
       ],
     );
-  }
-}
-
-class _WelcomeUser extends StatelessWidget {
-  const _WelcomeUser();
-
-  @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const SizedBox.shrink();
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .snapshots(),
-        builder: (context, snapshot) {
-          final data = snapshot.data?.data() ?? const <String, dynamic>{};
-          final candidates = [
-            data['businessName'],
-            data['displayName'],
-            data['fullName'],
-            data['name'],
-            user.displayName,
-            user.email?.split('@').first,
-          ];
-          final name = candidates
-              .map((value) => '${value ?? ''}'.trim())
-              .firstWhere((value) => value.isNotEmpty, orElse: () => 'User');
-          return Text('Welcome, $name',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  color: _orange, fontSize: 15, fontWeight: FontWeight.w800));
-        });
   }
 }
 
