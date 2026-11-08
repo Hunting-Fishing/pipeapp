@@ -42,8 +42,7 @@ class PipeBuyerSiteFooter extends StatelessWidget {
       onOpenPartnerShowcase!();
       return;
     }
-    if (onOpenPartnerWithUs != null &&
-        section != PartnerPageSection.showcase) {
+    if (onOpenPartnerWithUs != null && section != PartnerPageSection.showcase) {
       onOpenPartnerWithUs!();
       return;
     }
@@ -376,7 +375,7 @@ class _PartnerSpotlightBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
       decoration: BoxDecoration(
         color: PipeBuyerColors.orange.withValues(alpha: 0.10),
         border: Border(
@@ -395,7 +394,7 @@ class _PartnerSpotlightBanner extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
-                      vertical: 3,
+                      vertical: 2.5,
                     ),
                     decoration: BoxDecoration(
                       color: PipeBuyerColors.orange,
@@ -405,7 +404,7 @@ class _PartnerSpotlightBanner extends StatelessWidget {
                       'PARTNER WITH US',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 9.5,
+                        fontSize: 9,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.8,
                       ),
@@ -419,7 +418,7 @@ class _PartnerSpotlightBanner extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.white70,
-                        fontSize: 10.5,
+                        fontSize: 10,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.6,
                       ),
@@ -427,23 +426,23 @@ class _PartnerSpotlightBanner extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               const Text(
                 'Promote Your Brand, Showcase Crew Trucks & Sell Direct to the Oilfield',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
-                  height: 1.2,
+                  fontSize: 16.5,
+                  height: 1.18,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 4),
               const Text(
                 'We partner with OEM vehicle makers, commercial truck dealers, equipment manufacturers, and suppliers to advertise, showcase products, and deliver exclusive oilfield fleet deals.',
                 style: TextStyle(
                   color: Colors.white70,
-                  fontSize: 12.5,
-                  height: 1.4,
+                  fontSize: 11.8,
+                  height: 1.35,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -461,18 +460,18 @@ class _PartnerSpotlightBanner extends StatelessWidget {
                   backgroundColor: PipeBuyerColors.orange,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                    horizontal: 15,
+                    vertical: 10,
                   ),
                   textStyle: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w900,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                icon: const Icon(Icons.handshake_outlined, size: 18),
+                icon: const Icon(Icons.handshake_outlined, size: 17),
                 label: const Text('Partner With Us'),
               ),
               OutlinedButton.icon(
@@ -483,17 +482,17 @@ class _PartnerSpotlightBanner extends StatelessWidget {
                   side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
-                    vertical: 12,
+                    vertical: 10,
                   ),
                   textStyle: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                icon: const Icon(Icons.local_offer_outlined, size: 17),
+                icon: const Icon(Icons.local_offer_outlined, size: 16),
                 label: const Text('View Oilfield Deals'),
               ),
             ],

@@ -310,10 +310,10 @@ class MarketplaceHomeDiscoveryHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = _signedIn
         ? 'Welcome back, $name. Keep your next deal moving.'
-        : 'Find. Connect. Move. Industrial inventory across North America.';
+        : 'Buy, Sell & Source Oilfield Pipe, Heavy Iron & Field Services';
     final subtitle = _signedIn
         ? 'Find inventory, manage listings, negotiate offers and coordinate Dispatch from one Pipe Buyer workspace.'
-        : 'Buy and sell pipe, oilfield equipment, heavy equipment, portable buildings, vehicles and hauling services in one industry-focused marketplace.';
+        : 'Direct OCTG & tubulars, heavy equipment, 63,000+ verified service companies, jobsite gear, and dispatch hauling—all in one workspace.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
