@@ -25,6 +25,8 @@ enum PipeBuyerGlobalHub {
   home,
   browse,
   sell,
+  shopStore,
+  shopVendorApply,
   servicesDirectory,
   listServices,
   insurance,
@@ -285,6 +287,16 @@ class PipeBuyerGlobalHubBar extends StatelessWidget
         icon: Icons.add_box_outlined,
       ),
       (
+        hub: PipeBuyerGlobalHub.shopStore,
+        label: 'Shop Store',
+        icon: Icons.shopping_bag_outlined,
+      ),
+      (
+        hub: PipeBuyerGlobalHub.shopVendorApply,
+        label: 'Vendor Portal',
+        icon: Icons.store_mall_directory_outlined,
+      ),
+      (
         hub: PipeBuyerGlobalHub.servicesDirectory,
         label: 'Services Directory',
         icon: Icons.manage_search_rounded,
@@ -350,6 +362,10 @@ class PipeBuyerGlobalHubBar extends StatelessWidget
         MarketplaceNavigation.goToBrowse(context);
       case PipeBuyerGlobalHub.sell:
         MarketplaceNavigation.goToSell(context);
+      case PipeBuyerGlobalHub.shopStore:
+        MarketplaceNavigation.openShopStore(context);
+      case PipeBuyerGlobalHub.shopVendorApply:
+        MarketplaceNavigation.openShopVendorApply(context);
       case PipeBuyerGlobalHub.dispatch:
         MarketplaceNavigation.goToDispatch(context);
       case PipeBuyerGlobalHub.servicesDirectory:

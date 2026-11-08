@@ -21,16 +21,15 @@ String officialRegulatorPortalUrl(String jurisdiction) {
     'CA-NS (Nova Scotia)' => 'https://nsrec.ns.ca/consumers/licensee-search',
     'CA-NL (Newfoundland & Labrador)' =>
       'https://www.gov.nl.ca/dgsnl/licences/real-estate/',
-    'US-TX (Texas)' =>
-      'https://www.trec.texas.gov/apps/license-holder-search/',
+    'US-TX (Texas)' => 'https://www.trec.texas.gov/apps/license-holder-search/',
     'US-ND (North Dakota)' => 'https://www.realestatend.org/licensee_search/',
     'US-OK (Oklahoma)' =>
       'https://orec.us.thentiacloud.net/webs/orec/register/',
     'US-NM (New Mexico)' =>
       'https://nmrld.my.site.com/bcd/s/public-search-license',
-    'US-LA (Louisiana)' =>
-      'https://lrec.gov/consumers/active-licensee-search/',
-    'US-WY (Wyoming)' => 'https://realestate.wyo.gov/consumers/verify-a-license',
+    'US-LA (Louisiana)' => 'https://lrec.gov/consumers/active-licensee-search/',
+    'US-WY (Wyoming)' =>
+      'https://realestate.wyo.gov/consumers/verify-a-license',
     'US-MT (Montana)' =>
       'https://ebizws.mt.gov/PUBLICPORTAL/searchform?mylist=licenses',
     'US-CO (Colorado)' =>
@@ -135,7 +134,8 @@ class ExpRealtyProgramConfig {
     if (data == null) return disabledDefault;
     return ExpRealtyProgramConfig(
       enabled: data['enabled'] == true,
-      agentApplicationsEnabled: data['agentApplicationsEnabled'] as bool? ?? true,
+      agentApplicationsEnabled:
+          data['agentApplicationsEnabled'] as bool? ?? true,
       listingBrokerageAttributionEnabled:
           data['listingBrokerageAttributionEnabled'] as bool? ?? true,
       buyerAgentLeadRoutingEnabled:
@@ -254,7 +254,8 @@ class _ExpRealtyAccountApplicationCardState
     return StreamBuilder<ExpRealtyProgramConfig>(
       stream: watchExpRealtyProgramConfig(),
       builder: (context, configSnap) {
-        final config = configSnap.data ?? ExpRealtyProgramConfig.disabledDefault;
+        final config =
+            configSnap.data ?? ExpRealtyProgramConfig.disabledDefault;
         if (!config.enabled || !config.agentApplicationsEnabled) {
           return const SizedBox.shrink();
         }
@@ -603,6 +604,8 @@ class ExpRealtyListingRepresentationSection extends StatelessWidget {
                         final match = kDefaultExpBrokerageOptions
                             .firstWhere((e) => e.id == val);
                         brokerageNameController.text = match.legalName;
+                      } else {
+                        brokerageNameController.clear();
                       }
                     }
                   },
@@ -693,7 +696,8 @@ class _ExpRealtyLeadInquiryCardState extends State<ExpRealtyLeadInquiryCard> {
     if (user == null) {
       PipeFeedback.show(
         context,
-        message: 'Sign in first to request an eXp Realty commercial/land agent.',
+        message:
+            'Sign in first to request an eXp Realty commercial/land agent.',
         tone: PipeStatusTone.warning,
       );
       return;
@@ -729,7 +733,8 @@ class _ExpRealtyLeadInquiryCardState extends State<ExpRealtyLeadInquiryCard> {
                         'Property/Business owner seeking listing agent',
                         'Valuation, title, or due-diligence inquiry',
                       ]
-                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                          .map(
+                              (e) => DropdownMenuItem(value: e, child: Text(e)))
                           .toList(growable: false),
                       onChanged: (val) {
                         if (val != null) {
@@ -1416,7 +1421,8 @@ class _ExpRealtyAdminControlPanelState
                             current: config,
                             agentApplicationsEnabled: val,
                           ),
-                  title: const Text('Realtor License Verification Applications'),
+                  title:
+                      const Text('Realtor License Verification Applications'),
                   subtitle: const Text(
                     'Allow Realtors to submit provincial/state license credentials in Account Settings.',
                   ),
@@ -1494,7 +1500,8 @@ class _ExpRealtyAdminControlPanelState
                   ),
                   title: const Text(
                     '1. eXp Realty CRM Auto-Lead Sync (BoldTrail / Lofty / Webhook)',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
                   ),
                   subtitle: Text(
                     [
@@ -1628,7 +1635,8 @@ class _ExpRealtyAdminControlPanelState
                   ),
                   title: const Text(
                     '2. Canadian REALTOR.ca CREA DDF® OData v4 Auto-Sync',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
                   ),
                   subtitle: Text(
                     _creaDdfConfigured
@@ -1729,7 +1737,8 @@ class _ExpRealtyAdminControlPanelState
                   ),
                   title: const Text(
                     '3. Live Government License API & Regulator Portal Lookup',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
                   ),
                   subtitle: const Text(
                     'Live \$0 Gov REST APIs active now for Texas (TREC) & Colorado (DORA) + 1-click portals for RECA, BCFSA, SREC, RECO & 23 jurisdictions',

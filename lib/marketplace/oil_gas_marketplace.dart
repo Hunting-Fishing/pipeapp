@@ -6160,8 +6160,7 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
   final _netOperatingIncome = TextEditingController();
   final _annualPropertyTax = TextEditingController();
   final _leaseDetails = TextEditingController();
-  final _brokerageName =
-      TextEditingController(text: 'eXp Realty of Canada, Inc.');
+  final _brokerageName = TextEditingController();
   final _agentLicenseNumber = TextEditingController();
   final _mlsNumber = TextEditingController();
   String _listingRepresentation = 'Owner / Principal';
@@ -9313,7 +9312,13 @@ class _StableCreateListingPageState extends State<_StableCreateListingPage> {
           'listingRepresentation': _listingRepresentation,
           if (_listingRepresentation == 'Licensed Realtor / Brokerage') ...{
             'brokerageEntityId': _brokerageEntityId,
-            'brokerageName': _brokerageName.text.trim(),
+            'brokerageName': _brokerageName.text.trim().isNotEmpty
+                ? _brokerageName.text.trim()
+                : (kDefaultExpBrokerageOptions
+                        .where((e) => e.id == _brokerageEntityId)
+                        .firstOrNull
+                        ?.legalName ??
+                    ''),
             'agentLicenseNumber': _agentLicenseNumber.text.trim(),
             'agentJurisdiction': _agentJurisdiction,
             'mlsNumber': _mlsNumber.text.trim(),

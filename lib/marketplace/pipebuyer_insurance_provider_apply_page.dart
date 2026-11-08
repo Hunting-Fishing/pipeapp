@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_navigation.dart';
 import 'pipebuyer_business_logo_uploader.dart';
 import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_insurance_client.dart';
@@ -178,6 +179,9 @@ class _PipeBuyerInsuranceProviderApplyPageState
         backgroundColor: PipeBuyerColors.ink,
         foregroundColor: Colors.white,
         title: const Text('LIST YOUR INSURANCE COMPANY'),
+        bottom: const PipeBuyerGlobalHubBar(
+          currentHub: PipeBuyerGlobalHub.insurance,
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 36),
