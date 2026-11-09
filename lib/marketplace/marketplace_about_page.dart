@@ -4,14 +4,23 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/config/public_release_config.dart';
 import '../core/design/pipe_buyer_components.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_navigation.dart';
+import 'marketplace_public_information.dart';
 import 'pipebuyer_site_footer.dart';
 
 class MarketplaceAboutPage extends StatelessWidget {
   const MarketplaceAboutPage({super.key});
 
-  static final Uri _aboutUri = Uri.parse('https://www.pipebuyer.com/about');
-  static final Uri _privacyUri = Uri.parse('https://www.pipebuyer.com/privacy');
-  static final Uri _termsUri = Uri.parse('https://www.pipebuyer.com/terms');
+  void _openPublicInfo(
+    BuildContext context,
+    MarketplacePublicInformationKind kind,
+  ) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => MarketplacePublicInformationPage(kind: kind),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +33,20 @@ class MarketplaceAboutPage extends StatelessWidget {
         : release.normalizedEnvironment;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('About Pipe Buyer')),
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Return to Pipe Buyer',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              MarketplaceNavigation.goHome(context);
+            }
+          },
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        title: const Text('About Pipe Buyer'),
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -97,24 +119,35 @@ class MarketplaceAboutPage extends StatelessWidget {
                   child: Column(
                     children: [
                       _LinkRow(
-                        icon: Icons.language_outlined,
-                        title: 'About Pipe Buyer',
-                        subtitle: 'Company and marketplace information',
-                        onTap: () => _launch(context, _aboutUri),
+                        icon: Icons.support_agent_outlined,
+                        title: 'Help & Support',
+                        subtitle:
+                            'Account, listing, and transaction assistance',
+                        onTap: () => _openPublicInfo(
+                          context,
+                          MarketplacePublicInformationKind.support,
+                        ),
                       ),
                       const Divider(height: 1),
                       _LinkRow(
                         icon: Icons.privacy_tip_outlined,
                         title: 'Privacy Policy',
-                        subtitle: 'How personal and marketplace data is handled',
-                        onTap: () => _launch(context, _privacyUri),
+                        subtitle:
+                            'How personal and marketplace data is handled',
+                        onTap: () => _openPublicInfo(
+                          context,
+                          MarketplacePublicInformationKind.privacy,
+                        ),
                       ),
                       const Divider(height: 1),
                       _LinkRow(
                         icon: Icons.description_outlined,
                         title: 'Terms of Service',
                         subtitle: 'Marketplace terms and user obligations',
-                        onTap: () => _launch(context, _termsUri),
+                        onTap: () => _openPublicInfo(
+                          context,
+                          MarketplacePublicInformationKind.terms,
+                        ),
                       ),
                     ],
                   ),
@@ -123,7 +156,8 @@ class MarketplaceAboutPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: Theme.of(context).dividerColor),
                   ),
@@ -138,13 +172,14 @@ class MarketplaceAboutPage extends StatelessWidget {
                       Expanded(
                         child: Text(
                           'Release information identifies the running application build. It does not indicate app-store publication, payment-provider approval, or regulatory approval.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: .66),
-                                height: 1.45,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: .66),
+                                    height: 1.45,
+                                  ),
                         ),
                       ),
                     ],
@@ -246,11 +281,13 @@ class _BrandHero extends StatelessWidget {
                         const SizedBox(height: 12),
                         Text(
                           'Pipe Buyer',
-                          style:
-                              Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                  ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                              ),
                         ),
                         const SizedBox(height: 7),
                         const Text(
