@@ -85,11 +85,15 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
       _staffState.hasScopedStaffAccess &&
       !marketplaceAdminViewAsUserMode.value;
   int _adminCheckGeneration = 0;
+  int? _pendingSubTabIndex;
 
   @override
   void initState() {
     super.initState();
     final requestedTab = MarketplaceNavigation.accountSubTabRequests.value;
+    if (requestedTab != null && requestedTab >= 7) {
+      _pendingSubTabIndex = requestedTab;
+    }
     final initialIndex = requestedTab != null ? requestedTab.clamp(0, 6) : 0;
     if (requestedTab != null) {
       MarketplaceNavigation.accountSubTabRequests.value = null;
@@ -127,13 +131,22 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
         !marketplaceAdminViewAsUserMode.value;
     final nextLength = (shouldShowAdmin || shouldShowScopedStaff) ? 8 : 7;
     if (_tabs.length == nextLength) {
+      final pending = _pendingSubTabIndex;
+      if (pending != null && pending < nextLength) {
+        _pendingSubTabIndex = null;
+        _tabs.animateTo(pending.clamp(0, nextLength - 1));
+      }
       setState(() {
         _adminState = nextState;
         _staffState = effectiveStaff;
       });
       return;
     }
-    final nextIndex = _tabs.index.clamp(0, nextLength - 1);
+    final pending = _pendingSubTabIndex;
+    if (pending != null && pending < nextLength) {
+      _pendingSubTabIndex = null;
+    }
+    final nextIndex = (pending ?? _tabs.index).clamp(0, nextLength - 1);
     final oldTabs = _tabs;
     setState(() {
       _adminState = nextState;
@@ -151,6 +164,11 @@ class _MarketplaceAccountHubState extends State<MarketplaceAccountHub>
     final requested = MarketplaceNavigation.accountSubTabRequests.value;
     if (requested == null || !mounted) return;
     MarketplaceNavigation.accountSubTabRequests.value = null;
+    if (requested >= _tabs.length) {
+      _pendingSubTabIndex = requested;
+    } else {
+      _pendingSubTabIndex = null;
+    }
     final target = requested.clamp(0, _tabs.length - 1);
     _tabs.animateTo(target);
   }

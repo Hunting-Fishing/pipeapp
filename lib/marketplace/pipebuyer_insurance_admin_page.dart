@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
+import 'marketplace_navigation.dart';
 import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_insurance_client.dart';
 import 'pipebuyer_insurance_taxonomy.dart';
@@ -266,6 +267,17 @@ class _PipeBuyerInsuranceAdminPageState
       appBar: AppBar(
         backgroundColor: PipeBuyerColors.ink,
         foregroundColor: Colors.white,
+        leading: IconButton(
+          tooltip: 'Return to Pipe Buyer',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              MarketplaceNavigation.goHome(context);
+            }
+          },
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
         title: const Text('COMMERCIAL INSURANCE ADMIN'),
         actions: [
           IconButton(

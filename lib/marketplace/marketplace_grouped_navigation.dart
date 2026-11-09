@@ -20,6 +20,7 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
     this.onShopVendorApply,
     this.onShopAdmin,
     this.isAdmin = false,
+    this.wantedSelected = false,
   });
 
   final int selectedPageIndex;
@@ -37,6 +38,7 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
   final VoidCallback? onShopVendorApply;
   final VoidCallback? onShopAdmin;
   final bool isAdmin;
+  final bool wantedSelected;
 
   @override
   Widget build(BuildContext context) => ListView(
@@ -62,14 +64,14 @@ class MarketplaceGroupedNavigation extends StatelessWidget {
               icon: Icons.add_box_outlined,
               selectedIcon: Icons.add_box_rounded,
               label: 'Create Listing',
-              selected: selectedPageIndex == 2,
+              selected: selectedPageIndex == 2 && !wantedSelected,
               onTap: () => onDestinationSelected(2),
             ),
             _NavItem(
               icon: Icons.campaign_outlined,
               selectedIcon: Icons.campaign_rounded,
               label: 'Wanted Ads & RFQs',
-              selected: false,
+              selected: selectedPageIndex == 2 && wantedSelected,
               onTap: onWanted,
             ),
             _NavItem(

@@ -12,6 +12,7 @@ import '/auth/base_auth_user_provider.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 
 import '/marketplace/oil_gas_marketplace.dart';
+import '/marketplace/marketplace_about_page.dart';
 import '/marketplace/marketplace_auctions_page.dart';
 import '/marketplace/marketplace_auth_action_page.dart';
 import '/marketplace/marketplace_deep_links.dart';
@@ -414,6 +415,11 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
             initialSection:
                 params.getParam<String>('tab', ParamType.string) ?? '',
           ),
+        ),
+        FFRoute(
+          name: MarketplaceDeepLinks.aboutRouteName,
+          path: MarketplaceDeepLinks.aboutPath,
+          builder: (context, params) => const MarketplaceAboutPage(),
         ),
         FFRoute(
           name: MarketplaceDeepLinks.privacyRouteName,

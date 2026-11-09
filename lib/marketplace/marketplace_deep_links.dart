@@ -12,6 +12,7 @@ class MarketplaceDeepLinks {
   static const profileRouteName = 'marketplace-profile';
   static const conversationRouteName = 'marketplace-conversation';
   static const dispatchJobRouteName = 'dispatch-job';
+  static const aboutRouteName = 'public-about';
   static const privacyRouteName = 'public-privacy';
   static const termsRouteName = 'public-terms';
   static const supportRouteName = 'public-support';
@@ -33,6 +34,7 @@ class MarketplaceDeepLinks {
   static const shopAdminRouteName = 'pipebuyer-shop-admin';
   static const authActionRouteName = 'marketplace-auth-action';
 
+  static const aboutPath = '/about';
   static const privacyPath = '/privacy';
   static const termsPath = '/terms';
   static const supportPath = '/support';

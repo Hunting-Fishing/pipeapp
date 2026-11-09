@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/design/pipe_buyer_theme.dart';
 import 'marketplace_admin_access.dart';
+import 'marketplace_navigation.dart';
 import 'pipebuyer_business_logo_widgets.dart';
 import 'pipebuyer_partner_client.dart';
 import 'pipebuyer_partner_taxonomy.dart';
@@ -206,6 +207,17 @@ class _PipeBuyerPartnerAdminPageState extends State<PipeBuyerPartnerAdminPage>
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Return to Pipe Buyer',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              MarketplaceNavigation.goHome(context);
+            }
+          },
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
         title: const Text('Partner With Us • Admin Queue'),
         actions: [
           IconButton(

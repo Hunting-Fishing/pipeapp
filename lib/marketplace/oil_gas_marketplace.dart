@@ -1070,7 +1070,26 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
   bool _authGateScheduled = false;
   bool _authRouteOpen = false;
   bool _reconcilingVerification = false;
+  bool _isAdminUser = false;
   final Set<String> _syncedVerificationKeys = {};
+
+  void _closeDrawerIfOpen() {
+    if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+      _scaffoldKey.currentState?.closeDrawer();
+    }
+  }
+
+  void _handleAdminViewModeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _refreshAdminAccess() async {
+    final authorized = await marketplaceAdministratorAccess();
+    if (!mounted) return;
+    if (_isAdminUser != authorized) {
+      setState(() => _isAdminUser = authorized);
+    }
+  }
 
   void _openCreate({bool auction = false, bool wanted = false}) {
     if (!_features.marketplace) {
@@ -1110,6 +1129,8 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
   }
 
   void _handleWantedRequest() {
+    if (MarketplaceNavigation.wantedRequests.value == 0) return;
+    MarketplaceNavigation.wantedRequests.value = 0;
     if (!mounted || !_features.marketplace) return;
     _openCreate(wanted: true);
   }
@@ -1125,17 +1146,19 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
   }
 
   void _selectTab(int index) {
-    setState(() => _tab = index);
-    if (_scaffoldKey.currentState?.isDrawerOpen == true) {
-      _scaffoldKey.currentState?.closeDrawer();
-    }
+    setState(() {
+      if (index != 2) {
+        _createAuctionRequested = false;
+        _createWantedRequested = false;
+      }
+      _tab = index;
+    });
+    _closeDrawerIfOpen();
   }
 
   void _selectControlledTab(int index, bool enabled, String label) {
     if (!enabled) {
-      if (_scaffoldKey.currentState?.isDrawerOpen == true) {
-        _scaffoldKey.currentState?.closeDrawer();
-      }
+      _closeDrawerIfOpen();
       _showFeatureUnavailable(label);
       return;
     }
@@ -1181,12 +1204,19 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
       _tab = 1;
       MarketplaceNavigation.browseSearchRequests.value = null;
     }
+    if (MarketplaceNavigation.wantedRequests.value > 0) {
+      MarketplaceNavigation.wantedRequests.value = 0;
+      _createAuctionRequested = false;
+      _createWantedRequested = true;
+      _tab = 2;
+    }
     MarketplaceNavigation.homeRequests.addListener(_handleHomeRequest);
     MarketplaceNavigation.destinationRequests
         .addListener(_handleDestinationRequest);
     MarketplaceNavigation.wantedRequests.addListener(_handleWantedRequest);
     MarketplaceNavigation.browseSearchRequests
         .addListener(_handleBrowseSearchRequest);
+    marketplaceAdminViewAsUserMode.addListener(_handleAdminViewModeChanged);
     _authSubscription =
         FirebaseAuth.instance.authStateChanges().listen(_handleAuthChanged);
     _featureSubscription = _featureRepository.watch().listen(
@@ -1213,6 +1243,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
     MarketplaceNavigation.wantedRequests.removeListener(_handleWantedRequest);
     MarketplaceNavigation.browseSearchRequests
         .removeListener(_handleBrowseSearchRequest);
+    marketplaceAdminViewAsUserMode.removeListener(_handleAdminViewModeChanged);
     _authSubscription?.cancel();
     _savedSubscription?.cancel();
     _featureSubscription?.cancel();
@@ -1330,10 +1361,12 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
       child: MarketplaceAdaptiveShell(
         scaffoldKey: _scaffoldKey,
         selectedPageIndex: _tab,
-        title: const [
+        title: [
           'Home',
           'Marketplace',
-          'Create Listing',
+          _createWantedRequested
+              ? 'Wanted Ads & RFQs'
+              : (_createAuctionRequested ? 'Create Auction' : 'Create Listing'),
           'Saved',
           'Messages',
           'Profile',
@@ -1520,6 +1553,8 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
           onShopVendorApply: () =>
               MarketplaceNavigation.openShopVendorApply(context),
           onShopAdmin: () => MarketplaceNavigation.openShopAdmin(context),
+          isAdmin: _isAdminUser && !marketplaceAdminViewAsUserMode.value,
+          wantedSelected: _createWantedRequested,
         ),
         railLeading: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
@@ -1705,18 +1740,18 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       _DrawerDestination(
                         icon: Icons.add_box_outlined,
                         label: 'Create Listing',
-                        selected: _tab == 2,
+                        selected: _tab == 2 && !_createWantedRequested,
                         onTap: () {
-                          Navigator.of(context).pop();
+                          _closeDrawerIfOpen();
                           _openCreate();
                         },
                       ),
                       _DrawerDestination(
                         icon: Icons.request_quote_outlined,
                         label: 'Wanted ads & RFQs',
-                        selected: false,
+                        selected: _tab == 2 && _createWantedRequested,
                         onTap: () {
-                          Navigator.of(context).pop();
+                          _closeDrawerIfOpen();
                           _openCreate(wanted: true);
                         },
                       ),
@@ -1732,7 +1767,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       label: 'Search for Services',
                       selected: false,
                       onTap: () {
-                        Navigator.of(context).pop();
+                        _closeDrawerIfOpen();
                         MarketplaceNavigation.openSearchServices(context);
                       },
                     ),
@@ -1741,7 +1776,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       label: 'List Services',
                       selected: false,
                       onTap: () {
-                        Navigator.of(context).pop();
+                        _closeDrawerIfOpen();
                         MarketplaceNavigation.openListServices(context);
                       },
                     ),
@@ -1750,7 +1785,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       label: 'Commercial Insurance',
                       selected: false,
                       onTap: () {
-                        Navigator.of(context).pop();
+                        _closeDrawerIfOpen();
                         MarketplaceNavigation.openInsuranceHub(context);
                       },
                     ),
@@ -1759,7 +1794,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       label: 'Shop Tools & Gear',
                       selected: false,
                       onTap: () {
-                        Navigator.of(context).pop();
+                        _closeDrawerIfOpen();
                         MarketplaceNavigation.openShopStore(context);
                       },
                     ),
@@ -1768,7 +1803,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       label: 'Vendor & Brand Portal',
                       selected: false,
                       onTap: () {
-                        Navigator.of(context).pop();
+                        _closeDrawerIfOpen();
                         MarketplaceNavigation.openShopVendorApply(context);
                       },
                     ),
@@ -1777,7 +1812,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       label: 'Partner With Us',
                       selected: false,
                       onTap: () {
-                        Navigator.of(context).pop();
+                        _closeDrawerIfOpen();
                         MarketplaceNavigation.openPartnerWithUs(context);
                       },
                     ),
@@ -1820,13 +1855,13 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                     extended: true,
                     onAccount: () => _selectTab(5),
                     onTrust: () {
-                      Navigator.of(context).pop();
+                      _closeDrawerIfOpen();
                       MarketplaceNavigation.openVerificationAndSecurity(
                         context,
                       );
                     },
                     onMemberships: () {
-                      Navigator.of(context).pop();
+                      _closeDrawerIfOpen();
                       showDialog<void>(
                         context: context,
                         builder: (_) =>
@@ -1834,7 +1869,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       );
                     },
                     onSupport: () {
-                      Navigator.of(context).pop();
+                      _closeDrawerIfOpen();
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const MarketplaceSupportPage(),
@@ -1842,7 +1877,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       );
                     },
                     onAdminSettings: () {
-                      Navigator.of(context).pop();
+                      _closeDrawerIfOpen();
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const MarketplaceAdminDashboard(
@@ -1852,11 +1887,11 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
                       );
                     },
                     onScopedStaffAdmin: () {
-                      Navigator.of(context).pop();
+                      _closeDrawerIfOpen();
                       MarketplaceNavigation.openScopedStaffAdmin(context);
                     },
                     onAffiliateLinks: () {
-                      Navigator.of(context).pop();
+                      _closeDrawerIfOpen();
                       MarketplaceNavigation.openShopAdmin(
                         context,
                         initialTabIndex: 1,
@@ -1950,11 +1985,13 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
       _savedLoading = user != null;
     });
     if (user == null) {
+      _isAdminUser = false;
       setMarketplaceAdminViewAsUserMode(false);
       _syncedVerificationKeys.clear();
       _scheduleAuthGate();
       return;
     }
+    unawaited(_refreshAdminAccess());
     unawaited(_registerCurrentDevice(user));
     unawaited(_reconcileAccountVerification(user));
     final userUid = user.uid;
@@ -2086,9 +2123,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
   Future<void> _showAuth({required bool enforced}) async {
     if (_authRouteOpen) return;
     if (enforced && FirebaseAuth.instance.currentUser != null) return;
-    if (_scaffoldKey.currentState?.isDrawerOpen == true) {
-      Navigator.of(context).pop();
-    }
+    _closeDrawerIfOpen();
 
     _authRouteOpen = true;
     try {
@@ -2112,9 +2147,7 @@ class _OilGasMarketplaceAppState extends State<OilGasMarketplaceApp>
   }
 
   Future<void> _signOut() async {
-    if (_scaffoldKey.currentState?.isDrawerOpen == true) {
-      Navigator.of(context).pop();
-    }
+    _closeDrawerIfOpen();
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
