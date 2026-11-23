@@ -108,6 +108,14 @@ still lacks `PIPE_ANDROID_APP_SIGNING_SHA256`, which cannot be finalized until
 the Play app and Play App Signing certificate exist. Staging environments were
 not changed.
 
+The `main` branch is also protected for the solo-owner workflow: it requires an
+up-to-date branch and successful Android and Apple native preflight checks,
+enforces the rules for administrators, requires linear history and resolved
+conversations, and blocks force-pushes and deletion. Pull requests require zero
+approving reviews, so the sole owner is not deadlocked. The preflight workflow
+now runs for every pull request to `main`, preventing path-filtered changes from
+waiting forever on checks that were never created.
+
 The live Apple Developer audit confirmed that the active App Store profile for
 `Pipe.Buyerapp` includes App Attest, Associated Domains, Push Notifications,
 Sign in with Apple, In-App Purchase, Apple Pay, StoreKit external-purchase
