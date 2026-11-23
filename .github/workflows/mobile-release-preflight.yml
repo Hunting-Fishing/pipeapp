@@ -4,19 +4,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - android/**
-      - ios/**
-      - lib/**
-      - test/**
-      - pubspec.yaml
-      - pubspec.lock
-      - firebase.json
-      - tool/mobile_link_associations.mjs
-      - tool/mobile_link_associations_test.mjs
-      - .github/workflows/deploy.yml
-      - .github/workflows/mobile-release-candidate.yml
-      - .github/workflows/mobile-release-preflight.yml
   workflow_dispatch:
 
 permissions:

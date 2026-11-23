@@ -19,15 +19,9 @@ void main() {
     expect(source, contains('sdk_major" -lt 26'));
   });
 
-  test('release-control-only changes trigger and run contract tests', () {
-    for (final path in <String>[
-      'firebase.json',
-      'tool/mobile_link_associations.mjs',
-      '.github/workflows/deploy.yml',
-      '.github/workflows/mobile-release-candidate.yml',
-    ]) {
-      expect(source, contains('- $path'));
-    }
+  test('every main pull request runs the release preflight', () {
+    expect(source, isNot(contains('paths:')));
+    expect(source, isNot(contains('paths-ignore:')));
     expect(source, contains('Verify mobile release-control contracts'));
     expect(source, contains('test/deployment_workflow_test.dart'));
     expect(
