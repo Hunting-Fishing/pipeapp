@@ -46,7 +46,7 @@ jobs:
           test "$(git rev-parse origin/main)" = "$GITHUB_SHA"
 
       - name: Install Node 22
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: 22
           cache: npm
