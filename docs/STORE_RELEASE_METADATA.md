@@ -20,6 +20,10 @@ For staging, prepend the approved staging origin such as
 production origin. Do not enter staging, localhost, a private console link, or
 an unapproved redirect in either store.
 
+The November 23 live Apple audit found both Support and Marketing still pointed
+at `https://pipebuyer-5c77f.web.app`. Replace them with the approved production
+origin only after the public pages and support ownership pass acceptance.
+
 Privacy and Terms show only server-published policy metadata and link to the
 exact reviewed HTTPS document. They fail closed when a policy is missing or
 unpublished. Legal owners must approve and publish the complete documents
@@ -33,16 +37,17 @@ local development can omit it without presenting the build as release-ready.
 
 | Item | Repository state | Release action |
 | --- | --- | --- |
-| Product name and identifier | `Pipe Buyer` and `Pipe.Buyerapp` are pinned by source tests | Confirm the existing records in both consoles; do not create a second identifier |
+| Product name and identifier | Apple app `Pipe Buyer`, bundle ID `Pipe.Buyerapp`, and SKU `PIPE-BUYER-001` are confirmed live; no Play app record exists | Reuse the Apple record; create the single matching Play record after publisher verification and organization conversion |
 | App icon | Master and generated 1024-pixel Apple/512-pixel artwork exist | Review the exact console crop and rendered device icon |
 | Privacy, Terms, Support, deletion URLs | Public refresh-safe routes exist | Publish approved policy documents, verify production HTTPS responses, and confirm monitored support ownership |
 | Listing copy and keywords | English draft below | Product/legal approval and console preview required |
-| Screenshots | Shot plan exists; no release-bound store screenshots exist | Capture from the exact admitted candidate with approved or anonymized data |
+| Screenshots | Live Apple sets show 0/3 previews and 0/10 screenshots for both Dynamic-Island iPhone and 13-inch iPad; header is 0/1 | Capture from the exact admitted candidate with approved or anonymized data |
 | Google feature graphic | No dedicated 1024 x 500 store graphic exists | Design, approve, and upload before the Play listing is complete |
-| Apple App Privacy | Privacy manifest exists; console questionnaire is not approved | Reconcile runtime, backend, and every linked SDK, then have privacy/legal approve the answers |
+| Apple App Privacy | Privacy manifest exists; the live App Privacy page failed to render, so its questionnaire remains unverified | Retry the console, reconcile runtime, backend, and every linked SDK, then have privacy/legal approve the answers |
 | Google Data Safety | No approved console answer set exists | Reconcile all versions/regions, runtime, backend, and SDK behavior, then approve and submit |
-| Review access | No release reviewer account/instructions are retained | Create a least-privilege demo path, record MFA/setup instructions, and enter credentials only in the store portal |
-| Ratings and audience | Not approved | Complete category, content rating, target audience, ads, countries, and applicable permission declarations |
+| Review access | App Store Connect contains portal-only sign-in information, reviewer contact, and notes; none is retained in source | Validate least-privilege access against the exact build and create the separate Play review path after its app record exists |
+| Ratings and audience | Apple shows global 12+, but subtitle/category are unset, new rating questions remain, the third-party-content answer needs review, and China compliance is unresolved | Complete category, content rating, target audience, ads, countries, content rights, and applicable regional declarations |
+| Release control | Apple version 1.0.0 currently uses automatic release | Change to manual release only with explicit owner confirmation before submission |
 | Signed and device evidence | Not yet available | Admit exact AAB/IPA through closed testing and retain the physical-device matrix |
 
 Official current field references:
@@ -59,6 +64,9 @@ Official current field references:
 
 This copy is a product draft. It must be reviewed in both store consoles before
 its status is changed to approved in the Phase 1 acceptance evidence.
+
+In the live Apple record, subtitle, description, and promotional text are blank,
+and the existing keywords are not synchronized with this approved-length draft.
 
 Application name:
 
@@ -149,6 +157,9 @@ to source, CI, screenshots, or this document.
 ## Controlled-test release notes
 
 Draft for the first invited TestFlight/Play test build:
+
+TestFlight build 9 currently has no **What to Test** text. The draft below is
+ready for owner approval and entry with the new admitted candidate, not build 9.
 
 > First controlled mobile test release of Pipe Buyer. Invited testers can try
 > account creation and sign-in, marketplace browsing and listings, wanted ads,

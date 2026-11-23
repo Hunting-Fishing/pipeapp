@@ -44,13 +44,31 @@ The mobile-readiness branch completed these changes before it was proposed for
 
 ## Live store, account, and release-control findings
 
-Historical App Store Connect evidence from October 2026 identified Apple app
-ID `6795847447`, bundle ID `Pipe.Buyerapp`, an uploaded `1.0.0 (9)` build, and
-prepared monthly/yearly Dispatch products. App Store Connect redirected the
-November 23 read-only review to a signed-out login, so those facts are not
-current enough to authorize a candidate. The Account Holder must sign in and
-recheck agreements, Digital Services Act status, banking, tax, privacy answers,
-product status, highest build number, capabilities, and manual release mode.
+The authenticated November 23 App Store Connect audit confirmed Apple app ID
+`6795847447`, bundle ID `Pipe.Buyerapp`, SKU `PIPE-BUYER-001`, and version
+`1.0.0` in **Prepare for Submission**. No build is selected for that version.
+The highest TestFlight build is `1.0.0 (9)`: its binary is validated, but it is
+**Missing Compliance**, has no tester group or individual tester, and has no
+**What to Test** text. Build 9 predates the current source work and its signed
+entitlements do not include Sign in with Apple or Associated Domains, so it is
+not a release candidate.
+
+The same live audit found no release media: both the Dynamic-Island iPhone and
+13-inch iPad sets show 0 of 3 previews and 0 of 10 screenshots, and the header
+asset is 0 of 1. Description, promotional text, subtitle, and categories are
+blank; Support and Marketing still use the staging origin; and **Automatically
+release this version** is selected. The current content-rights answer says the
+marketplace does not contain, show, or access third-party content and therefore
+requires product/legal review before submission. None of these values was
+changed during the read-only audit.
+
+The Free Apps Agreement is active. The Paid Apps Agreement is **Pending User
+Info**; DSA/trader status, banking, and U.S./Canadian tax information remain
+incomplete. China mainland security-assessment, synthetic-content, and ICP
+information is also incomplete while the app is available in 175 regions.
+The App Privacy page did not render, so the questionnaire could not be verified.
+The monthly and yearly Dispatch products remain **Prepare for Submission**; the
+sandbox server-notification URL exists, while the production URL is unset.
 
 The authenticated Play Console review found developer account `366 Industries`
 configured as Personal, with setup and identity verification incomplete,
@@ -77,12 +95,20 @@ rollout after valid-traffic monitoring, not an assumption made by this branch.
 A November 23 read-only GitHub check found that `production`, `staging`,
 `mobile-release-production`, and `mobile-release-staging` have no required
 reviewer rules or deployment branch policy. The production Environment also
-lacks `PIPE_ANDROID_APP_SIGNING_SHA256`, and the protected iOS provisioning
-profile predates the newly required Apple login and Associated Domains
-capabilities. Public release remains blocked until an owner deliberately adds
-the environment protections, the Play-console-confirmed public fingerprint,
-and a regenerated Apple profile. Those external mutations are not made by this
-source branch.
+lacks `PIPE_ANDROID_APP_SIGNING_SHA256`.
+
+The live Apple Developer audit confirmed that the active App Store profile for
+`Pipe.Buyerapp` includes App Attest, Associated Domains, Push Notifications,
+Sign in with Apple, In-App Purchase, Apple Pay, StoreKit external-purchase
+capabilities, and Wallet, and expires July 29, 2027. Its decoded entitlements
+contain the production push environment, Associated Domains, Sign in with
+Apple, and both App Attest environments. The protected CI secret cannot be read
+back; its update timing is consistent with this profile but is not proof of
+identity. The exact candidate workflow must decode the protected profile and
+verify the signed archive entitlements. Regenerate the profile only if that
+proof fails or the approved capability set changes. Public release remains
+blocked until an owner adds the GitHub protections and the Play-console-
+confirmed public fingerprint.
 
 The committed source version is currently `1.0.5+6`. It must not be used for a
 signed candidate because its build number is lower than the historically
@@ -113,7 +139,7 @@ unapproved native billing path.
 | 0 — Source reconciliation | Complete for the audited baseline | Remote-main identity plus branch/worktree/PR comparison |
 | 1 — Mobile compliance source | Complete and verified for source/compile scope | Apple login, privacy/export declarations, account deletion, permissions, association contracts, and current-SDK unsigned iOS compile pass; signed entitlements remain Gate 4 evidence |
 | 2 — Release and dependency controls | Complete and verified for source/compile scope | Full local gate plus Android/iOS preflight CI pass with zero production dependency advisories |
-| 3 — Store records and owner agreements | Active; 1 of 8 subchecks verified | Firebase providers verified; Apple live records, Apple agreements, Google identity/account type, Google app/testing records, App Check, GitHub protections, and store-aligned version/signing remain open |
+| 3 — Store records and owner agreements | Active; 2 of 8 subchecks verified | Apple app/build records and Firebase providers verified; Apple owner agreements, Google identity/account type, Google app/testing records, App Check, and GitHub protections remain open; store-aligned version/signing is only partial |
 | 4 — Exact signed candidates | Pending after Gates 1–3 | Current-main AAB and IPA, unique console-confirmed build number, hashes, certificates, and store processing records |
 | 5 — Internal physical-device acceptance | Pending | TestFlight and Play internal/closed-track matrix on supported phone/tablet devices |
 | 6 — Store content and review | Pending | Approved screenshots, descriptions, App Privacy/Data Safety, ratings, app access, review notes, and reviewer acceptance |
@@ -124,7 +150,7 @@ explicitly historical and provisional. They are not a substitute for the
 mobile gates above and must not be reported as present store approval.
 
 Current mobile-store checkpoint: **37.5% overall verified (3 of 8 gates)**.
-The active Gate 3 is **12.5% verified (1 of 8 defined live subchecks)**. These
+The active Gate 3 is **25% verified (2 of 8 defined live subchecks)**. These
 percentages describe evidence completed as of November 23, 2026; they are not
 estimates of store-review approval or elapsed calendar time.
 
@@ -132,10 +158,10 @@ Local verification for this branch completed with clean Dart analysis, 664
 Flutter tests, 36 repository-control tests, both Functions suites and linters,
 zero npm audit findings, syntax checks, and a release web build. The Android
 AAB disposable-signing compile and current-App-Store-SDK unsigned iOS compile
-also passed on exact commit `4f36bd129c10f99c3dbd8b33e55bccafc6247371` in
-[mobile preflight run 45109548962](https://github.com/Hunting-Fishing/pipeapp/actions/runs/45109548962).
+also passed on exact commit `aff013cfc97e1dfdea5bc217c0a370c3aba62358` in
+[mobile preflight run 45113439343](https://github.com/Hunting-Fishing/pipeapp/actions/runs/45113439343).
 The exact-SHA repository gate passed in
-[quality run 45109569638](https://github.com/Hunting-Fishing/pipeapp/actions/runs/45109569638).
+[quality run 45113455182](https://github.com/Hunting-Fishing/pipeapp/actions/runs/45113455182).
 Neither run produced a store-distribution artifact or store acceptance.
 
 ## Physical-device acceptance matrix
@@ -164,14 +190,21 @@ Retain timestamped evidence for the exact AAB/IPA and release commit:
 2. Finish Play identity setup, convert to Organization, wait 72 hours, and
    create the Play app; do not submit organization identity or trader details
    from repository logs or chat.
-3. Sign in to App Store Connect and verify the app, agreements, compliance,
-   products, privacy answers, and highest accepted build.
+3. Complete the remaining Apple owner gates: DSA/trader status, paid agreement,
+   tax and banking information where applicable, App Privacy, export compliance,
+   approved production URLs and metadata, media, and manual release selection.
+   Either exclude China mainland for the initial scope or complete its required
+   security, synthetic-content, and ICP information. Each mutation requires an
+   explicit owner decision.
 4. Register the native apps with Firebase App Check, validate real-device
-   tokens, regenerate the Apple profile with every required capability, and
-   confirm the Play App Signing SHA-256.
+   tokens, prove that the protected CI profile matches the current active Apple
+   profile and required signed entitlements, and confirm the Play App Signing
+   SHA-256. Regenerate the Apple profile only if the proof fails or capabilities
+   change.
 5. Add required-reviewer and `main`-only protections to production release
    environments, then store the console-confirmed Android fingerprint.
-6. Read the highest build number in both consoles; commit one higher shared
+6. Apple build 9 is the current confirmed ceiling. After the Play app exists,
+   read its highest accepted build too and commit one higher shared
    `major.minor.patch+build` value before producing candidates.
 7. Merge only after owner review, then build the exact committed `main` SHA
    through the protected mobile release environment.
