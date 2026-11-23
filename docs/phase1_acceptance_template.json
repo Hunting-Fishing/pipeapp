@@ -36,8 +36,8 @@
   ],
   "mobileRelease": {
     "releaseCandidates": [
-      {"id": "android-aab", "status": "pending", "platform": "android", "applicationId": "Pipe.Buyerapp", "builtFromSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "versionName": "1.0.0", "buildNumber": "1", "signatureVerified": false, "storeValidated": false, "artifactFile": "mobile/pipe-buyer.aab", "evidenceFiles": []},
-      {"id": "ios-ipa", "status": "pending", "platform": "ios", "applicationId": "Pipe.Buyerapp", "builtFromSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "versionName": "1.0.0", "buildNumber": "1", "signatureVerified": false, "storeValidated": false, "artifactFile": "mobile/pipe-buyer.ipa", "evidenceFiles": []}
+      {"id": "android-aab", "status": "pending", "platform": "android", "applicationId": "Pipe.Buyerapp", "builtFromSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "versionName": "1.0.5", "buildNumber": "10", "signatureVerified": false, "storeValidated": false, "artifactFile": "mobile/pipe-buyer.aab", "evidenceFiles": []},
+      {"id": "ios-ipa", "status": "pending", "platform": "ios", "applicationId": "Pipe.Buyerapp", "builtFromSha": "REPLACE_WITH_FULL_40_CHARACTER_GIT_SHA", "versionName": "1.0.5", "buildNumber": "10", "signatureVerified": false, "storeValidated": false, "artifactFile": "mobile/pipe-buyer.ipa", "evidenceFiles": []}
     ],
     "storeListings": [
       {"id": "google-play", "status": "pending", "reviewedBy": "", "reviewedAt": "", "supportUrl": "https://REPLACE_WITH_PUBLIC_SUPPORT_URL", "privacyUrl": "https://REPLACE_WITH_PUBLIC_PRIVACY_URL", "termsUrl": "https://REPLACE_WITH_PUBLIC_TERMS_URL", "accountDeletionUrl": "https://REPLACE_WITH_PUBLIC_ACCOUNT_DELETION_URL", "screenshotFiles": [], "evidenceFiles": []},

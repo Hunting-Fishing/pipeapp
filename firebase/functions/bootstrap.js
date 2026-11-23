@@ -6,10 +6,18 @@ const coreExports = require("./index");
 Object.assign(exports, coreExports);
 
 const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
-const {HttpsError, onCall, onRequest} = require("firebase-functions/v2/https");
+const {
+  HttpsError,
+  onCall: firebaseOnCall,
+  onRequest,
+} = require("firebase-functions/v2/https");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {createAdminRuntime} = require("./admin_runtime");
-const {protectedCallableOptions} = require("./app_check_config");
+const {
+  CALLABLE_TIMEOUT_SECONDS,
+  protectedCallableOptions,
+} = require("./app_check_config");
+const {guardCallableHandler} = require("./callable_account_guard");
 const {createAffiliateCommands} = require("./affiliate_commands");
 const {createAffiliatePayouts} = require("./affiliate_payouts");
 const {createDispatchCommands} = require("./dispatch_commands");
@@ -91,6 +99,13 @@ const {createYellowPagesBilling} = require("./yellow_pages_billing");
 const {createYellowPagesOutreach} = require("./yellow_pages_outreach");
 
 const admin = createAdminRuntime();
+
+function onCall(options, handler) {
+  return firebaseOnCall(
+      {...options, timeoutSeconds: CALLABLE_TIMEOUT_SECONDS},
+      guardCallableHandler(admin, handler),
+  );
+}
 const affiliateCommands = createAffiliateCommands(admin);
 const affiliatePayouts = createAffiliatePayouts(admin);
 const dispatchCommands = createDispatchCommands(admin);

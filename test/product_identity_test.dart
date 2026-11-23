@@ -49,7 +49,8 @@ void main() {
 
   test('manual mobile release workflow owns the iOS build', () {
     final quality = source('.github/workflows/quality.yml');
-    final mobileRelease = source('.github/workflows/mobile-release-candidate.yml');
+    final mobileRelease =
+        source('.github/workflows/mobile-release-candidate.yml');
     final pubspec = source('pubspec.yaml');
 
     expect(quality, contains('workflow_dispatch:'));
@@ -174,13 +175,22 @@ void main() {
       'NSPrivacyCollectedDataTypeDeviceID',
       'NSPrivacyCollectedDataTypePurchaseHistory',
       'NSPrivacyCollectedDataTypeProductInteraction',
+      'NSPrivacyCollectedDataTypeSearchHistory',
       'NSPrivacyCollectedDataTypeCrashData',
       'NSPrivacyCollectedDataTypeOtherDiagnosticData',
     ]) {
       expect(manifest, contains('<string>$dataType</string>'),
           reason: dataType);
     }
-    expect(manifest, isNot(contains('PurposeAnalytics')));
+    expect(
+      manifest,
+      contains('NSPrivacyCollectedDataTypePurposeAnalytics'),
+    );
     expect(manifest, isNot(contains('PurposeThirdPartyAdvertising')));
+  });
+
+  test('unused automatic performance telemetry is not shipped', () {
+    final packages = source('pubspec.yaml');
+    expect(packages, isNot(contains('firebase_performance:')));
   });
 }

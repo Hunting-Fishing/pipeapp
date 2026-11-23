@@ -278,12 +278,26 @@ $response = Invoke-WebRequest 'https://www.pipebuyer.com' -UseBasicParsing
 if ($response.StatusCode -ne 200) {
   throw "www.pipebuyer.com returned HTTP $($response.StatusCode)."
 }
-foreach ($path in @('/about', '/privacy', '/terms')) {
+foreach ($path in @('/about', '/privacy', '/terms', '/support', '/account-deletion')) {
   $publicUrl = "https://www.pipebuyer.com$path"
   $publicResponse = Invoke-WebRequest $publicUrl -UseBasicParsing
   if ($publicResponse.StatusCode -ne 200 -or $publicResponse.Content -notmatch 'Pipe Buyer') {
     throw "Public release check failed for $publicUrl."
   }
+}
+
+Invoke-Checked 'Rendering support route' {
+  & (Join-Path $PSScriptRoot 'web_visual_smoke.ps1') `
+    -Url 'https://www.pipebuyer.com/support' `
+    -ExpectedTextPattern 'Help and support' `
+    -ScreenshotPath 'build/acceptance/support-mobile-390x844.png'
+}
+
+Invoke-Checked 'Rendering account-deletion route' {
+  & (Join-Path $PSScriptRoot 'web_visual_smoke.ps1') `
+    -Url 'https://www.pipebuyer.com/account-deletion' `
+    -ExpectedTextPattern 'Delete your account' `
+    -ScreenshotPath 'build/acceptance/account-deletion-mobile-390x844.png'
 }
 
 Write-Host ''

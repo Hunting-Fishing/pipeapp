@@ -9,6 +9,12 @@ void main() {
   final workflow = File('.github/workflows/deploy.yml')
       .readAsStringSync()
       .replaceAll('\r\n', '\n');
+  final localDeploy = File('tool/deploy_production_local.ps1')
+      .readAsStringSync()
+      .replaceAll('\r\n', '\n');
+  final liveVerifier = File('tool/verify_live_pipebuyer_release.ps1')
+      .readAsStringSync()
+      .replaceAll('\r\n', '\n');
 
   test('CI App Check token is injected before the live page loads', () {
     final injectionIndex = script.indexOf(
@@ -30,7 +36,9 @@ void main() {
     );
   });
 
-  test('debug token remains protected and required only when App Check is active', () {
+  test(
+      'debug token remains protected and required only when App Check is active',
+      () {
     const tokenSecret =
         r'PIPE_APP_CHECK_WEB_DEBUG_TOKEN: ${{ secrets.PIPE_APP_CHECK_WEB_DEBUG_TOKEN }}';
     final visualJobIndex = workflow.indexOf('  visual-acceptance:');
@@ -72,15 +80,23 @@ void main() {
     );
     expect(
       workflow.substring(visualJobIndex),
-      contains('App Check: disabled for this release; no CI debug token required'),
+      contains(
+          'App Check: disabled for this release; no CI debug token required'),
     );
     expect(script, isNot(contains('Write-Host \$AppCheckDebugToken')));
     expect(script, isNot(contains('Write-Output \$AppCheckDebugToken')));
   });
 
-  test('production acceptance uses the canonical domain and branding pages', () {
+  test('production acceptance uses the canonical domain and branding pages',
+      () {
     expect(workflow, contains("'https://www.pipebuyer.com'"));
-    for (final path in <String>['/about', '/privacy', '/terms']) {
+    for (final path in <String>[
+      '/about',
+      '/privacy',
+      '/terms',
+      '/support',
+      '/account-deletion',
+    ]) {
       expect(workflow, contains("'$path'"));
     }
     expect(
@@ -91,5 +107,17 @@ void main() {
       workflow,
       contains('Public release page \$publicUrl does not identify Pipe Buyer.'),
     );
+    expect(workflow, contains("-ExpectedTextPattern 'Help and support'"));
+    expect(workflow, contains("-ExpectedTextPattern 'Delete your account'"));
+    expect(workflow, contains('support-mobile-390x844.png'));
+    expect(workflow, contains('account-deletion-mobile-390x844.png'));
+    for (final localScript in <String>[localDeploy, liveVerifier]) {
+      expect(localScript, contains("-ExpectedTextPattern 'Help and support'"));
+      expect(
+          localScript, contains("-ExpectedTextPattern 'Delete your account'"));
+      expect(localScript, contains('support-mobile-390x844.png'));
+      expect(localScript, contains('account-deletion-mobile-390x844.png'));
+    }
+    expect(liveVerifier, contains("\$branch = 'main'"));
   });
 }

@@ -1,7 +1,7 @@
 const { setGlobalOptions } = require("firebase-functions/v2/options");
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { onCall } = require("firebase-functions/v2/https");
+const { onCall: firebaseOnCall } = require("firebase-functions/v2/https");
 
 // Right-size Gen 2 Cloud Run services to 0.25 vCPU (concurrency 1) by default
 // so simultaneous healthcheck containers across 190+ functions stay well below
@@ -26,7 +26,11 @@ const {
 } = require("./account_verification_commands");
 const { createAccountPrivacyCommands } = require("./account_privacy_commands");
 const { cleanupExpiredRateLimits } = require("./abuse_rate_limit");
-const { protectedCallableOptions } = require("./app_check_config");
+const {
+  CALLABLE_TIMEOUT_SECONDS,
+  protectedCallableOptions,
+} = require("./app_check_config");
+const {guardCallableHandler} = require("./callable_account_guard");
 const {
   cleanupExpiredMediaUploadAuthorizations,
   createCommunicationCommands,
@@ -71,6 +75,13 @@ const {
 } = require("./business_logo_upload");
 const {createShopStoreCommands} = require("./shop_store_commands");
 const admin = createAdminRuntime();
+
+function onCall(options, handler) {
+  return firebaseOnCall(
+    {...options, timeoutSeconds: CALLABLE_TIMEOUT_SECONDS},
+    guardCallableHandler(admin, handler),
+  );
+}
 
 async function notifyActiveAdministrators(notification) {
   const notificationId = String(notification.notificationId || "").trim();
@@ -249,6 +260,10 @@ exports.requestAccountDeletion = onCall(
   protectedCallableOptions,
   accountPrivacyCommands.requestAccountDeletion,
 );
+exports.checkAccountDeletionReadiness = onCall(
+  protectedCallableOptions,
+  accountPrivacyCommands.checkAccountDeletionReadiness,
+);
 exports.cancelAccountDeletion = onCall(
   protectedCallableOptions,
   accountPrivacyCommands.cancelAccountDeletion,
@@ -261,12 +276,21 @@ exports.cleanupExpiredAccountExports = onSchedule(
   "every 24 hours",
   async () => accountPrivacyCommands.cleanupExpiredAccountExports(),
 );
+exports.cleanupExpiredAccountDeletionAuthorizations = onSchedule(
+  "every 24 hours",
+  async () =>
+    accountPrivacyCommands.cleanupExpiredAccountDeletionAuthorizations(),
+);
+exports.cleanupExpiredDeletionTombstones = onSchedule(
+  "every 24 hours",
+  async () => accountPrivacyCommands.cleanupExpiredDeletionTombstones(),
+);
 exports.cleanupStaleAccountDevices = onSchedule(
   "every 24 hours",
   async () => accountPrivacyCommands.cleanupStaleAccountDevices(),
 );
 exports.finalizeScheduledAccountDeletions = onSchedule(
-  "every 24 hours",
+  "every 15 minutes",
   async () => accountPrivacyCommands.finalizeScheduledAccountDeletions(),
 );
 exports.cleanupExpiredMediaUploadAuthorizations = onSchedule(

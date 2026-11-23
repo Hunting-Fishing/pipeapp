@@ -34,6 +34,11 @@ void main() {
     expect(configuration.normalizedSupportEmail, 'support@pipebuyer.com');
     expect(configuration.supportMailto?.scheme, 'mailto');
     expect(configuration.supportMailto?.path, 'support@pipebuyer.com');
+    expect(configuration.accountDeletionMailto?.scheme, 'mailto');
+    expect(
+      configuration.accountDeletionMailto?.queryParameters['subject'],
+      'Pipe Buyer account deletion request',
+    );
   });
 
   test('support email validation rejects unsafe or malformed domains', () {

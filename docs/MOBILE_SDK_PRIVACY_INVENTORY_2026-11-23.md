@@ -36,7 +36,7 @@ platform build file, SDK setting, backend provider, or data flow changes.
 | Google and Apple sign-in | `google_sign_in` 6.3.0; `google_sign_in_android` 6.2.1; `google_sign_in_ios` 5.9.0; `sign_in_with_apple` 8.1.0 | Native Google sign-in and native iOS Apple sign-in feed Firebase credentials | Review provider disclosures for identifiers, email/name/photo availability, scopes, tokens, and account-link conflict handling; retain device acceptance for both providers |
 | App integrity | `firebase_app_check` 0.4.5+2 | Release code selects Play Integrity on Android and App Attest with DeviceCheck fallback on Apple, enables token refresh, and can fail closed when `PIPE_APP_CHECK_REQUIRED=true`; the exact `flutter-flow-pipe` Android, iOS, and web apps have Play Integrity, App Attest, DeviceCheck, and reCAPTCHA configurations, while supported services remain unenforced | Validate real-device tokens, document integrity/app/device-token handling, confirm the future Play App Signing SHA-256, then stage enforcement only after valid-traffic monitoring |
 | Push notifications | `firebase_messaging` 16.4.3 | Requests notification permission, obtains/refreshes FCM tokens, associates notification state with the signed-in user, and handles foreground/open events | Confirm token-to-user linkage, message metadata/content, lock-screen exposure, retention/deletion, consent/permission behavior, and notification processor terms |
-| Diagnostics | `firebase_crashlytics` 5.2.6; `firebase_performance` 0.11.4+5 | Crashlytics is disabled in native manifests by default and enabled by code only when explicitly requested for staging/production native builds; safe error context and stack traces are then sent. No explicit Firebase Performance trace or collection-control call was found in `lib/` | Verify final build flags, native SDK defaults, automatic performance/network instrumentation, identifiers, stack traces, URLs, custom keys, retention, user opt-out requirements, and console settings. Do not infer that the unused explicit API means no collection |
+| Diagnostics | `firebase_crashlytics` 5.2.6 | Crashlytics is disabled in native manifests by default and enabled by code only when explicitly requested for staging/production native builds; safe error context and stack traces are then sent. The unused `firebase_performance` dependency was removed on November 23 because the SDK automatically collects lifecycle and HTTP/S performance data when included | Verify final build flags, identifiers, stack traces, custom keys, retention, user opt-out requirements, and console settings. Re-admit Performance Monitoring only through a separately approved privacy and release change |
 | Media selection and delivery | `image_picker` 1.2.3; `image_picker_android` 0.8.13+19; `image_picker_ios` 0.8.13+6; `cached_network_image` 3.4.1 | User-initiated camera/gallery selection supports listing, profile, message, report, credential, tax, and Dispatch media; uploads use Firebase Storage; remote listing/shop images are fetched in-app | Map photos/videos and embedded metadata from selection through resize/upload/storage/download/deletion. Review camera/photo permission copy and every automatic remote-image host request |
 | Location and maps | `geolocator` 13.0.3; `geolocator_android` 4.6.2; `geolocator_apple` 2.3.14; `flutter_map` 8.3.1 | Foreground coarse/fine location is requested only in location/service-area flows; OpenStreetMap tiles and external geocoding/reverse-geocoding endpoints are called | Confirm when precise versus coarse location leaves the device, query retention, provider terms, IP/device metadata, user choice, and whether location is linked to account/listing/Dispatch records |
 | Native billing | `in_app_purchase` 3.3.0; `in_app_purchase_android` 0.5.3; `in_app_purchase_storekit` 0.4.11+2 | Store product queries/purchase streams are present, but purchase controls depend on server-returned Apple/Google enablement and the current free-core test plan keeps native digital purchasing fail closed | Before activation, document product identifiers, store account/order identifiers, receipt/token transmission, verification, lifecycle notifications, restore/refund/revoke behavior, reconciliation, and retention separately for Apple and Google |
@@ -51,7 +51,7 @@ the same data in every journey.
 
 | Service/destination | Trigger and possible request content | Release review |
 | --- | --- | --- |
-| Firebase/Google Cloud | Authentication, database, callables, media, push, diagnostics, performance, and App Check | Match client behavior to Firebase project settings, Functions, retention/deletion, subprocessors, and all store answers |
+| Firebase/Google Cloud | Authentication, database, callables, media, push, diagnostics, and App Check | Match client behavior to Firebase project settings, Functions, retention/deletion, subprocessors, and all store answers |
 | Apple and Google identity/store services | Sign-in, integrity, product lookup, purchase/restore, and subscription-management links | Review separate Apple/Google identifiers, tokens, purchase data, and server notifications before enabling billing |
 | `tile.openstreetmap.org` | Map tile requests while viewing the location picker | Confirm tile-use policy, attribution, caching, and network metadata disclosure |
 | `photon.komoot.io` | Default address autocomplete/reverse-geocoder queries | Confirm query/location/IP handling, terms, rate limits, regional routing, and privacy disclosure; replace with the approved proxy if required |
@@ -63,13 +63,15 @@ the same data in every journey.
 
 ## Source-declared data categories
 
-`ios/Runner/PrivacyInfo.xcprivacy` currently declares no tracking and lists 18
-data types for app functionality: name, email, phone, physical address, other
+`ios/Runner/PrivacyInfo.xcprivacy` currently declares no tracking and lists 19
+data types: name, email, phone, physical address, other
 contact information, other financial information, precise and coarse location,
 messages, photos/videos, customer support, other user content, user ID, device
-ID, purchase history, product interaction, crash data, and other diagnostic
-data. Crash and other diagnostic data are marked not linked; the other listed
-types are marked linked.
+ID, purchase history, product interaction, search history, crash data, and other
+diagnostic data. Product interaction is declared for Analytics and App
+Functionality because affiliate clicks can be stored with `actorUid`. Crash and
+other diagnostic data are marked not linked; the other listed types are marked
+linked.
 
 These declarations are a conservative engineering input, not proof that the
 manifest, Apple questionnaire, Google questionnaire, published privacy policy,

@@ -65,8 +65,15 @@ void main() {
 
     expect(find.text('Delete your account'), findsOneWidget);
     expect(find.text('Request deletion in Pipe Buyer'), findsOneWidget);
-    expect(find.text('Fourteen-day cancellation period'), findsOneWidget);
+    expect(find.text('Optional 14-day cancellation period'), findsOneWidget);
     expect(find.text('Records that must be retained'), findsOneWidget);
+    expect(find.text('Request deletion without the app'), findsOneWidget);
+    expect(find.textContaining('Request account deletion:'), findsOneWidget);
+    expect(find.textContaining('do not need to reinstall'), findsOneWidget);
+    expect(find.textContaining('Ownership confirmation is required'),
+        findsOneWidget);
+    expect(find.textContaining('monitored deletion address'), findsNothing);
+    expect(find.textContaining('account phone number'), findsOneWidget);
     expect(find.textContaining('active listings'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

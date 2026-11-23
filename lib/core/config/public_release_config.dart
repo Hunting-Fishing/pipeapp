@@ -20,10 +20,12 @@ class PublicReleaseConfiguration {
   /// Must stay identical to `version:` in `pubspec.yaml`.
   /// `test/release_version_contract_test.dart` fails the build if it drifts.
   static const appVersion = '1.0.5+10';
-  static const releaseSha = String.fromEnvironment('PIPE_RELEASE_SHA', defaultValue: 'dev');
+  static const releaseSha =
+      String.fromEnvironment('PIPE_RELEASE_SHA', defaultValue: 'dev');
 
   static String get formattedReleaseLabel {
-    final env = current.environment.isNotEmpty ? current.environment : 'development';
+    final env =
+        current.environment.isNotEmpty ? current.environment : 'development';
     final shaLabel = releaseSha.isNotEmpty && releaseSha != 'dev'
         ? ' (${releaseSha.length >= 7 ? releaseSha.substring(0, 7) : releaseSha})'
         : '';
@@ -34,7 +36,6 @@ class PublicReleaseConfiguration {
   final String supportEmail;
 
   String get normalizedEnvironment => environment.trim().toLowerCase();
-
 
   String get normalizedSupportEmail => supportEmail.trim().toLowerCase();
 
@@ -51,6 +52,19 @@ class PublicReleaseConfiguration {
           path: normalizedSupportEmail,
           queryParameters: const {
             'subject': 'Pipe Buyer support request',
+          },
+        )
+      : null;
+
+  Uri? get accountDeletionMailto => hasValidSupportEmail
+      ? Uri(
+          scheme: 'mailto',
+          path: normalizedSupportEmail,
+          queryParameters: const {
+            'subject': 'Pipe Buyer account deletion request',
+            'body': 'I am requesting deletion of my Pipe Buyer account. '
+                'I understand ownership confirmation is required. '
+                'Account email or phone: ',
           },
         )
       : null;

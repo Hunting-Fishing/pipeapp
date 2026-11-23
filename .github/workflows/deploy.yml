@@ -466,7 +466,7 @@ jobs:
           } else {
             "https://$($env:PIPE_FIREBASE_PROJECT_ID).web.app"
           }
-          foreach ($path in @('/about', '/privacy', '/terms')) {
+          foreach ($path in @('/about', '/privacy', '/terms', '/support', '/account-deletion')) {
             $publicUrl = "$($url.TrimEnd('/'))$path"
             $response = Invoke-WebRequest -Uri $publicUrl -UseBasicParsing
             if ($response.StatusCode -ne 200) {
@@ -486,6 +486,18 @@ jobs:
             -ScreenshotPath 'build/acceptance/desktop-1440x1000.png' `
             -ViewportWidth 1440 `
             -ViewportHeight 1000
+          .\tool\web_visual_smoke.ps1 `
+            -Url "$($url.TrimEnd('/'))/support" `
+            -ScreenshotPath 'build/acceptance/support-mobile-390x844.png' `
+            -ViewportWidth 390 `
+            -ViewportHeight 844 `
+            -ExpectedTextPattern 'Help and support'
+          .\tool\web_visual_smoke.ps1 `
+            -Url "$($url.TrimEnd('/'))/account-deletion" `
+            -ScreenshotPath 'build/acceptance/account-deletion-mobile-390x844.png' `
+            -ViewportWidth 390 `
+            -ViewportHeight 844 `
+            -ExpectedTextPattern 'Delete your account'
           @(
             '## Web visual acceptance',
             '',
@@ -495,9 +507,10 @@ jobs:
             } else {
               '- App Check: registered CI debug token injected only into the headless browser'
             }),
-            '- Public pages: `/about`, `/privacy`, and `/terms` returned HTTP 200',
+            '- Public pages: `/about`, `/privacy`, `/terms`, `/support`, and `/account-deletion` returned HTTP 200',
             '- Mobile viewport: `390x844`',
             '- Desktop viewport: `1440x1000`',
+            '- Support and account-deletion routes: rendered at `390x844` with route-specific text and retained screenshots',
             '- Result: rendered with no browser exceptions'
           ) | Add-Content -Path $env:GITHUB_STEP_SUMMARY
 

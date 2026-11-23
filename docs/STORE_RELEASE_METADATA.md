@@ -24,6 +24,28 @@ The November 23 live Apple audit found both Support and Marketing still pointed
 at `https://pipebuyer-5c77f.web.app`. Replace them with the approved production
 origin only after the public pages and support ownership pass acceptance.
 
+The November 23 production recheck returned HTTP 200 for the public root,
+Privacy, Terms, Support, and Account Deletion routes, and for both mobile-link
+association files. The prepared production store and review URLs are:
+
+- Marketing: `https://www.pipebuyer.com`
+- Support: `https://www.pipebuyer.com/support`
+- Privacy: `https://www.pipebuyer.com/privacy`
+- Account deletion evidence for Google Play and external review:
+  `https://www.pipebuyer.com/account-deletion`
+
+This verification prepares the values but does not authorize changing the live
+store record; saving public metadata remains an explicit owner action. Apple
+does not provide a separate account-deletion URL metadata field for this app;
+App Review must verify the in-app deletion flow, with a direct web link used
+only where the account type requires completion on the website.
+
+The updated source also turns the public deletion route into a direct configured
+email request path that does not require installing or opening the app. This is
+prepared for Google Play but is not credited until the updated web release is
+deployed, the inbox and ownership-verification runbook are proven operational,
+and a real request is accepted through the support workflow.
+
 Privacy and Terms show only server-published policy metadata and link to the
 exact reviewed HTTPS document. They fail closed when a policy is missing or
 unpublished. Legal owners must approve and publish the complete documents
@@ -71,6 +93,11 @@ and the existing keywords are not synchronized with this approved-length draft.
 Application name:
 
 > Pipe Buyer
+
+Apple categories:
+
+- Primary: Shopping
+- Secondary: Business
 
 Google Play short description:
 
@@ -132,6 +159,8 @@ interaction, identifier, and diagnostic data used for app functionality. It is
 an engineering input, not a completed App Store Connect or Play Console answer.
 The locked-version SDK and external-service evidence is maintained in
 [`MOBILE_SDK_PRIVACY_INVENTORY_2026-11-23.md`](MOBILE_SDK_PRIVACY_INVENTORY_2026-11-23.md).
+The conservative questionnaire draft and its unresolved answer gates are in
+[`STORE_PRIVACY_ANSWER_MATRIX_2026-11-23.md`](STORE_PRIVACY_ANSWER_MATRIX_2026-11-23.md).
 
 Before either questionnaire is approved:
 

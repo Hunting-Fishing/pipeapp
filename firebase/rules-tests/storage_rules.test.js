@@ -1,5 +1,6 @@
 "use strict";
 
+const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const {after, before, beforeEach, test} = require("node:test");
@@ -13,6 +14,15 @@ const {deleteObject, getBytes, ref, uploadBytes} = require("firebase/storage");
 
 const projectId = "demo-pipe-buyer-rules";
 let testEnvironment;
+
+test("chat upload capabilities document immutable membership dependency", () => {
+  const rules = fs.readFileSync(
+      path.join(__dirname, "..", "storage.rules"),
+      "utf8",
+  );
+  assert.match(rules, /membership is server-only and currently immutable/);
+  assert.match(rules, /future membership-removal feature must/);
+});
 
 before(async () => {
   const [firestoreHost, firestorePort] = String(
@@ -123,6 +133,31 @@ test("chat uploads require an exact live server authorization", async () => {
       ref(
           buyerStorage,
           "chat_attachments/conversation/buyer/expired-upload",
+      ),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "image/jpeg"},
+  ));
+});
+
+test("deletion tombstones block uploads from cached authenticated tokens", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(
+        doc(context.firestore(), "account_deletion_tombstones", "buyer"),
+        {ownerUid: "buyer", status: "processing"},
+    );
+  });
+  const cachedTokenStorage = testEnvironment
+      .authenticatedContext("buyer")
+      .storage();
+  await assertFails(uploadBytes(
+      ref(cachedTokenStorage, "profile_media/buyer/profile.jpg"),
+      Uint8Array.from([1, 2, 3, 4]),
+      {contentType: "image/jpeg"},
+  ));
+  await assertFails(uploadBytes(
+      ref(
+          cachedTokenStorage,
+          "chat_attachments/conversation/buyer/chat-upload",
       ),
       Uint8Array.from([1, 2, 3, 4]),
       {contentType: "image/jpeg"},

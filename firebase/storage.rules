@@ -2,7 +2,10 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() {
-      return request.auth != null;
+      return request.auth != null
+        && !firestore.exists(
+          /databases/(default)/documents/account_deletion_tombstones/$(request.auth.uid)
+        );
     }
 
     function isOwner(userId) {
@@ -125,9 +128,13 @@ service firebase.storage {
           || request.resource.contentType == 'video/quicktime';
       }
       allow read: if isConversationMember();
+      // Conversation membership is server-only and currently immutable. The
+      // server issues this short-lived, exact-file capability only after a
+      // live membership check. Any future membership-removal feature must
+      // revoke outstanding capabilities or replace this with a projection
+      // that proves current membership within Storage's document-call limit.
       allow create: if validUploadAuthorization(
           fileName, userId, 'chat_attachment', conversationId)
-        && isConversationMember()
         && (
           (isSupportedChatImageOrPdf()
             && request.resource.size <= 15 * 1024 * 1024)

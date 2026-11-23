@@ -19,8 +19,8 @@ release-bound evidence workspace instead of copying the template by hand:
 ```powershell
 node tool/prepare_phase1_acceptance.mjs `
   --release-manifest build/release-manifest.json `
-  --version-name 1.0.0 `
-  --build-number 1 `
+  --version-name 1.0.5 `
+  --build-number 10 `
   --output-root build/acceptance
 ```
 

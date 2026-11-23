@@ -6,9 +6,16 @@ const coreExports = require("./bootstrap");
 Object.assign(exports, coreExports);
 
 const {onDocumentUpdated} = require("firebase-functions/v2/firestore");
-const {HttpsError, onCall} = require("firebase-functions/v2/https");
+const {
+  HttpsError,
+  onCall: firebaseOnCall,
+} = require("firebase-functions/v2/https");
 const {createAdminRuntime} = require("./admin_runtime");
-const {protectedCallableOptions} = require("./app_check_config");
+const {
+  CALLABLE_TIMEOUT_SECONDS,
+  protectedCallableOptions,
+} = require("./app_check_config");
+const {guardCallableHandler} = require("./callable_account_guard");
 const {
   AccountSecurityError,
   requireAuthenticatedIdentity,
@@ -64,6 +71,13 @@ const {
 const {stripeSecretKey} = require("./stripe_marketplace_commands");
 
 const admin = createAdminRuntime();
+
+function onCall(options, handler) {
+  return firebaseOnCall(
+      {...options, timeoutSeconds: CALLABLE_TIMEOUT_SECONDS},
+      guardCallableHandler(admin, handler),
+  );
+}
 const readinessAdmin = createPaymentReadinessAdmin(admin);
 const marketplaceFeeAdmin = createMarketplaceFeeAdmin();
 const marketplaceTaxCompliance = createMarketplaceTaxCompliance(admin);

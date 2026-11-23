@@ -11,6 +11,7 @@ const {
   DELETION_GRACE_DAYS,
   DEVICE_HISTORY_DAYS,
   EXPORT_RETENTION_DAYS,
+  normalizeDeletionMode,
   normalizeDeviceRegistration,
   requireDeletionConfirmation,
   requireNoDeletionBlockers,
@@ -23,7 +24,67 @@ const {
 const EXPORT_CHUNK_CHARACTERS = 180000;
 const EXPORT_DOCUMENT_LIMIT = 5000;
 const EXPORT_SCHEMA_VERSION = 1;
-const DELETION_POLICY_VERSION = 1;
+const DELETION_POLICY_VERSION = 2;
+const APPLE_DELETION_AUTHORIZATION_MINUTES = 10;
+const DELETION_MUTATION_DRAIN_MINUTES = 2;
+const DELETION_PROCESSING_LEASE_MINUTES = 30;
+const DELETION_TOMBSTONE_RETENTION_HOURS = 24;
+
+function timestampMillis(value) {
+  if (value && typeof value.toMillis === "function") return value.toMillis();
+  if (value && typeof value.toDate === "function") {
+    return value.toDate().getTime();
+  }
+  return Number.NaN;
+}
+
+function requireAppleDeletionAuthorization({
+  authorization,
+  authorizationId,
+  authTimeSeconds,
+  nowMillis,
+  uid,
+}) {
+  if (
+    typeof authorizationId !== "string" ||
+    !/^[a-f0-9-]{36}$/i.test(authorizationId) ||
+    !authorization ||
+    authorization.ownerUid !== uid ||
+    authorization.authorizationId !== authorizationId ||
+    authorization.status !== "pending_apple_revocation"
+  ) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Start account deletion again before revoking Apple authorization.",
+    );
+  }
+  const expiresAtMillis = timestampMillis(authorization.expiresAt);
+  if (!Number.isFinite(expiresAtMillis) || expiresAtMillis <= nowMillis) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The Apple deletion authorization expired. Start account deletion again.",
+    );
+  }
+  const initialAuthTimeSeconds = Number(authorization.initialAuthTimeSeconds);
+  if (
+    !Number.isFinite(authTimeSeconds) ||
+    !Number.isFinite(initialAuthTimeSeconds) ||
+    authTimeSeconds <= initialAuthTimeSeconds
+  ) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Reauthenticate with Apple before requesting account deletion.",
+    );
+  }
+}
+
+function deletionRequestCanBeClaimed(data, nowMillis) {
+  if (!data || timestampMillis(data.deleteAt) > nowMillis) return false;
+  if (data.status === "scheduled") return true;
+  if (data.status !== "processing") return false;
+  const leaseExpiresAtMillis = timestampMillis(data.processingLeaseExpiresAt);
+  return !Number.isFinite(leaseExpiresAtMillis) || leaseExpiresAtMillis <= nowMillis;
+}
 
 function accountDeviceDocumentId(uid, deviceId) {
   return crypto
@@ -357,6 +418,7 @@ async function anonymizeListings(db, uid, FieldValue) {
       batch.set(
         db.collection("public_listings").doc(record.id),
         {
+          sellerUid: FieldValue.delete(),
           sellerDisplayName: "Deleted account",
           sellerPhotoUrl: FieldValue.delete(),
           sellerProfileDeleted: true,
@@ -535,26 +597,113 @@ function createAccountPrivacyCommands(admin) {
     return {deviceDocumentId, isNew};
   });
 
-  const requestAccountDeletion = command(async (request) => {
+  const checkAccountDeletionReadiness = command(async (request) => {
     const identity = requireAuthenticatedIdentity(request);
     requireRecentAuthentication(request);
     requireDeletionConfirmation(request.data);
-    await enforceUserRateLimit({ db, admin, request, scope: "privacy" });
-    const userSnapshot = await db.collection("users").doc(identity.uid).get();
+    await enforceUserRateLimit({db, admin, request, scope: "privacy"});
+    const [userSnapshot, authUser] = await Promise.all([
+      db.collection("users").doc(identity.uid).get(),
+      admin.auth().getUser(identity.uid),
+    ]);
     if (!userSnapshot.exists) {
       throw new HttpsError("not-found", "Complete your account profile first.");
     }
     const results = await deletionBlockers(db, identity.uid);
     requireNoDeletionBlockers(results);
+    const providerIds = authUser.providerData
+      .map((provider) => String(provider.providerId || "").toLowerCase())
+      .filter(Boolean);
+    const requiresAppleRevocation = providerIds.includes("apple.com");
+    let appleDeletionAuthorizationId = null;
+    if (requiresAppleRevocation) {
+      appleDeletionAuthorizationId = crypto.randomUUID();
+      const nowMillis = Date.now();
+      await db
+        .collection("account_deletion_authorizations")
+        .doc(identity.uid)
+        .set({
+          ownerUid: identity.uid,
+          authorizationId: appleDeletionAuthorizationId,
+          status: "pending_apple_revocation",
+          initialAuthTimeSeconds: Number(request.auth.token.auth_time),
+          issuedAt: admin.firestore.Timestamp.fromMillis(nowMillis),
+          expiresAt: admin.firestore.Timestamp.fromMillis(
+            nowMillis + APPLE_DELETION_AUTHORIZATION_MINUTES * 60 * 1000,
+          ),
+        });
+    }
+    return {
+      eligible: true,
+      providerIds,
+      requiresAppleRevocation,
+      appleDeletionAuthorizationId,
+      allowedModes: requiresAppleRevocation
+        ? ["immediate"]
+        : ["immediate", "scheduled"],
+    };
+  });
+
+  const requestAccountDeletion = command(async (request) => {
+    const identity = requireAuthenticatedIdentity(request);
+    requireRecentAuthentication(request);
+    requireDeletionConfirmation(request.data);
+    const mode = normalizeDeletionMode(request.data);
+    await enforceUserRateLimit({db, admin, request, scope: "privacy"});
+    const [userSnapshot, authUser] = await Promise.all([
+      db.collection("users").doc(identity.uid).get(),
+      admin.auth().getUser(identity.uid),
+    ]);
+    if (!userSnapshot.exists) {
+      throw new HttpsError("not-found", "Complete your account profile first.");
+    }
+    const providerIds = authUser.providerData
+      .map((provider) => String(provider.providerId || "").toLowerCase());
+    const usesApple = providerIds.includes("apple.com");
+    if (usesApple && mode !== "immediate") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Apple-linked accounts must use immediate deletion so Apple authorization can be revoked during reauthentication.",
+      );
+    }
+    const results = await deletionBlockers(db, identity.uid);
+    requireNoDeletionBlockers(results);
     const now = Date.now();
     const deleteAt = admin.firestore.Timestamp.fromMillis(
-      now + DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000,
+      mode === "immediate"
+        ? now + DELETION_MUTATION_DRAIN_MINUTES * 60 * 1000
+        : now + DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000,
+    );
+    const requestRef = db
+      .collection("account_deletion_requests")
+      .doc(identity.uid);
+    const userRef = db.collection("users").doc(identity.uid);
+    const appleAuthorizationRef = db
+      .collection("account_deletion_authorizations")
+      .doc(identity.uid);
+    const appleDeletionAuthorizationId = String(
+      (request.data && request.data.appleDeletionAuthorizationId) || "",
     );
     await db.runTransaction(async (transaction) => {
-      const requestRef = db
-        .collection("account_deletion_requests")
-        .doc(identity.uid);
       const existing = await transaction.get(requestRef);
+      const currentUser = await transaction.get(userRef);
+      const appleAuthorization = usesApple
+        ? await transaction.get(appleAuthorizationRef)
+        : null;
+      if (!currentUser.exists) {
+        throw new HttpsError("not-found", "Complete your account profile first.");
+      }
+      if (usesApple) {
+        requireAppleDeletionAuthorization({
+          authorization: appleAuthorization.exists
+            ? appleAuthorization.data()
+            : null,
+          authorizationId: appleDeletionAuthorizationId,
+          authTimeSeconds: Number(request.auth.token.auth_time),
+          nowMillis: now,
+          uid: identity.uid,
+        });
+      }
       const revision =
         Number((existing.data() && existing.data().revision) || 0) + 1;
       transaction.set(
@@ -562,18 +711,47 @@ function createAccountPrivacyCommands(admin) {
         {
           ownerUid: identity.uid,
           status: "scheduled",
+          mode,
           revision,
           policyVersion: DELETION_POLICY_VERSION,
           requestedAt: FieldValue.serverTimestamp(),
           deleteAt,
           blockerSnapshot: results,
+          phoneRegistryKey: String(
+            currentUser.data().phoneRegistryKey || "",
+          ),
+          appleDeletionAuthorizationId: usesApple
+            ? appleDeletionAuthorizationId
+            : null,
         },
         { merge: false },
       );
+      if (usesApple) {
+        transaction.update(appleAuthorizationRef, {
+          status: "consumed",
+          consumedAt: FieldValue.serverTimestamp(),
+          requestRevision: revision,
+        });
+      }
+      if (mode === "immediate") {
+        transaction.set(
+          db.collection("account_deletion_tombstones").doc(identity.uid),
+          {
+            ownerUid: identity.uid,
+            requestRevision: revision,
+            status: "processing",
+            createdAt: FieldValue.serverTimestamp(),
+            deleteAfterAt: FieldValue.delete(),
+          },
+          {merge: true},
+        );
+      }
       transaction.set(
-        db.collection("users").doc(identity.uid),
+        userRef,
         {
-          accountStatus: "deletion_scheduled",
+          accountStatus: mode === "immediate"
+            ? "deletion_processing"
+            : "deletion_scheduled",
           deletionScheduledAt: deleteAt,
         },
         { merge: true },
@@ -586,15 +764,44 @@ function createAccountPrivacyCommands(admin) {
           .doc(`deletion-${revision}`),
         {
           recipientUid: identity.uid,
-          type: "account_deletion_scheduled",
-          title: "Account deletion scheduled",
-          message: `Your account is scheduled for deletion in ${DELETION_GRACE_DAYS} days. You can cancel before that date.`,
+          type: mode === "immediate"
+            ? "account_deletion_processing"
+            : "account_deletion_scheduled",
+          title: mode === "immediate"
+            ? "Account deletion requested"
+            : "Account deletion scheduled",
+          message: mode === "immediate"
+            ? "Immediate account deletion is now processing. You will be signed out and cannot cancel this request."
+            : `Your account is scheduled for deletion in ${DELETION_GRACE_DAYS} days. You can cancel before that date.`,
           read: false,
           createdAt: FieldValue.serverTimestamp(),
         },
       );
     });
-    return { status: "scheduled", deleteAt: deleteAt.toDate().toISOString() };
+    if (mode === "immediate") {
+      try {
+        await admin.auth().updateUser(identity.uid, {disabled: true});
+        await admin.auth().revokeRefreshTokens(identity.uid);
+      } catch (error) {
+        // The durable due-now deletion request is authoritative. The frequent
+        // worker will retry final cleanup even if session shutdown is briefly
+        // unavailable, while the client signs out locally.
+        console.error(
+          "Immediate deletion queued but session shutdown is pending",
+          error,
+        );
+      }
+      return {
+        status: "processing",
+        mode,
+        deleteAt: deleteAt.toDate().toISOString(),
+      };
+    }
+    return {
+      status: "scheduled",
+      mode,
+      deleteAt: deleteAt.toDate().toISOString(),
+    };
   });
 
   const cancelAccountDeletion = command(async (request) => {
@@ -610,6 +817,12 @@ function createAccountPrivacyCommands(admin) {
         throw new HttpsError(
           "failed-precondition",
           "No scheduled deletion is available to cancel.",
+        );
+      }
+      if (snapshot.data().mode === "immediate") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Immediate account deletion cannot be cancelled.",
         );
       }
       transaction.update(requestRef, {
@@ -638,6 +851,16 @@ function createAccountPrivacyCommands(admin) {
     return expired.size;
   }
 
+  async function cleanupExpiredAccountDeletionAuthorizations(batchLimit = 200) {
+    const expired = await db
+        .collection("account_deletion_authorizations")
+        .where("expiresAt", "<=", admin.firestore.Timestamp.now())
+        .limit(batchLimit)
+        .get();
+    for (const snapshot of expired.docs) await db.recursiveDelete(snapshot.ref);
+    return expired.size;
+  }
+
   async function cleanupStaleAccountDevices(batchLimit = 200) {
     const cutoff = admin.firestore.Timestamp.fromMillis(
         Date.now() - DEVICE_HISTORY_DAYS * 24 * 60 * 60 * 1000,
@@ -654,49 +877,274 @@ function createAccountPrivacyCommands(admin) {
     return stale.size;
   }
 
+  async function claimAccountDeletion(requestRef) {
+    const nowMillis = Date.now();
+    const claimId = crypto.randomUUID();
+    return db.runTransaction(async (transaction) => {
+      const requestSnapshot = await transaction.get(requestRef);
+      if (
+        !requestSnapshot.exists ||
+        !deletionRequestCanBeClaimed(requestSnapshot.data(), nowMillis)
+      ) {
+        return null;
+      }
+      const uid = requestSnapshot.id;
+      const userRef = db.collection("users").doc(uid);
+      const tombstoneRef = db
+        .collection("account_deletion_tombstones")
+        .doc(uid);
+      const [userSnapshot, tombstoneSnapshot] = await Promise.all([
+        transaction.get(userRef),
+        transaction.get(tombstoneRef),
+      ]);
+      const requestData = requestSnapshot.data();
+      const quiescencePending = !tombstoneSnapshot.exists;
+      const phoneRegistryKey = String(
+        requestData.phoneRegistryKey ||
+          (userSnapshot.exists && userSnapshot.data().phoneRegistryKey) ||
+          "",
+      );
+      transaction.update(requestRef, {
+        status: "processing",
+        claimId,
+        processingStartedAt:
+          requestData.processingStartedAt || FieldValue.serverTimestamp(),
+        processingLeaseExpiresAt: admin.firestore.Timestamp.fromMillis(
+          nowMillis +
+            (quiescencePending
+              ? DELETION_MUTATION_DRAIN_MINUTES
+              : DELETION_PROCESSING_LEASE_MINUTES) *
+              60 *
+              1000,
+        ),
+        phoneRegistryKey,
+      });
+      transaction.set(
+        tombstoneRef,
+        {
+          ownerUid: uid,
+          requestRevision: Number(requestData.revision || 0),
+          status: "processing",
+          ...(quiescencePending
+            ? {createdAt: FieldValue.serverTimestamp()}
+            : {}),
+          deleteAfterAt: FieldValue.delete(),
+        },
+        {merge: true},
+      );
+      return {
+        ...requestData,
+        claimId,
+        phoneRegistryKey,
+        quiescencePending,
+        uid,
+      };
+    });
+  }
+
+  async function blockAccountDeletionClaim(requestRef, claimId, blockers) {
+    await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(requestRef);
+      if (
+        !current.exists ||
+        current.data().status !== "processing" ||
+        current.data().claimId !== claimId
+      ) {
+        return;
+      }
+      const uid = current.id;
+      const userRef = db.collection("users").doc(uid);
+      const userSnapshot = await transaction.get(userRef);
+      transaction.update(requestRef, {
+        status: "blocked",
+        blockers,
+        blockedAt: FieldValue.serverTimestamp(),
+        claimId: FieldValue.delete(),
+        processingLeaseExpiresAt: FieldValue.delete(),
+      });
+      transaction.delete(
+        db.collection("account_deletion_tombstones").doc(uid),
+      );
+      if (userSnapshot.exists) {
+        transaction.set(
+          userRef,
+          {
+            accountStatus: "deletion_blocked",
+            deletionScheduledAt: FieldValue.delete(),
+          },
+          {merge: true},
+        );
+      }
+    });
+  }
+
+  async function recoverBlockedAccountDeletion(
+      requestRef,
+      claim,
+      blockers,
+      authUser,
+  ) {
+    if (claim.mode === "immediate" && authUser) {
+      // A callable that passed the shared guard just before the tombstone can
+      // still finish and create a new obligation. Restore sign-in before
+      // removing the tombstone so the owner can resolve that obligation and
+      // make a new deletion request. This is automatic failure recovery, not
+      // a user cancellation of an accepted immediate deletion.
+      await admin.auth().updateUser(claim.uid, {disabled: false});
+    }
+    await blockAccountDeletionClaim(requestRef, claim.claimId, blockers);
+  }
+
+  async function completeAccountDeletionClaim(requestRef, claim) {
+    return db.runTransaction(async (transaction) => {
+      const current = await transaction.get(requestRef);
+      if (
+        !current.exists ||
+        current.data().status !== "processing" ||
+        current.data().claimId !== claim.claimId
+      ) {
+        return false;
+      }
+      const subjectHash = crypto
+        .createHash("sha256")
+        .update(claim.uid)
+        .digest("hex");
+      transaction.set(
+        db.collection("account_deletion_tombstones").doc(claim.uid),
+        {
+          ownerUid: claim.uid,
+          status: "completed",
+          completedAt: FieldValue.serverTimestamp(),
+          deleteAfterAt: admin.firestore.Timestamp.fromMillis(
+            Date.now() + DELETION_TOMBSTONE_RETENTION_HOURS * 60 * 60 * 1000,
+          ),
+        },
+        {merge: true},
+      );
+      transaction.set(
+        db.collection("account_deletion_audits").doc(subjectHash),
+        {
+          subjectHash,
+          policyVersion: DELETION_POLICY_VERSION,
+          mode: String(claim.mode || "scheduled"),
+          completedAt: FieldValue.serverTimestamp(),
+        },
+      );
+      transaction.delete(requestRef);
+      return true;
+    });
+  }
+
+  async function cleanupExpiredDeletionTombstones(batchLimit = 200) {
+    const expired = await db
+      .collection("account_deletion_tombstones")
+      .where("deleteAfterAt", "<=", admin.firestore.Timestamp.now())
+      .limit(batchLimit)
+      .get();
+    if (expired.empty) return 0;
+    let removed = 0;
+    for (const document of expired.docs) {
+      // A resumable upload authorized before the tombstone may finish after
+      // the initial account-deletion sweep. Repeat the owner-scoped cleanup
+      // immediately before removing the final cached-token barrier.
+      await deleteOwnedAccountMedia(document.id);
+      await document.ref.delete();
+      removed += 1;
+    }
+    return removed;
+  }
+
+  async function deleteOwnedAccountMedia(uid) {
+    await Promise.all([
+      admin
+        .storage()
+        .bucket()
+        .deleteFiles({prefix: `profile_media/${uid}/`}),
+      admin
+        .storage()
+        .bucket()
+        .deleteFiles({prefix: `listing_media/${uid}/`}),
+      admin
+        .storage()
+        .bucket()
+        .deleteFiles({prefix: `business_documents/${uid}/`}),
+      admin
+        .storage()
+        .bucket()
+        .deleteFiles({prefix: `business_logos/${uid}/`}),
+    ]);
+  }
+
   async function finalizeScheduledAccountDeletions(batchLimit = 10) {
     const due = await db
       .collection("account_deletion_requests")
-      .where("status", "==", "scheduled")
+      .where("status", "in", ["scheduled", "processing"])
       .where("deleteAt", "<=", admin.firestore.Timestamp.now())
       .limit(batchLimit)
       .get();
     let completed = 0;
     for (const snapshot of due.docs) {
       const uid = snapshot.id;
+      const claim = await claimAccountDeletion(snapshot.ref);
+      if (!claim) continue;
+      // Scheduled requests receive their tombstone only when they become due.
+      // Give every pre-existing callable time to finish before reading final
+      // blockers or performing destructive cleanup. Immediate requests have
+      // already observed this drain through their delayed deleteAt timestamp.
+      if (claim.quiescencePending) continue;
+      let authUser = null;
+      try {
+        authUser = await admin.auth().getUser(uid);
+      } catch (error) {
+        if (error.code !== "auth/user-not-found") throw error;
+      }
+      const usesApple = authUser && authUser.providerData.some(
+        (provider) => String(provider.providerId || "").toLowerCase() === "apple.com",
+      );
+      if (
+        usesApple &&
+        (typeof claim.appleDeletionAuthorizationId !== "string" ||
+          !claim.appleDeletionAuthorizationId)
+      ) {
+        await recoverBlockedAccountDeletion(snapshot.ref, claim, [
+          {
+            key: "appleTokenRevocation",
+            label: "Sign in with Apple authorization revocation",
+            count: 1,
+          },
+        ], authUser);
+        continue;
+      }
       const blockers = await deletionBlockers(db, uid);
       const blockerSummary = summarizeDeletionBlockers(blockers);
       if (blockerSummary.length) {
-        await snapshot.ref.update({
-          status: "blocked",
-          blockers: blockerSummary,
-          blockedAt: FieldValue.serverTimestamp(),
-        });
+        await recoverBlockedAccountDeletion(
+          snapshot.ref,
+          claim,
+          blockerSummary,
+          authUser,
+        );
         continue;
       }
-      const userSnapshot = await db.collection("users").doc(uid).get();
-      const phoneRegistryKey = userSnapshot.exists
-        ? String(userSnapshot.data().phoneRegistryKey || "")
-        : "";
+      if (authUser) {
+        await admin.auth().updateUser(uid, {disabled: true});
+        await admin.auth().revokeRefreshTokens(uid);
+      }
       await anonymizeListings(db, uid, FieldValue);
       // Finish cross-service media cleanup first. A Storage outage therefore
-      // leaves the scheduled request intact and safely retryable.
-      await Promise.all([
-        admin
-          .storage()
-          .bucket()
-          .deleteFiles({ prefix: `profile_media/${uid}/` }),
-        admin
-          .storage()
-          .bucket()
-          .deleteFiles({ prefix: `listing_media/${uid}/` }),
-        admin
-          .storage()
-          .bucket()
-          .deleteFiles({ prefix: `business_documents/${uid}/` }),
-      ]);
+      // leaves the processing request and its lease intact and safely retryable.
+      await deleteOwnedAccountMedia(uid);
+      if (claim.phoneRegistryKey) {
+        await db
+          .collection("account_phone_registry")
+          .doc(claim.phoneRegistryKey)
+          .delete();
+      }
       await Promise.all([
         db.recursiveDelete(db.collection("users").doc(uid)),
+        db.recursiveDelete(
+            db.collection("account_deletion_authorizations").doc(uid),
+        ),
         db.recursiveDelete(db.collection("public_seller_profiles").doc(uid)),
         db.recursiveDelete(db.collection("public_business_profiles").doc(uid)),
         db.recursiveDelete(db.collection("business_private").doc(uid)),
@@ -715,35 +1163,24 @@ function createAccountPrivacyCommands(admin) {
           ["providerUid"],
           uid,
         ),
+        deleteMatching(db, "media_upload_authorizations", ["ownerUid"], uid),
         deleteMatching(db, "account_exports", ["ownerUid"], uid),
       ]);
-      if (phoneRegistryKey) {
-        await db
-          .collection("account_phone_registry")
-          .doc(phoneRegistryKey)
-          .delete();
-      }
       try {
         await admin.auth().deleteUser(uid);
       } catch (error) {
         if (error.code !== "auth/user-not-found") throw error;
       }
-      await snapshot.ref.delete();
-      await db
-        .collection("account_deletion_audits")
-        .doc(crypto.createHash("sha256").update(uid).digest("hex"))
-        .set({
-          subjectHash: crypto.createHash("sha256").update(uid).digest("hex"),
-          policyVersion: DELETION_POLICY_VERSION,
-          completedAt: FieldValue.serverTimestamp(),
-        });
-      completed += 1;
+      if (await completeAccountDeletionClaim(snapshot.ref, claim)) completed += 1;
     }
     return completed;
   }
 
   return {
     cancelAccountDeletion,
+    checkAccountDeletionReadiness,
+    cleanupExpiredAccountDeletionAuthorizations,
+    cleanupExpiredDeletionTombstones,
     cleanupExpiredAccountExports,
     cleanupStaleAccountDevices,
     finalizeScheduledAccountDeletions,
@@ -758,6 +1195,8 @@ module.exports = {
   accountDeviceDocumentId,
   buildAccountExport,
   createAccountPrivacyCommands,
+  deletionRequestCanBeClaimed,
   deletionBlockers,
   normalizeExportValue,
+  requireAppleDeletionAuthorization,
 };

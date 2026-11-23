@@ -22,6 +22,7 @@ const {
   validateSafeExternalHttpsUrl,
   verifyRealtorLicensePublicRegistry,
 } = require("./exp_realty_integrations");
+const {hasDeletionTombstone} = require("./deletion_tombstone_guard");
 
 if (getApps().length === 0) initializeApp();
 
@@ -96,8 +97,18 @@ exports.agent = functions
     })
     .https.onCall(async (data, context) => {
       try {
+        if (context.auth && await hasDeletionTombstone(
+            getFirestore(),
+            context.auth.uid,
+        )) {
+          throw new functions.https.HttpsError(
+              "failed-precondition",
+              "Account deletion is processing. Administrator tools are unavailable.",
+          );
+        }
         return await handler(data, context);
       } catch (error) {
+        if (error instanceof functions.https.HttpsError) throw error;
         if (error instanceof AgentPolicyError) {
           throw new functions.https.HttpsError(error.code, error.message);
         }
@@ -120,6 +131,12 @@ exports.manageExpRealtyIntegrations = onCall(
     async (request) => {
       const adminUid = requireV2Administrator(request);
       const db = getFirestore();
+      if (await hasDeletionTombstone(db, adminUid)) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Account deletion is processing. Administrator tools are unavailable.",
+        );
+      }
       const secretRef = db.collection("platform_secrets").doc("exp_realty_credentials");
       const publicConfigRef = db
           .collection("platform_configuration")
