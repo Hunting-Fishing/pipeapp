@@ -80,6 +80,72 @@ void main() {
     expect(workflow, contains('test -s build/web/firebase-messaging-sw.js'));
   });
 
+  test('production deploy pins complete mobile association documents', () {
+    expect(
+      workflow,
+      contains(
+        r'PIPE_ANDROID_APP_SIGNING_SHA256: '
+        r'${{ vars.PIPE_ANDROID_APP_SIGNING_SHA256 }}',
+      ),
+    );
+    expect(
+      workflow,
+      contains(
+        r'if [[ "$PIPE_ENV" == "production" && '
+        r'-z "${PIPE_ANDROID_APP_SIGNING_SHA256:-}" ]]',
+      ),
+    );
+    final webBuildIndex = workflow.indexOf('flutter build web');
+    final associationIndex = workflow.indexOf(
+      'node tool/mobile_link_associations.mjs',
+    );
+    final manifestIndex = workflow.indexOf('node tool/release_manifest.mjs');
+    final deployIndex = workflow.indexOf('firebase deploy \\');
+    expect(associationIndex, greaterThan(webBuildIndex));
+    expect(manifestIndex, greaterThan(associationIndex));
+    expect(deployIndex, greaterThan(manifestIndex));
+    expect(
+      workflow,
+      contains(r'--android-sha256 "$PIPE_ANDROID_APP_SIGNING_SHA256"'),
+    );
+    expect(
+      workflow,
+      contains('--output-dir build/web/.well-known'),
+    );
+    expect(
+      workflow,
+      contains('test -s build/web/.well-known/assetlinks.json'),
+    );
+    expect(
+      workflow,
+      contains(
+        'test -s build/web/.well-known/apple-app-site-association',
+      ),
+    );
+
+    final hostingDeployIndex = workflow.indexOf('firebase deploy \\');
+    final hostedCheckIndex = workflow.indexOf(
+      'name: Verify production mobile association documents',
+    );
+    final parityIndex = workflow.indexOf(
+      'name: Prove deployed Function parity',
+    );
+    expect(hostedCheckIndex, greaterThan(hostingDeployIndex));
+    expect(parityIndex, greaterThan(hostedCheckIndex));
+    expect(
+      workflow,
+      contains(r"if: ${{ inputs.environment == 'production' }}"),
+    );
+    expect(workflow, contains('for host in pipebuyer.com www.pipebuyer.com'));
+    expect(workflow, contains('--max-redirs 0'));
+    expect(workflow, contains(r'[[ "$status" == "200" ]]'));
+    expect(workflow, contains("! grep -Eiq '^Location:' \"\$headers\""));
+    expect(workflow, isNot(contains('IGNORECASE')));
+    expect(workflow, contains('tolower(\$0) ~ /^content-type:/'));
+    expect(workflow, contains(r'[[ "$media_type" == "application/json" ]]'));
+    expect(workflow, contains(r'cmp --silent "$expected" "$body"'));
+  });
+
   test('deployment proves full-service parity and retains visual evidence', () {
     expect(
       workflow,

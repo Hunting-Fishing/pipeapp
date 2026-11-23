@@ -49,6 +49,8 @@ Configure these as GitHub Environment variables in `production`:
 - `PIPE_PUBLIC_SUPPORT_EMAIL`
 - `PIPE_APP_CHECK_WEB_RECAPTCHA_KEY`
 - `PIPE_FIREBASE_WEB_PUSH_VAPID_KEY`
+- `PIPE_ANDROID_APP_SIGNING_SHA256` = the Play Console **App signing**
+  certificate SHA-256 fingerprint, not the upload-key fingerprint
 
 Configure these as GitHub Environment secrets in `production`:
 
@@ -180,10 +182,18 @@ Retain the `firebase-release-evidence-*` artifact and the workflow URL.
   audience, app access instructions, ads declaration, contact details, store
   listing, screenshots, and country availability.
 - Link the Play application for Play Integrity/App Check.
+- Read the highest `versionCode` already accepted by Play Console. Update both
+  `pubspec.yaml` and `PublicReleaseConfiguration.appVersion` to one identical
+  `major.minor.patch+build` value whose build number is higher. Commit that
+  release identity before producing the candidate; do not rely on a workflow
+  input to silently override older source metadata.
 - Run `Build signed mobile release candidates` with the exact green `main` SHA,
-  production environment, semantic version, and a new positive build number.
-- Download the signed `.aab` artifact, verify its SHA-256 evidence, and upload
-  it to an internal test track first.
+  production environment, and that exact source-controlled version. The
+  workflow rejects a version/build mismatch, performs strict cryptographic
+  `jarsigner` verification, and requires the embedded signer certificate to
+  exactly match the protected upload-key alias.
+- Download the signed `.aab` artifact, verify its SHA-256 and public-certificate
+  evidence, and upload it to an internal test track first.
 - Complete internal testing, closed/open testing requirements when applicable,
   pre-launch report review, then promote the approved build to production.
 
@@ -199,8 +209,11 @@ The repository currently compiles and targets Android API 36.
 - Create the App Store Connect app and complete privacy details, age rating,
   export-compliance answers, support URL, privacy-policy URL, app description,
   keywords, screenshots, review contact, and review notes.
+- Confirm the highest build number already uploaded in App Store Connect, then
+  commit a higher source-controlled `major.minor.patch+build` identity as
+  described for Android above.
 - Run `Build signed mobile release candidates` using the exact green `main` SHA
-  and a build number not previously uploaded.
+  and that exact source-controlled version/build.
 - Upload the signed IPA through the controlled release workflow or approved
   App Store Connect tooling.
 - Test through TestFlight, resolve review findings, select the approved build,

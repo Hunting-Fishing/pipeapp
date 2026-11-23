@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/config/phase1_feature_flags.dart';
 import '../core/data/bounded_firestore_query.dart';
+import '../core/design/pipe_buyer_deal_room_components.dart';
 import '../core/design/pipe_buyer_modern_cards.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import 'marketplace_image_normalizer.dart';
@@ -29,7 +30,41 @@ import 'marketplace_data_state.dart';
 import 'marketplace_journey_status.dart';
 import 'marketplace_secure_payment.dart';
 
-class MarketplaceMessagesPage extends StatelessWidget {
+String marketplaceConversationParticipantName(
+  Map<String, dynamic> conversation,
+  String viewerUid,
+) {
+  final viewerIsSeller = viewerUid == '${conversation['sellerUid'] ?? ''}';
+  final candidates = viewerIsSeller
+      ? [conversation['buyerDisplayName'], conversation['requesterDisplayName']]
+      : [conversation['sellerName']];
+  for (final candidate in candidates) {
+    final name = '${candidate ?? ''}'.trim();
+    if (name.isNotEmpty) return name;
+  }
+  return viewerIsSeller ? 'Marketplace buyer' : 'Marketplace seller';
+}
+
+String marketplaceMessageTimestamp(
+  BuildContext context,
+  DateTime? value, {
+  DateTime? now,
+  bool includeTimeOnOlderDays = true,
+}) {
+  if (value == null) return '';
+  final local = value.toLocal();
+  final current = (now ?? DateTime.now()).toLocal();
+  final localizations = MaterialLocalizations.of(context);
+  final time = localizations.formatTimeOfDay(TimeOfDay.fromDateTime(local));
+  final sameDay = local.year == current.year &&
+      local.month == current.month &&
+      local.day == current.day;
+  if (sameDay) return time;
+  final date = localizations.formatShortDate(local);
+  return includeTimeOnOlderDays ? '$date • $time' : date;
+}
+
+class MarketplaceMessagesPage extends StatefulWidget {
   const MarketplaceMessagesPage({super.key});
 
   static Stream<int> unreadCountStream() {
@@ -63,16 +98,110 @@ class MarketplaceMessagesPage extends StatelessWidget {
   }
 
   @override
+  State<MarketplaceMessagesPage> createState() =>
+      _MarketplaceMessagesPageState();
+}
+
+class _MarketplaceMessagesPageState extends State<MarketplaceMessagesPage> {
+  bool _showUnreadOnly = false;
+
+  Widget _header() => PipeBuyerConversationHeader(
+        title: 'Messages',
+        subtitle: 'Protected marketplace conversations and deal activity',
+        avatar: const Icon(Icons.forum_outlined),
+        actions: [
+          FilterChip(
+            selected: _showUnreadOnly,
+            label: const Text('Unread'),
+            avatar: const Icon(Icons.mark_chat_unread_outlined, size: 18),
+            onSelected: (selected) =>
+                setState(() => _showUnreadOnly = selected),
+          ),
+        ],
+      );
+
+  @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return _SignedOutMessages();
+    return _MarketplaceConversationFeed(
+      key: ValueKey(uid),
+      uid: uid,
+      showUnreadOnly: _showUnreadOnly,
+      header: _header(),
+    );
+  }
+}
+
+class _MarketplaceConversationFeed extends StatefulWidget {
+  const _MarketplaceConversationFeed({
+    super.key,
+    required this.uid,
+    required this.showUnreadOnly,
+    required this.header,
+  });
+
+  final String uid;
+  final bool showUnreadOnly;
+  final Widget header;
+
+  @override
+  State<_MarketplaceConversationFeed> createState() =>
+      _MarketplaceConversationFeedState();
+}
+
+class _MarketplaceConversationFeedState
+    extends State<_MarketplaceConversationFeed> {
+  late final Query<Map<String, dynamic>> _conversationQuery;
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _conversationsStream;
+  int _conversationLimit = defaultActivityFeedLimit;
+
+  @override
+  void initState() {
+    super.initState();
+    _conversationQuery = FirebaseFirestore.instance
+        .collection('conversations')
+        .where('memberUids', arrayContains: widget.uid)
+        .orderBy('lastMessageAt', descending: true);
+    _conversationsStream =
+        _conversationQuery.limit(_conversationLimit).snapshots();
+  }
+
+  void _loadEarlier() {
+    if (_conversationLimit >= maximumActivityHistoryLimit) return;
+    final nextLimit = (_conversationLimit + defaultActivityFeedLimit)
+        .clamp(defaultActivityFeedLimit, maximumActivityHistoryLimit)
+        .toInt();
+    setState(() {
+      _conversationLimit = nextLimit;
+      _conversationsStream =
+          _conversationQuery.limit(_conversationLimit).snapshots();
+    });
+  }
+
+  Widget _historyNotice(
+    int loadedCount, {
+    bool unreadWindowEmpty = false,
+    required bool canLoadEarlier,
+  }) {
+    final capped = _conversationLimit >= maximumActivityHistoryLimit;
+    return _ActivityLimitNotice(
+      message: unreadWindowEmpty
+          ? capped
+              ? 'No unread messages in the latest $loadedCount conversations. Older records remain stored.'
+              : 'No unread messages in the $loadedCount conversations checked so far.'
+          : capped
+              ? 'Showing the latest $loadedCount conversations. Older records remain stored.'
+              : 'Showing $loadedCount recent conversations.',
+      actionLabel: canLoadEarlier ? 'Load earlier' : null,
+      onAction: canLoadEarlier ? _loadEarlier : null,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('conversations')
-          .where('memberUids', arrayContains: uid)
-          .orderBy('lastMessageAt', descending: true)
-          .limit(defaultActivityFeedLimit)
-          .snapshots(),
+      stream: _conversationsStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _LoadFailure(error: snapshot.error);
@@ -83,16 +212,51 @@ class MarketplaceMessagesPage extends StatelessWidget {
             message: 'Retrieving your latest marketplace messages…',
           );
         }
-        final conversations = snapshot.data!.docs.toList()
-          ..sort((a, b) {
-            final aTime = a.data()['lastMessageAt'] as Timestamp?;
-            final bTime = b.data()['lastMessageAt'] as Timestamp?;
-            return (bTime?.millisecondsSinceEpoch ?? 0).compareTo(
-              aTime?.millisecondsSinceEpoch ?? 0,
-            );
-          });
-        if (conversations.isEmpty) return const _EmptyMessages();
-        final atLimit = conversations.length == defaultActivityFeedLimit;
+        final loadedConversations = snapshot.data!.docs;
+        final conversations = widget.showUnreadOnly
+            ? loadedConversations.where((document) {
+                final counts = document.data()['unreadCounts'] as Map? ?? {};
+                return ((counts[widget.uid] as num?)?.toInt() ?? 0) > 0;
+              }).toList()
+            : loadedConversations;
+        final reachedWindow = loadedConversations.length == _conversationLimit;
+        final canLoadEarlier =
+            reachedWindow && _conversationLimit < maximumActivityHistoryLimit;
+        if (loadedConversations.isEmpty) {
+          return Column(
+            children: [
+              widget.header,
+              const Expanded(child: _EmptyMessages()),
+            ],
+          );
+        }
+        if (conversations.isEmpty) {
+          return Column(
+            children: [
+              widget.header,
+              if (reachedWindow)
+                _historyNotice(
+                  loadedConversations.length,
+                  unreadWindowEmpty: true,
+                  canLoadEarlier: canLoadEarlier,
+                ),
+              Expanded(
+                child: MarketplaceDataStateView(
+                  kind: MarketplaceDataStateKind.empty,
+                  icon: Icons.mark_chat_read_outlined,
+                  title: reachedWindow
+                      ? 'No unread messages in the conversations checked'
+                      : 'No unread messages',
+                  message: reachedWindow
+                      ? canLoadEarlier
+                          ? 'Load earlier conversations before considering the inbox clear.'
+                          : 'The latest history window is clear; older records remain stored.'
+                      : 'You are all caught up.',
+                ),
+              ),
+            ],
+          );
+        }
         final list = ListView.separated(
           padding: const EdgeInsets.all(12),
           itemCount: conversations.length,
@@ -100,51 +264,55 @@ class MarketplaceMessagesPage extends StatelessWidget {
           itemBuilder: (context, index) {
             final doc = conversations[index];
             final data = doc.data();
-            final unread =
-                ((data['unreadCounts'] as Map?)?[uid] as num?)?.toInt() ?? 0;
-            final sellerName = '${data['sellerName'] ?? 'Marketplace seller'}';
-            final title = '${data['listingTitle'] ?? 'Marketplace listing'}';
+            final unread = ((data['unreadCounts'] as Map?)?[widget.uid] as num?)
+                    ?.toInt() ??
+                0;
+            final participantName =
+                marketplaceConversationParticipantName(data, widget.uid);
+            final lastMessageAt = data['lastMessageAt'] is Timestamp
+                ? (data['lastMessageAt'] as Timestamp).toDate()
+                : null;
             final memberUids = List<String>.from(
               data['memberUids'] ?? const <String>[],
             );
-            final otherUid =
-                memberUids.where((member) => member != uid).firstOrNull ?? '';
-            return Card(
-              child: ListTile(
-                leading: MarketplaceUserAvatar(
-                  userUid: otherUid,
-                  size: 40,
-                  fallback: Center(
-                    child: Text(sellerName.isEmpty ? '?' : sellerName[0]),
-                  ),
-                ),
-                title: Text(
-                  title,
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontWeight: unread > 0 ? FontWeight.w900 : FontWeight.w700,
-                  ),
-                ),
-                subtitle: Text(
-                  '${data['lastMessage'] ?? ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: unread > 0
-                    ? Badge(label: Text('$unread'))
-                    : const Icon(Icons.chevron_right),
-                onTap: () =>
-                    context.push(MarketplaceDeepLinks.conversation(doc.id)),
+            final otherUid = memberUids
+                    .where((member) => member != widget.uid)
+                    .firstOrNull ??
+                '';
+            return MarketplaceConversationTile(
+              participantName: participantName,
+              listingTitle: '${data['listingTitle'] ?? 'Marketplace listing'}',
+              lastMessage: '${data['lastMessage'] ?? ''}'.trim(),
+              timestamp: marketplaceMessageTimestamp(
+                context,
+                lastMessageAt,
+                includeTimeOnOlderDays: false,
               ),
+              unread: unread,
+              avatar: MarketplaceUserAvatar(
+                userUid: otherUid,
+                size: 44,
+                fallback: Center(
+                  child: Text(
+                    participantName.isEmpty
+                        ? '?'
+                        : participantName[0].toUpperCase(),
+                  ),
+                ),
+              ),
+              onTap: () =>
+                  context.push(MarketplaceDeepLinks.conversation(doc.id)),
             );
           },
         );
-        if (!atLimit) return list;
         return Column(
           children: [
-            const _ActivityLimitNotice(
-              message: 'Showing the 100 most recent conversations.',
-            ),
+            widget.header,
+            if (reachedWindow)
+              _historyNotice(
+                loadedConversations.length,
+                canLoadEarlier: canLoadEarlier,
+              ),
             Expanded(child: list),
           ],
         );
@@ -153,42 +321,134 @@ class MarketplaceMessagesPage extends StatelessWidget {
   }
 }
 
+class MarketplaceConversationTile extends StatelessWidget {
+  const MarketplaceConversationTile({
+    super.key,
+    required this.participantName,
+    required this.listingTitle,
+    required this.lastMessage,
+    required this.timestamp,
+    required this.unread,
+    required this.avatar,
+    required this.onTap,
+  });
+
+  final String participantName;
+  final String listingTitle;
+  final String lastMessage;
+  final String timestamp;
+  final int unread;
+  final Widget avatar;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        margin: EdgeInsets.zero,
+        child: ListTile(
+          minVerticalPadding: 12,
+          leading: avatar,
+          title: Text(
+            participantName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontWeight: unread > 0 ? FontWeight.w900 : FontWeight.w700,
+            ),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 3),
+              Text(
+                listingTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              if (lastMessage.isNotEmpty)
+                Text(
+                  lastMessage,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+          isThreeLine: lastMessage.isNotEmpty,
+          trailing: SizedBox(
+            width: 76,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (timestamp.isNotEmpty)
+                  Text(
+                    timestamp,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                const SizedBox(height: 7),
+                if (unread > 0)
+                  Badge(label: Text('$unread'))
+                else
+                  const Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
+          onTap: onTap,
+        ),
+      );
+}
+
 class _ActivityLimitNotice extends StatelessWidget {
-  const _ActivityLimitNotice({required this.message});
+  const _ActivityLimitNotice({
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
 
   final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) => Semantics(
-    container: true,
-    label: message,
-    child: Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
+        container: true,
+        label: message,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(10),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
+          child: Row(
+            children: [
+              Icon(
+                Icons.info_outline,
                 color: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: onAction,
+                  child: Text(actionLabel!),
+                ),
+              ],
+            ],
           ),
-        ],
-      ),
-    ),
-  );
+        ),
+      );
 }
 
 class _LoadFailure extends StatelessWidget {
@@ -197,22 +457,22 @@ class _LoadFailure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MarketplaceDataStateView.failure(
-    error: error,
-    resource: 'Conversations',
-    retryLabel: 'Refresh account',
-    onRetry: () async {
-      await FirebaseAuth.instance.currentUser?.reload();
-      await FirebaseAuth.instance.currentUser?.getIdToken(true);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            behavior: SnackBarBehavior.floating,
-            content: Text('Account refreshed. Messages will reconnect.'),
-          ),
-        );
-      }
-    },
-  );
+        error: error,
+        resource: 'Conversations',
+        retryLabel: 'Refresh account',
+        onRetry: () async {
+          await FirebaseAuth.instance.currentUser?.reload();
+          await FirebaseAuth.instance.currentUser?.getIdToken(true);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                behavior: SnackBarBehavior.floating,
+                content: Text('Account refreshed. Messages will reconnect.'),
+              ),
+            );
+          }
+        },
+      );
 }
 
 class _ConversationNegotiationPanel extends StatefulWidget {
@@ -333,8 +593,8 @@ class _ConversationNegotiationPanelState
                             currentPrice == null
                                 ? 'Price available on request'
                                 : '\$${currentPrice.toStringAsFixed(2)}'
-                                      '${basis.isEmpty ? '' : ' • $basis'}'
-                                      '${currentQuantity == null ? '' : ' • Qty $currentQuantity'}',
+                                    '${basis.isEmpty ? '' : ' • $basis'}'
+                                    '${currentQuantity == null ? '' : ' • Qty $currentQuantity'}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -493,7 +753,7 @@ class _ConversationNegotiationPanelState
           final offeredUnit = num.tryParse(price.text.replaceAll(',', '')) ?? 0;
           final requestedQty =
               int.tryParse(quantity.text.replaceAll(RegExp(r'[^0-9]'), '')) ??
-              0;
+                  0;
           final askingUnit = listing['price'] as num? ?? 0;
           final askingTotal = askingUnit * requestedQty;
           final offeredTotal = offeredUnit * requestedQty;
@@ -534,7 +794,7 @@ class _ConversationNegotiationPanelState
                               askingUnit == 0
                                   ? 'Seller price available on request'
                                   : 'Seller asks \$${askingUnit.toStringAsFixed(2)}'
-                                        '${basis.isEmpty ? '' : ' • $basis'}',
+                                      '${basis.isEmpty ? '' : ' • $basis'}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,
                               ),
@@ -558,8 +818,8 @@ class _ConversationNegotiationPanelState
                         ),
                         validator: (value) =>
                             (int.tryParse(value ?? '') ?? 0) <= 0
-                            ? 'Enter a valid quantity'
-                            : null,
+                                ? 'Enter a valid quantity'
+                                : null,
                       ),
                       if (available != null) ...[
                         const SizedBox(height: 8),
@@ -602,10 +862,10 @@ class _ConversationNegotiationPanelState
                         ),
                         validator: (value) =>
                             (num.tryParse(value?.replaceAll(',', '') ?? '') ??
-                                    0) <=
-                                0
-                            ? 'Enter a valid price'
-                            : null,
+                                        0) <=
+                                    0
+                                ? 'Enter a valid price'
+                                : null,
                       ),
                       if (askingUnit > 0) ...[
                         const SizedBox(height: 8),
@@ -649,14 +909,14 @@ class _ConversationNegotiationPanelState
                                     isOverQuantity
                                         ? Icons.error_outline
                                         : isFullQuantity
-                                        ? Icons.check_circle
-                                        : Icons.pie_chart_outline,
+                                            ? Icons.check_circle
+                                            : Icons.pie_chart_outline,
                                     size: 18,
                                     color: isOverQuantity
                                         ? Colors.red
                                         : isFullQuantity
-                                        ? Colors.green.shade700
-                                        : Colors.orange.shade800,
+                                            ? Colors.green.shade700
+                                            : Colors.orange.shade800,
                                   ),
                                   const SizedBox(width: 7),
                                   Expanded(
@@ -664,15 +924,15 @@ class _ConversationNegotiationPanelState
                                       isOverQuantity
                                           ? 'Quantity exceeds available inventory'
                                           : isFullQuantity
-                                          ? 'ALL — full available quantity'
-                                          : 'Partial quantity offer',
+                                              ? 'ALL — full available quantity'
+                                              : 'Partial quantity offer',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w800,
                                         color: isOverQuantity
                                             ? Colors.red
                                             : isFullQuantity
-                                            ? Colors.green.shade700
-                                            : Colors.orange.shade800,
+                                                ? Colors.green.shade700
+                                                : Colors.orange.shade800,
                                       ),
                                     ),
                                   ),
@@ -789,8 +1049,7 @@ class _ConversationNegotiationPanelState
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                onPressed:
-                    requestedQty <= 0 ||
+                onPressed: requestedQty <= 0 ||
                         offeredUnit <= 0 ||
                         isOverQuantity ||
                         truckingPlan == null ||
@@ -826,13 +1085,11 @@ class _ConversationNegotiationPanelState
     final askingUnit = listing['price'] as num? ?? 0;
     final available = (listing['quantity'] as num?)?.toInt();
     final difference = (unitPrice - askingUnit) * requestedQuantity;
-    final differencePercent = askingUnit == 0
-        ? 0
-        : (unitPrice - askingUnit) / askingUnit * 100;
+    final differencePercent =
+        askingUnit == 0 ? 0 : (unitPrice - askingUnit) / askingUnit * 100;
     final isAll = available != null && requestedQuantity == available;
     final isFullPrice = askingUnit > 0 && unitPrice == askingUnit;
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
           context: context,
           builder: (confirmationContext) => AlertDialog(
             icon: const Icon(Icons.analytics_outlined, size: 38),
@@ -848,9 +1105,8 @@ class _ConversationNegotiationPanelState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _offerReviewCard(
-                      icon: isAll
-                          ? Icons.check_circle
-                          : Icons.pie_chart_outline,
+                      icon:
+                          isAll ? Icons.check_circle : Icons.pie_chart_outline,
                       color: isAll ? Colors.green : Colors.orange,
                       title: isAll
                           ? 'ALL — full available quantity'
@@ -864,20 +1120,19 @@ class _ConversationNegotiationPanelState
                       icon: isFullPrice
                           ? Icons.check_circle
                           : difference < 0
-                          ? Icons.trending_down
-                          : Icons.trending_up,
+                              ? Icons.trending_down
+                              : Icons.trending_up,
                       color: isFullPrice
                           ? Colors.green
                           : difference < 0
-                          ? Colors.deepOrange
-                          : Colors.green,
+                              ? Colors.deepOrange
+                              : Colors.green,
                       title: isFullPrice
                           ? 'FULL ASKING PRICE'
                           : difference < 0
-                          ? 'Below asking price'
-                          : 'Above asking price',
-                      detail:
-                          '\$${unitPrice.toStringAsFixed(2)} per unit • '
+                              ? 'Below asking price'
+                              : 'Above asking price',
+                      detail: '\$${unitPrice.toStringAsFixed(2)} per unit • '
                           '${difference >= 0 ? '+' : '-'}\$${difference.abs().toStringAsFixed(2)} '
                           '(${differencePercent >= 0 ? '+' : ''}${differencePercent.toStringAsFixed(1)}%)',
                     ),
@@ -896,14 +1151,12 @@ class _ConversationNegotiationPanelState
                     const SizedBox(height: 8),
                     _offerReviewCard(
                       icon: truckingPlan!.icon,
-                      color:
-                          truckingPlan ==
+                      color: truckingPlan ==
                               MarketplaceTruckingPlan.requestDispatch
                           ? const Color(0xFF0878E8)
                           : Colors.blueGrey,
                       title: truckingPlan!.label,
-                      detail:
-                          truckingPlan ==
+                      detail: truckingPlan ==
                               MarketplaceTruckingPlan.requestDispatch
                           ? 'Dispatch destination: ${dispatchDeliveryLocation!.publicName}'
                           : truckingPlan!.description,
@@ -962,8 +1215,8 @@ class _ConversationNegotiationPanelState
             message: truckingPlan == MarketplaceTruckingPlan.requestDispatch
                 ? 'Offer submitted. Dispatch request is live for carrier bids.'
                 : initialOffer == null
-                ? 'Offer submitted and added to offer history.'
-                : 'Counter offer sent and added to offer history.',
+                    ? 'Offer submitted and added to offer history.'
+                    : 'Counter offer sent and added to offer history.',
             tone: PipeStatusTone.success,
           );
         }
@@ -986,15 +1239,15 @@ class _ConversationNegotiationPanelState
   }
 
   Widget _chatOfferLine(String label, num amount) => Row(
-    children: [
-      Expanded(child: Text(label)),
-      const SizedBox(width: 10),
-      Text(
-        '\$${amount.toStringAsFixed(2)}',
-        style: const TextStyle(fontWeight: FontWeight.w800),
-      ),
-    ],
-  );
+        children: [
+          Expanded(child: Text(label)),
+          const SizedBox(width: 10),
+          Text(
+            '\$${amount.toStringAsFixed(2)}',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ],
+      );
 
   String _formatOfferDate(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -1004,44 +1257,45 @@ class _ConversationNegotiationPanelState
     required Color color,
     required String title,
     required String detail,
-  }) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: .1),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: color.withValues(alpha: .35)),
-    ),
-    child: Row(
-      children: [
-        Icon(icon, color: color),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(fontWeight: FontWeight.w900, color: color),
-              ),
-              Text(detail),
-            ],
-          ),
+  }) =>
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: .35)),
         ),
-      ],
-    ),
-  );
+        child: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(fontWeight: FontWeight.w900, color: color),
+                  ),
+                  Text(detail),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
 
   Widget _reviewDate(String label, DateTime date) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(
-      children: [
-        const Icon(Icons.calendar_month_outlined, size: 18),
-        const SizedBox(width: 7),
-        Expanded(child: Text('$label: ${_formatOfferDate(date)}')),
-      ],
-    ),
-  );
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_month_outlined, size: 18),
+            const SizedBox(width: 7),
+            Expanded(child: Text('$label: ${_formatOfferDate(date)}')),
+          ],
+        ),
+      );
 }
 
 class MarketplaceNegotiationHistory extends StatelessWidget {
@@ -1093,22 +1347,21 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
             compact: true,
           );
         }
-        final events =
-            snapshot.data!.docs
-                .where(
-                  (doc) =>
-                      (isSeller || doc.data()['buyerUid'] == buyerUid) &&
-                      doc.data()['sellerUid'] == sellerUid &&
-                      doc.data()['status'] != 'archived',
-                )
-                .toList()
-              ..sort((a, b) {
-                final at = a.data()['createdAt'] as Timestamp?;
-                final bt = b.data()['createdAt'] as Timestamp?;
-                return (bt?.millisecondsSinceEpoch ?? 0).compareTo(
-                  at?.millisecondsSinceEpoch ?? 0,
-                );
-              });
+        final events = snapshot.data!.docs
+            .where(
+              (doc) =>
+                  (isSeller || doc.data()['buyerUid'] == buyerUid) &&
+                  doc.data()['sellerUid'] == sellerUid &&
+                  doc.data()['status'] != 'archived',
+            )
+            .toList()
+          ..sort((a, b) {
+            final at = a.data()['createdAt'] as Timestamp?;
+            final bt = b.data()['createdAt'] as Timestamp?;
+            return (bt?.millisecondsSinceEpoch ?? 0).compareTo(
+              at?.millisecondsSinceEpoch ?? 0,
+            );
+          });
         if (events.isEmpty) {
           return Center(
             child: Text(
@@ -1249,10 +1502,10 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   onTap: isSeller
                       ? () => _showOfferBuyerProfile(
-                          context,
-                          '${event['buyerUid'] ?? ''}',
-                          '${event['buyerDisplayName'] ?? ''}',
-                        )
+                            context,
+                            '${event['buyerUid'] ?? ''}',
+                            '${event['buyerDisplayName'] ?? ''}',
+                          )
                       : null,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
@@ -1285,10 +1538,10 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                     offerStatus == 'completed'
                         ? Icons.verified_outlined
                         : offerStatus == 'disputed'
-                        ? Icons.report_problem_outlined
-                        : offerStatus == 'cancelled'
-                        ? Icons.cancel_outlined
-                        : Icons.check_circle,
+                            ? Icons.report_problem_outlined
+                            : offerStatus == 'cancelled'
+                                ? Icons.cancel_outlined
+                                : Icons.check_circle,
                     size: 17,
                   ),
                   label: Text(offerStatus.toUpperCase()),
@@ -1306,16 +1559,12 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
               Expanded(
                 child: _metric(
                   'UNIT PRICE',
-                  '${priceDifference > 0
-                      ? '↑ '
-                      : priceDifference < 0
-                      ? '↓ '
-                      : '= '}\$${price.toStringAsFixed(2)}',
+                  '${priceDifference > 0 ? '↑ ' : priceDifference < 0 ? '↓ ' : '= '}\$${price.toStringAsFixed(2)}',
                   priceDifference > 0
                       ? Colors.green
                       : priceDifference < 0
-                      ? Colors.deepOrange
-                      : Colors.blue,
+                          ? Colors.deepOrange
+                          : Colors.blue,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1325,9 +1574,9 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   isAll
                       ? 'ALL • $quantity'
                       : availableQuantity == null
-                      ? '$quantity'
-                      : '$quantity / $availableQuantity'
-                            '${quantityPercent == null ? '' : ' • ${quantityPercent.toStringAsFixed(0)}%'}',
+                          ? '$quantity'
+                          : '$quantity / $availableQuantity'
+                              '${quantityPercent == null ? '' : ' • ${quantityPercent.toStringAsFixed(0)}%'}',
                   isAll ? Colors.green : Colors.orange,
                 ),
               ),
@@ -1515,16 +1764,12 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
               Expanded(
                 child: _metric(
                   'UNIT PRICE',
-                  '${difference > 0
-                      ? '↑ '
-                      : difference < 0
-                      ? '↓ '
-                      : '= '}\$${price.toStringAsFixed(2)}',
+                  '${difference > 0 ? '↑ ' : difference < 0 ? '↓ ' : '= '}\$${price.toStringAsFixed(2)}',
                   difference > 0
                       ? Colors.green
                       : difference < 0
-                      ? Colors.deepOrange
-                      : Colors.blue,
+                          ? Colors.deepOrange
+                          : Colors.blue,
                 ),
               ),
               const SizedBox(width: 7),
@@ -1534,8 +1779,8 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
                   isAll
                       ? 'ALL • $quantity'
                       : availableQuantity == null
-                      ? '$quantity'
-                      : '$quantity / $availableQuantity • ${percent?.toStringAsFixed(0)}%',
+                          ? '$quantity'
+                          : '$quantity / $availableQuantity • ${percent?.toStringAsFixed(0)}%',
                   isAll ? Colors.green : Colors.orange,
                 ),
               ),
@@ -1579,21 +1824,21 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
         dispatch
             ? Icons.route_outlined
             : buyerArranged
-            ? Icons.local_shipping_outlined
-            : Icons.handshake_outlined,
+                ? Icons.local_shipping_outlined
+                : Icons.handshake_outlined,
         size: 16,
         color: dispatch
             ? const Color(0xFF0878E8)
             : buyerArranged
-            ? Colors.green.shade700
-            : Colors.blueGrey,
+                ? Colors.green.shade700
+                : Colors.blueGrey,
       ),
       label: Text(
         dispatch
             ? 'Dispatch requested'
             : buyerArranged
-            ? 'Buyer has trucking'
-            : 'Pickup / seller-arranged',
+                ? 'Buyer has trucking'
+                : 'Pickup / seller-arranged',
       ),
     );
   }
@@ -1688,6 +1933,9 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
           builder: (_) => MarketplaceChatPage(
             conversationId: id,
             title: listingTitle,
+            participantName:
+                '${offer['buyerDisplayName'] ?? 'Marketplace buyer'}',
+            participantUid: buyerUid,
             openOfferComposer: openOfferComposer,
             initialOffer: openOfferComposer ? offer : null,
           ),
@@ -1752,31 +2000,31 @@ class MarketplaceNegotiationHistory extends StatelessWidget {
   }
 
   Widget _metric(String label, String value, Color color) => Container(
-    padding: const EdgeInsets.all(9),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: .09),
-      borderRadius: BorderRadius.circular(9),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            color: color,
-          ),
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .09),
+          borderRadius: BorderRadius.circular(9),
         ),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w900),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class MarketplaceTransactionPanel extends StatefulWidget {
@@ -1803,172 +2051,178 @@ class _MarketplaceTransactionPanelState
   @override
   Widget build(
     BuildContext context,
-  ) => StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-    stream: FirebaseFirestore.instance
-        .collection('marketplace_transactions')
-        .doc(widget.offerId)
-        .snapshots(),
-    builder: (context, snapshot) {
-      if (snapshot.hasError) {
-        return _notice(
-          Icons.sync_problem_outlined,
-          'Transaction details could not be loaded. Your offer was not changed.',
-          Colors.red,
-        );
-      }
-      if (!snapshot.hasData) {
-        return const LinearProgressIndicator(minHeight: 3);
-      }
-      final transaction =
-          snapshot.data!.data() ??
-          <String, dynamic>{
-            'status': 'pending_completion',
-            'buyerConfirmed': false,
-            'sellerConfirmed': false,
-          };
-      final status = '${transaction['status'] ?? 'pending_completion'}';
-      final buyerConfirmed = transaction['buyerConfirmed'] == true;
-      final sellerConfirmed = transaction['sellerConfirmed'] == true;
-      final terminal = const {
-        'completed',
-        'cancelled',
-        'disputed',
-      }.contains(status);
-      final userConfirmed = widget.isSeller ? sellerConfirmed : buyerConfirmed;
-      final paymentStatus =
-          '${transaction['paymentProviderStatus'] ?? 'not_started'}';
-      final paymentReadyForCompletion =
-          paymentStatus == 'paid' || paymentStatus == 'external_agreed';
-      final dispatchRequested =
-          '${widget.offer['truckingPlan'] ?? ''}' == 'request_dispatch';
-      final journeyStatus = marketplaceTransactionJourneyStatus(
-        transaction,
-        viewerIsBuyer: !widget.isSeller,
-        dispatchRequested: dispatchRequested,
-      );
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: _statusColor(status).withValues(alpha: .08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _statusColor(status).withValues(alpha: .55),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.fact_check_outlined, color: _statusColor(status)),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Transaction checklist',
-                    style: TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                ),
-                Chip(label: Text(_statusLabel(status))),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Text(
-              '${_money(transaction['agreedTotal'] ?? widget.offer['offeredTotal'])} • '
-              '${transaction['agreedQuantity'] ?? widget.offer['requestedQuantity'] ?? 0} units',
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 10),
-            MarketplaceJourneyStatusCard(status: journeyStatus),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _confirmation(
-                    'Buyer',
-                    buyerConfirmed,
-                    'Purchase received',
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _confirmation(
-                    'Seller',
-                    sellerConfirmed,
-                    'Sale fulfilled',
-                  ),
-                ),
-              ],
-            ),
-            if ('${transaction['reason'] ?? ''}'.isNotEmpty) ...[
-              const SizedBox(height: 9),
-              Text(
-                'Reason: ${transaction['reason']}',
-                style: const TextStyle(fontSize: 12),
+  ) =>
+      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('marketplace_transactions')
+            .doc(widget.offerId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return _notice(
+              Icons.sync_problem_outlined,
+              'Transaction details could not be loaded. Your offer was not changed.',
+              Colors.red,
+            );
+          }
+          if (!snapshot.hasData) {
+            return const LinearProgressIndicator(minHeight: 3);
+          }
+          final transaction = snapshot.data!.data() ??
+              <String, dynamic>{
+                'status': 'pending_completion',
+                'buyerConfirmed': false,
+                'sellerConfirmed': false,
+              };
+          final status = '${transaction['status'] ?? 'pending_completion'}';
+          final buyerConfirmed = transaction['buyerConfirmed'] == true;
+          final sellerConfirmed = transaction['sellerConfirmed'] == true;
+          final terminal = const {
+            'completed',
+            'cancelled',
+            'disputed',
+          }.contains(status);
+          final userConfirmed =
+              widget.isSeller ? sellerConfirmed : buyerConfirmed;
+          final paymentStatus =
+              '${transaction['paymentProviderStatus'] ?? 'not_started'}';
+          final paymentReadyForCompletion =
+              paymentStatus == 'paid' || paymentStatus == 'external_agreed';
+          final dispatchRequested =
+              '${widget.offer['truckingPlan'] ?? ''}' == 'request_dispatch';
+          final journeyStatus = marketplaceTransactionJourneyStatus(
+            transaction,
+            viewerIsBuyer: !widget.isSeller,
+            dispatchRequested: dispatchRequested,
+          );
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _statusColor(status).withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _statusColor(status).withValues(alpha: .55),
               ),
-            ],
-            const SizedBox(height: 10),
-            MarketplaceSecurePaymentPanel(
-              transactionId: widget.offerId,
-              isBuyer: !widget.isSeller,
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (!terminal && !userConfirmed && paymentReadyForCompletion)
-                  FilledButton.icon(
-                    onPressed: _busy
-                        ? null
-                        : () => _confirmCompletion(transaction),
-                    icon: const Icon(Icons.verified_outlined),
-                    label: Text(
-                      widget.isSeller
-                          ? 'Confirm fulfilled'
-                          : 'Confirm received',
+                Row(
+                  children: [
+                    Icon(Icons.fact_check_outlined,
+                        color: _statusColor(status)),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Transaction checklist',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
                     ),
+                    Chip(label: Text(_statusLabel(status))),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '${_money(transaction['agreedTotal'] ?? widget.offer['offeredTotal'])} • '
+                  '${transaction['agreedQuantity'] ?? widget.offer['requestedQuantity'] ?? 0} units',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 10),
+                MarketplaceJourneyStatusCard(status: journeyStatus),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _confirmation(
+                        'Buyer',
+                        buyerConfirmed,
+                        'Purchase received',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _confirmation(
+                        'Seller',
+                        sellerConfirmed,
+                        'Sale fulfilled',
+                      ),
+                    ),
+                  ],
+                ),
+                if ('${transaction['reason'] ?? ''}'.isNotEmpty) ...[
+                  const SizedBox(height: 9),
+                  Text(
+                    'Reason: ${transaction['reason']}',
+                    style: const TextStyle(fontSize: 12),
                   ),
-                if (status == 'completed' && dispatchRequested)
-                  FilledButton.tonalIcon(
-                    onPressed: () => MarketplaceNavigation.goToDispatch(context),
-                    icon: const Icon(Icons.local_shipping_outlined),
-                    label: const Text('Continue to Dispatch'),
-                  ),
-                if (!terminal && !buyerConfirmed && !sellerConfirmed)
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : () => _reasonAction('cancel'),
-                    icon: const Icon(Icons.cancel_outlined),
-                    label: const Text('Cancel'),
-                  ),
-                if (!terminal)
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : () => _reasonAction('dispute'),
-                    icon: const Icon(Icons.report_problem_outlined),
-                    label: const Text('Open dispute'),
-                  ),
-                TextButton.icon(
-                  onPressed: snapshot.data!.exists ? _showHistory : null,
-                  icon: const Icon(Icons.history),
-                  label: const Text('History'),
+                ],
+                const SizedBox(height: 10),
+                MarketplaceSecurePaymentPanel(
+                  transactionId: widget.offerId,
+                  isBuyer: !widget.isSeller,
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    if (!terminal &&
+                        !userConfirmed &&
+                        paymentReadyForCompletion)
+                      FilledButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => _confirmCompletion(transaction),
+                        icon: const Icon(Icons.verified_outlined),
+                        label: Text(
+                          widget.isSeller
+                              ? 'Confirm fulfilled'
+                              : 'Confirm received',
+                        ),
+                      ),
+                    if (status == 'completed' && dispatchRequested)
+                      FilledButton.tonalIcon(
+                        onPressed: () =>
+                            MarketplaceNavigation.goToDispatch(context),
+                        icon: const Icon(Icons.local_shipping_outlined),
+                        label: const Text('Continue to Dispatch'),
+                      ),
+                    if (!terminal && !buyerConfirmed && !sellerConfirmed)
+                      OutlinedButton.icon(
+                        onPressed: _busy ? null : () => _reasonAction('cancel'),
+                        icon: const Icon(Icons.cancel_outlined),
+                        label: const Text('Cancel'),
+                      ),
+                    if (!terminal)
+                      OutlinedButton.icon(
+                        onPressed:
+                            _busy ? null : () => _reasonAction('dispute'),
+                        icon: const Icon(Icons.report_problem_outlined),
+                        label: const Text('Open dispute'),
+                      ),
+                    TextButton.icon(
+                      onPressed: snapshot.data!.exists ? _showHistory : null,
+                      icon: const Icon(Icons.history),
+                      label: const Text('History'),
+                    ),
+                  ],
+                ),
+                if (_busy) ...[
+                  const SizedBox(height: 8),
+                  const LinearProgressIndicator(minHeight: 3),
+                ],
+                const SizedBox(height: 6),
+                Text(
+                  paymentReadyForCompletion
+                      ? 'For Pipe Buyer Stripe payments, seller proceeds remain pending until completion is confirmed. Pipe Buyer is not an escrow or trust account.'
+                      : 'Secure payment is required before completion can be confirmed. Deposit/split payments are not enabled yet.',
+                  style: const TextStyle(fontSize: 10.5, color: Colors.black54),
                 ),
               ],
             ),
-            if (_busy) ...[
-              const SizedBox(height: 8),
-              const LinearProgressIndicator(minHeight: 3),
-            ],
-            const SizedBox(height: 6),
-            Text(
-              paymentReadyForCompletion
-                  ? 'For Pipe Buyer Stripe payments, seller proceeds remain pending until completion is confirmed. Pipe Buyer is not an escrow or trust account.'
-                  : 'Secure payment is required before completion can be confirmed. Deposit/split payments are not enabled yet.',
-              style: const TextStyle(fontSize: 10.5, color: Colors.black54),
-            ),
-          ],
-        ),
+          );
+        },
       );
-    },
-  );
 
   Widget _confirmation(String party, bool confirmed, String detail) =>
       Container(
@@ -2005,23 +2259,22 @@ class _MarketplaceTransactionPanelState
       );
 
   Widget _notice(IconData icon, String message, Color color) => Container(
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: .08),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: Row(
-      children: [
-        Icon(icon, color: color),
-        const SizedBox(width: 8),
-        Expanded(child: Text(message)),
-      ],
-    ),
-  );
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+      );
 
   Future<void> _confirmCompletion(Map<String, dynamic> transaction) async {
-    final confirmed =
-        await showDialog<bool>(
+    final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             icon: const Icon(Icons.verified_outlined, size: 38),
@@ -2104,8 +2357,8 @@ class _MarketplaceTransactionPanelState
         message: action == 'confirm_completion'
             ? 'Your confirmation was recorded.'
             : action == 'cancel'
-            ? 'The transaction was cancelled.'
-            : 'The dispute was opened for review.',
+                ? 'The transaction was cancelled.'
+                : 'The dispute was opened for review.',
         tone: PipeStatusTone.success,
       );
     } catch (error, stackTrace) {
@@ -2208,21 +2461,21 @@ class _MarketplaceTransactionPanelState
       '${date.minute.toString().padLeft(2, '0')}';
 
   String _statusLabel(String status) => switch (status) {
-    'pending_completion' => 'AWAITING BOTH',
-    'awaiting_buyer_confirmation' => 'AWAITING BUYER',
-    'awaiting_seller_confirmation' => 'AWAITING SELLER',
-    'completed' => 'COMPLETED',
-    'cancelled' => 'CANCELLED',
-    'disputed' => 'DISPUTED',
-    _ => status.replaceAll('_', ' ').toUpperCase(),
-  };
+        'pending_completion' => 'AWAITING BOTH',
+        'awaiting_buyer_confirmation' => 'AWAITING BUYER',
+        'awaiting_seller_confirmation' => 'AWAITING SELLER',
+        'completed' => 'COMPLETED',
+        'cancelled' => 'CANCELLED',
+        'disputed' => 'DISPUTED',
+        _ => status.replaceAll('_', ' ').toUpperCase(),
+      };
 
   Color _statusColor(String status) => switch (status) {
-    'completed' => Colors.green,
-    'cancelled' => Colors.blueGrey,
-    'disputed' => Colors.deepOrange,
-    _ => const Color(0xFF0878E8),
-  };
+        'completed' => Colors.green,
+        'cancelled' => Colors.blueGrey,
+        'disputed' => Colors.deepOrange,
+        _ => const Color(0xFF0878E8),
+      };
 }
 
 class _BuyerOfferName extends StatelessWidget {
@@ -2255,15 +2508,15 @@ class _BuyerOfferName extends StatelessWidget {
   }
 
   Widget _label(String value) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
-      const Text(
-        'Current offer',
-        style: TextStyle(fontSize: 11, color: Colors.black54),
-      ),
-    ],
-  );
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+          const Text(
+            'Current offer',
+            style: TextStyle(fontSize: 11, color: Colors.black54),
+          ),
+        ],
+      );
 }
 
 class _BuyerOfferAvatar extends StatelessWidget {
@@ -2287,8 +2540,8 @@ class _BuyerOfferAvatar extends StatelessWidget {
         builder: (context, snapshot) {
           final business = snapshot.data?[0].data() ?? {};
           final personal = snapshot.data?[1].data() ?? {};
-          final url = '${business['photoUrl'] ?? personal['photoUrl'] ?? ''}'
-              .trim();
+          final url =
+              '${business['photoUrl'] ?? personal['photoUrl'] ?? ''}'.trim();
           return MarketplaceAvatarImage(
             photoUrl: url,
             size: 36,
@@ -2346,22 +2599,22 @@ class ListingMessageBadge extends StatelessWidget {
 class _SignedOutMessages extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MarketplaceAuthRequiredCard(
-    title: 'Marketplace Messages',
-    description:
-        'Sign in or create a free account to chat directly with equipment buyers & sellers, send quotes, and negotiate deals.',
-    icon: Icons.forum_outlined,
-  );
+        title: 'Marketplace Messages',
+        description:
+            'Sign in or create a free account to chat directly with equipment buyers & sellers, send quotes, and negotiate deals.',
+        icon: Icons.forum_outlined,
+      );
 }
 
 class _EmptyMessages extends StatelessWidget {
   const _EmptyMessages();
   @override
   Widget build(BuildContext context) => const MarketplaceDataStateView(
-    kind: MarketplaceDataStateKind.empty,
-    icon: Icons.chat_bubble_outline,
-    title: 'No marketplace conversations yet',
-    message: 'Open a listing and message the seller to begin.',
-  );
+        kind: MarketplaceDataStateKind.empty,
+        icon: Icons.chat_bubble_outline,
+        title: 'No marketplace conversations yet',
+        message: 'Open a listing and message the seller to begin.',
+      );
 }
 
 /// Participant-only full-page conversation destination for restored links.
@@ -2421,9 +2674,17 @@ class MarketplaceConversationRoutePage extends StatelessWidget {
           );
         }
         final title = '${data?['listingTitle'] ?? 'Marketplace conversation'}';
+        final otherUid =
+            members.where((member) => member != user.uid).firstOrNull ?? '';
+        final participantName = marketplaceConversationParticipantName(
+          data ?? const <String, dynamic>{},
+          user.uid,
+        );
         return MarketplaceChatPage(
           conversationId: conversationId,
           title: title,
+          participantName: participantName,
+          participantUid: otherUid,
         );
       },
     );
@@ -2437,16 +2698,293 @@ class _ConversationRouteFailure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Marketplace conversation')),
-    body: MarketplaceDataStateView(
-      kind: MarketplaceDataStateKind.unavailable,
-      icon: Icons.forum_outlined,
-      title: 'Conversation unavailable',
-      message: message,
-      primaryLabel: 'Return to Marketplace',
-      onPrimary: () => context.go('/'),
-    ),
-  );
+        appBar: AppBar(title: const Text('Marketplace conversation')),
+        body: MarketplaceDataStateView(
+          kind: MarketplaceDataStateKind.unavailable,
+          icon: Icons.forum_outlined,
+          title: 'Conversation unavailable',
+          message: message,
+          primaryLabel: 'Return to Marketplace',
+          onPrimary: () => context.go('/'),
+        ),
+      );
+}
+
+class MarketplaceChatBubble extends StatelessWidget {
+  const MarketplaceChatBubble({
+    super.key,
+    required this.text,
+    required this.isMine,
+    required this.hiddenByModeration,
+    required this.timestamp,
+    this.attachment,
+  });
+
+  final String text;
+  final bool isMine;
+  final bool hiddenByModeration;
+  final String timestamp;
+  final Map<String, dynamic>? attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final background = isMine
+        ? theme.colorScheme.secondary
+        : theme.colorScheme.surfaceContainerHighest;
+    final foreground =
+        isMine ? theme.colorScheme.onSecondary : theme.colorScheme.onSurface;
+    final attachmentType = '${attachment?['type'] ?? ''}'.trim();
+    final attachmentName = '${attachment?['name'] ?? 'Message attachment'}';
+    final availableWidth = MediaQuery.sizeOf(context).width;
+    final bubbleWidth = availableWidth >= 720 ? 520.0 : availableWidth * .78;
+    final semanticsText = hiddenByModeration
+        ? 'Removed by Trust and Safety'
+        : [
+            if (text.trim().isNotEmpty) text.trim(),
+            if (timestamp.isNotEmpty) timestamp,
+          ].join(', ');
+
+    return Semantics(
+      container: true,
+      label: '${isMine ? 'Sent' : 'Received'} message, $semanticsText',
+      child: Align(
+        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: bubbleWidth),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(isMine ? 16 : 4),
+              bottomRight: Radius.circular(isMine ? 4 : 16),
+            ),
+            border:
+                isMine ? null : Border.all(color: theme.colorScheme.outline),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!hiddenByModeration && attachmentType == 'image')
+                Semantics(
+                  image: true,
+                  label: 'Photo attachment: $attachmentName',
+                  child: ExcludeSemantics(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: PipeBuyerCachedImage(
+                        imageUrl: '${attachment?['url'] ?? ''}',
+                        width: 260,
+                        height: 180,
+                        fit: BoxFit.cover,
+                        fallback: const SizedBox(
+                          width: 220,
+                          height: 90,
+                          child: Center(
+                            child: Icon(Icons.broken_image_outlined),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else if (!hiddenByModeration && attachmentType.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: foreground.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.insert_drive_file_outlined,
+                        color: foreground,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          attachmentName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: foreground,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (hiddenByModeration)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.gpp_maybe_outlined,
+                      size: 18,
+                      color: foreground.withValues(alpha: .78),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Removed by Trust & Safety',
+                        style: TextStyle(
+                          fontStyle: FontStyle.italic,
+                          color: foreground.withValues(alpha: .78),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else if (text.trim().isNotEmpty) ...[
+                if (attachmentType.isNotEmpty) const SizedBox(height: 8),
+                Text(text, style: TextStyle(color: foreground, height: 1.35)),
+              ],
+              if (timestamp.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    timestamp,
+                    style: TextStyle(
+                      color: foreground.withValues(alpha: .72),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MarketplaceMessageTimeline extends StatefulWidget {
+  const _MarketplaceMessageTimeline({
+    required this.conversationId,
+    required this.viewerUid,
+  });
+
+  final String conversationId;
+  final String viewerUid;
+
+  @override
+  State<_MarketplaceMessageTimeline> createState() =>
+      _MarketplaceMessageTimelineState();
+}
+
+class _MarketplaceMessageTimelineState
+    extends State<_MarketplaceMessageTimeline> {
+  late final Query<Map<String, dynamic>> _messageQuery;
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _messagesStream;
+  int _messageLimit = defaultActivityFeedLimit;
+
+  @override
+  void initState() {
+    super.initState();
+    _messageQuery = FirebaseFirestore.instance
+        .collection('conversations')
+        .doc(widget.conversationId)
+        .collection('messages')
+        .orderBy('createdAt', descending: true);
+    _messagesStream = _messageQuery.limit(defaultActivityFeedLimit).snapshots();
+  }
+
+  void _loadEarlier() {
+    if (_messageLimit >= maximumActivityHistoryLimit) return;
+    final nextLimit = (_messageLimit + defaultActivityFeedLimit)
+        .clamp(defaultActivityFeedLimit, maximumActivityHistoryLimit)
+        .toInt();
+    setState(() {
+      _messageLimit = nextLimit;
+      _messagesStream = _messageQuery.limit(_messageLimit).snapshots();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _messagesStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return MarketplaceDataStateView.failure(
+            error: snapshot.error,
+            resource: 'Conversation messages',
+            onRetry: () => setState(() {}),
+            compact: true,
+          );
+        }
+        if (!snapshot.hasData) {
+          return const MarketplaceDataStateView.loading(
+            title: 'Loading messages',
+            message: 'Retrieving the conversation history…',
+            compact: true,
+          );
+        }
+        final messages = snapshot.data!.docs;
+        if (messages.isEmpty) {
+          return const MarketplaceDataStateView(
+            kind: MarketplaceDataStateKind.empty,
+            icon: Icons.waving_hand_outlined,
+            title: 'Start the conversation',
+            message: 'Write a message below to contact the seller.',
+            compact: true,
+          );
+        }
+        final reachedWindow = messages.length == _messageLimit;
+        final canLoadEarlier =
+            reachedWindow && _messageLimit < maximumActivityHistoryLimit;
+        return ListView.builder(
+          reverse: true,
+          padding: const EdgeInsets.all(12),
+          itemCount: messages.length + (reachedWindow ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (reachedWindow && index == messages.length) {
+              return ListTile(
+                dense: true,
+                leading: const Icon(Icons.history_outlined),
+                title: Text('Showing ${messages.length} recent messages'),
+                subtitle: Text(
+                  canLoadEarlier
+                      ? 'Load the next 100 messages in the live conversation window.'
+                      : 'Older messages remain stored in the conversation record.',
+                ),
+                trailing: canLoadEarlier
+                    ? TextButton(
+                        onPressed: _loadEarlier,
+                        child: const Text('Load earlier'),
+                      )
+                    : null,
+              );
+            }
+            final message = messages[index].data();
+            return MarketplaceChatBubble(
+              text: '${message['text'] ?? ''}',
+              isMine: message['senderUid'] == widget.viewerUid,
+              hiddenByModeration: message['moderationVisibility'] == 'hidden',
+              timestamp: marketplaceMessageTimestamp(
+                context,
+                message['createdAt'] is Timestamp
+                    ? (message['createdAt'] as Timestamp).toDate()
+                    : null,
+              ),
+              attachment: message['attachment'] is Map
+                  ? Map<String, dynamic>.from(message['attachment'] as Map)
+                  : null,
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
 class MarketplaceChatPage extends StatefulWidget {
@@ -2454,12 +2992,16 @@ class MarketplaceChatPage extends StatefulWidget {
     super.key,
     required this.conversationId,
     required this.title,
+    this.participantName,
+    this.participantUid,
     this.openedFromListing = false,
     this.openOfferComposer = false,
     this.initialOffer,
   });
   final String conversationId;
   final String title;
+  final String? participantName;
+  final String? participantUid;
   final bool openedFromListing;
   final bool openOfferComposer;
   final Map<String, dynamic>? initialOffer;
@@ -2493,9 +3035,14 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
+    final suppliedParticipant = widget.participantName?.trim() ?? '';
+    final participantName = suppliedParticipant.isEmpty
+        ? 'Marketplace member'
+        : suppliedParticipant;
+    final blocked = _blockedByMe || _blockedMe;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title, maxLines: 1),
+        title: const Text('Messages'),
         actions: [
           if (widget.openedFromListing)
             IconButton(
@@ -2527,7 +3074,9 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
                 enabled: !_blockBusy,
                 child: ListTile(
                   leading: Icon(
-                    _blockedByMe ? Icons.person_add_alt_1 : Icons.block_outlined,
+                    _blockedByMe
+                        ? Icons.person_add_alt_1
+                        : Icons.block_outlined,
                     color: _blockedByMe ? Colors.green : Colors.deepOrange,
                   ),
                   title: Text(_blockedByMe ? 'Unblock member' : 'Block member'),
@@ -2549,6 +3098,28 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
       ),
       body: Column(
         children: [
+          PipeBuyerConversationHeader(
+            title: participantName,
+            subtitle: 'Protected marketplace conversation',
+            avatar: Text(
+              participantName[0].toUpperCase(),
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            listingContext: Row(
+              children: [
+                const Icon(Icons.inventory_2_outlined, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+          ),
           _ConversationNegotiationPanel(
             conversationId: widget.conversationId,
             openComposerOnLoad: widget.openOfferComposer,
@@ -2559,7 +3130,8 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
               color: Colors.orange.shade50,
               child: ListTile(
                 dense: true,
-                leading: const Icon(Icons.block_outlined, color: Colors.deepOrange),
+                leading:
+                    const Icon(Icons.block_outlined, color: Colors.deepOrange),
                 title: Text(
                   _blockedByMe
                       ? 'You blocked this member'
@@ -2574,207 +3146,132 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
               ),
             ),
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('conversations')
-                  .doc(widget.conversationId)
-                  .collection('messages')
-                  .orderBy('createdAt', descending: true)
-                  .limit(defaultActivityFeedLimit)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return MarketplaceDataStateView.failure(
-                    error: snapshot.error,
-                    resource: 'Conversation messages',
-                    onRetry: () => setState(() {}),
-                    compact: true,
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const MarketplaceDataStateView.loading(
-                    title: 'Loading messages',
-                    message: 'Retrieving the conversation history…',
-                    compact: true,
-                  );
-                }
-                if (snapshot.data!.docs.isEmpty) {
-                  return const MarketplaceDataStateView(
-                    kind: MarketplaceDataStateKind.empty,
-                    icon: Icons.waving_hand_outlined,
-                    title: 'Start the conversation',
-                    message: 'Write a message below to contact the seller.',
-                    compact: true,
-                  );
-                }
-                final reachedWindow =
-                    snapshot.data!.docs.length == defaultActivityFeedLimit;
-                return ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.all(12),
-                  itemCount:
-                      snapshot.data!.docs.length + (reachedWindow ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (reachedWindow && index == snapshot.data!.docs.length) {
-                      return const ListTile(
-                        dense: true,
-                        leading: Icon(Icons.info_outline),
-                        title: Text('Showing the latest 100 messages'),
-                        subtitle: Text(
-                          'Older messages remain stored in the conversation record.',
-                        ),
-                      );
-                    }
-                    final message = snapshot.data!.docs[index].data();
-                    final mine = message['senderUid'] == uid;
-                    final hiddenByModeration =
-                        message['moderationVisibility'] == 'hidden';
-                    return Align(
-                      alignment: mine
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 310),
-                        margin: const EdgeInsets.symmetric(vertical: 3),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 13,
-                          vertical: 9,
-                        ),
-                        decoration: BoxDecoration(
-                          color: mine
-                              ? const Color(0xFF0878E8)
-                              : const Color(0xFFEAF0F6),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (!hiddenByModeration &&
-                                message['attachment'] is Map &&
-                                (message['attachment'] as Map)['type'] ==
-                                    'image')
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: PipeBuyerCachedImage(
-                                  imageUrl:
-                                      '${(message['attachment'] as Map)['url']}',
-                                  width: 220,
-                                  height: 160,
-                                  fit: BoxFit.cover,
-                                  fallback: const SizedBox(
-                                    width: 220,
-                                    height: 160,
-                                    child: Center(
-                                      child: Icon(Icons.broken_image_outlined),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            if (hiddenByModeration)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.gpp_maybe_outlined,
-                                      size: 17,
-                                      color: mine
-                                          ? Colors.white70
-                                          : Colors.black54,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        'Removed by Trust & Safety',
-                                        style: TextStyle(
-                                          fontStyle: FontStyle.italic,
-                                          color: mine
-                                              ? Colors.white70
-                                              : Colors.black54,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else if ('${message['text'] ?? ''}'.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  '${message['text'] ?? ''}',
-                                  style: TextStyle(
-                                    color: mine ? Colors.white : Colors.black87,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
+            child: _MarketplaceMessageTimeline(
+              conversationId: widget.conversationId,
+              viewerUid: uid,
             ),
           ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Add emoji',
-                    onPressed: _showEmojiPicker,
-                    icon: const Icon(Icons.emoji_emotions_outlined),
-                  ),
-                  IconButton(
-                    tooltip: 'Attach photo',
-                    onPressed: _uploading || _blockedByMe || _blockedMe
-                        ? null
-                        : _pickAttachment,
-                    icon: _uploading
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.attach_file),
-                  ),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_attachment != null)
-                          InputChip(
-                            avatar: const Icon(Icons.image_outlined),
-                            label: Text('${_attachment!['name']}'),
-                            onDeleted: () => setState(() => _attachment = null),
-                          ),
-                        TextField(
-                          controller: _controller,
-                          minLines: 1,
-                          maxLines: 4,
-                          textCapitalization: TextCapitalization.sentences,
-                          decoration: const InputDecoration(
-                            hintText: 'Write a message…',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  IconButton.filled(
-                    tooltip: 'Send message',
-                    onPressed: _sending || _blockedByMe || _blockedMe
-                        ? null
-                        : _send,
-                    icon: const Icon(Icons.send_rounded),
-                  ),
-                ],
-              ),
-            ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _controller,
+            builder: (context, _, __) => _buildComposer(context, blocked),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildComposer(BuildContext context, bool blocked) {
+    final canSend = !_sending &&
+        !_uploading &&
+        !blocked &&
+        (_controller.text.trim().isNotEmpty || _attachment != null);
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border:
+              Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+        ),
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                IconButton(
+                  tooltip: 'Add emoji',
+                  onPressed: _sending || _uploading || blocked
+                      ? null
+                      : _showEmojiPicker,
+                  icon: const Icon(Icons.emoji_emotions_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Attach photo',
+                  onPressed: _sending || _uploading || blocked
+                      ? null
+                      : _pickAttachment,
+                  icon: _uploading
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_photo_alternate_outlined),
+                ),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_attachment != null)
+                        InputChip(
+                          avatar: const Icon(Icons.image_outlined),
+                          label: Text('${_attachment!['name']}'),
+                          onDeleted: _sending || _uploading
+                              ? null
+                              : () => setState(() => _attachment = null),
+                        ),
+                      TextField(
+                        controller: _controller,
+                        enabled: !blocked && !_sending && !_uploading,
+                        minLines: 1,
+                        maxLines: 4,
+                        maxLength: 4000,
+                        textCapitalization: TextCapitalization.sentences,
+                        decoration: InputDecoration(
+                          hintText: blocked
+                              ? 'Messaging is unavailable'
+                              : 'Write a message…',
+                          counterText: '',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (MediaQuery.sizeOf(context).width >= 720)
+                  FilledButton.icon(
+                    onPressed: canSend ? _send : null,
+                    icon: _sending
+                        ? const SizedBox.square(
+                            dimension: 17,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded),
+                    label: const Text('Send'),
+                  )
+                else
+                  IconButton.filled(
+                    tooltip: 'Send message',
+                    onPressed: canSend ? _send : null,
+                    icon: _sending
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'For safety, keep deal and payment details inside Pipe Buyer.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2800,8 +3297,10 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            icon: Icon(blocking ? Icons.block_outlined : Icons.person_add_alt_1),
-            title: Text(blocking ? 'Block this member?' : 'Unblock this member?'),
+            icon:
+                Icon(blocking ? Icons.block_outlined : Icons.person_add_alt_1),
+            title:
+                Text(blocking ? 'Block this member?' : 'Unblock this member?'),
             content: Text(
               blocking
                   ? 'They will no longer be able to exchange direct messages with you. Existing messages and any Trust & Safety reports stay saved.'
@@ -2856,6 +3355,11 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
   }
 
   Future<void> _openParticipantProfile() async {
+    final suppliedParticipantUid = widget.participantUid?.trim() ?? '';
+    if (suppliedParticipantUid.isNotEmpty) {
+      await context.push(MarketplaceDeepLinks.profile(suppliedParticipantUid));
+      return;
+    }
     final snapshot = await FirebaseFirestore.instance
         .collection('conversations')
         .doc(widget.conversationId)
@@ -2865,9 +3369,8 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
     final members = List<String>.from(
       conversation['memberUids'] ?? const <String>[],
     );
-    final otherUid = members
-        .where((member) => member != currentUid)
-        .firstOrNull;
+    final otherUid =
+        members.where((member) => member != currentUid).firstOrNull;
     if (otherUid == null || !mounted) {
       if (mounted) {
         PipeFeedback.show(
@@ -2882,7 +3385,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
   }
 
   Future<void> _send() async {
-    if (_blockedByMe || _blockedMe) return;
+    if (_sending || _uploading || _blockedByMe || _blockedMe) return;
     final text = _controller.text.trim();
     if (text.isEmpty && _attachment == null) return;
     setState(() => _sending = true);
@@ -2954,6 +3457,7 @@ class _MarketplaceChatPageState extends State<MarketplaceChatPage> {
   }
 
   Future<void> _pickAttachment() async {
+    if (_sending || _uploading || _blockedByMe || _blockedMe) return;
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       shape: const RoundedRectangleBorder(

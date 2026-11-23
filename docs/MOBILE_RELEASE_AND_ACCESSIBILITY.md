@@ -103,11 +103,12 @@ configure these environment secrets:
 
 The Apple export options must use manual signing, the configured Apple team,
 and the exact `Pipe.Buyerapp` provisioning-profile name. The workflow imports
-the certificate into an ephemeral keychain, verifies the profile team and
-application identifier, passes signing settings to Flutter through its
-`FLUTTER_XCODE_*` CI boundary, and removes the keychain/profile even after a
-failed build. Android writes its temporary `key.properties` only on the runner
-and removes it and the decoded upload keystore after the build.
+the certificate into an ephemeral keychain, verifies the profile team,
+application identifier, production push entitlement, Sign in with Apple, and
+both production Associated Domains, then passes the export options directly to
+`flutter build ipa`. It removes the keychain/profile even after a failed build.
+Android writes its temporary `key.properties` only on the runner and removes it
+and the decoded upload keystore after the build.
 
 Successful runs retain the AAB or IPA, SHA-256 digest, public signature output,
 and SHA/version/build metadata for 14 days. Android verification uses strict
@@ -156,6 +157,23 @@ and the obsolete Runner CocoaPods integration has been removed. CI explicitly
 enables Flutter Swift Package Manager before restoring packages. A release
 contract rejects a restored Podfile, Pods build phases, Pods framework,
 `PODS_ROOT`, or Pods xcconfig includes so Firebase has one native owner.
+
+## Sign in with Apple
+
+The native iOS authentication surface offers Sign in with Apple alongside
+Google sign-in. It uses Firebase's Apple OAuth credential path with a
+cryptographically random nonce, declares the Sign in with Apple entitlement,
+and records the Xcode target capability. Android continues to show its existing
+Google sign-in control without presenting an Apple-only native control.
+
+Source integration is not store activation evidence. Before the iOS candidate
+is accepted, release operations must confirm that the Apple App ID and the
+distribution provisioning profile both include Sign in with Apple, then retain
+a physical-device sign-in, cancellation, private-relay-email, existing-account
+conflict, and sign-out/sign-in acceptance record for the exact release build.
+The signed-candidate workflow also extracts the entitlements embedded in the
+exported application and rejects an IPA missing Apple login, both Associated
+Domains, production Push Notifications, or production App Attest.
 
 ## Media and location disclosures
 

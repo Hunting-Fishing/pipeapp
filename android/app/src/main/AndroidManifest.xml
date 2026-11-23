@@ -48,13 +48,68 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Deep linking -->
+            <!-- Keep the historical custom scheme for previously shared links. -->
             <meta-data android:name="flutter_deeplinking_enabled" android:value="true" />
-            <intent-filter android:autoVerify="true">
+            <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="pipeapp" android:host="pipeapp.com" />
+            </intent-filter>
+
+            <!-- Verified production App Links. Each hostname intentionally has
+                 its own filter and claims only routes owned by the Flutter app. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/about" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/privacy" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/terms" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/support" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/account-deletion" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/services" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/contact-center" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/partner" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/insurance" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/shop" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:path="/auth/action" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:pathPrefix="/listings/" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:pathPrefix="/auctions/" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:pathPrefix="/profiles/" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:pathPrefix="/conversations/" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:pathPrefix="/dispatch/jobs/" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:pathPrefix="/services/" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:pathPrefix="/partner/" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:pathPrefix="/insurance/" />
+                <data android:scheme="https" android:host="pipebuyer.com" android:pathPrefix="/shop/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/about" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/privacy" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/terms" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/support" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/account-deletion" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/services" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/contact-center" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/partner" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/insurance" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/shop" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:path="/auth/action" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:pathPrefix="/listings/" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:pathPrefix="/auctions/" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:pathPrefix="/profiles/" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:pathPrefix="/conversations/" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:pathPrefix="/dispatch/jobs/" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:pathPrefix="/services/" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:pathPrefix="/partner/" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:pathPrefix="/insurance/" />
+                <data android:scheme="https" android:host="www.pipebuyer.com" android:pathPrefix="/shop/" />
             </intent-filter>
 
         </activity>

@@ -26,7 +26,10 @@ test('root homepage visibly identifies Pipe Buyer and explains its purpose befor
   assert.match(index, /freight trucking dispatch/u);
   assert.match(index, /href="https:\/\/www\.pipebuyer\.com\/privacy"/u);
   assert.match(index, /href="https:\/\/www\.pipebuyer\.com\/terms"/u);
-  assert.match(index, /<meta property="og:title" content="Pipe Buyer">/u);
+  assert.match(
+    index,
+    /<meta property="og:title" content="Pipe Buyer(?: — [^"]+)?">/u,
+  );
   assert.match(index, /"name": "Pipe Buyer"/u);
 });
 
@@ -72,7 +75,7 @@ test('native Google Sign-In callback and active marketplace entry point are conf
 
   const authPage = read('lib/marketplace/marketplace_auth_page.dart');
   assert.match(authPage, /Continue with Google/u);
-  assert.match(authPage, /googleSignInFunc\(\)/u);
+  assert.match(authPage, /authenticate:\s*googleSignInFunc/u);
 });
 
 test('sitemap publishes the exact non-redirecting branding and legal URLs', () => {

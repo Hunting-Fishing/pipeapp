@@ -71,6 +71,16 @@ jobs:
             echo "build_number must be a positive integer." >&2
             exit 1
           }
+          declared_version="$(awk '$1 == "version:" {print $2; exit}' pubspec.yaml)"
+          [[ "$declared_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?\+[1-9][0-9]*$ ]] || {
+            echo "pubspec.yaml must declare a release version in major.minor.patch+build form." >&2
+            exit 1
+          }
+          [[ "$declared_version" == "$BUILD_NAME+$BUILD_NUMBER" ]] || {
+            echo "Requested version $BUILD_NAME+$BUILD_NUMBER does not match pubspec.yaml $declared_version." >&2
+            echo "Update the source-controlled release version before building a store candidate." >&2
+            exit 1
+          }
           [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || {
             echo "The checked-out commit does not match release_sha." >&2
             exit 1
@@ -183,7 +193,7 @@ jobs:
             {
               echo "### ❌ Environment Guard Mismatch"
               echo "Expected: \`mobile-release-$PIPE_ENV\`"
-              echo "Got: \`$GUARD\`"
+              echo "The protected guard value was not logged."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
@@ -206,8 +216,6 @@ jobs:
           STORE_PASS="$(echo -n "$ANDROID_UPLOAD_STORE_PASSWORD" | tr -d '\r\n')"
           KEY_ALIAS="$(echo -n "$ANDROID_UPLOAD_KEY_ALIAS" | tr -d '\r\n')"
           KEY_PASS="$(echo -n "$ANDROID_UPLOAD_KEY_PASSWORD" | tr -d '\r\n')"
-          printf '%s' "$STORE_PASS" > "$RUNNER_TEMP/store_password"
-          chmod 600 "$RUNNER_TEMP/store_password"
           {
             printf 'storeFile=%s\n' "$RUNNER_TEMP/upload-keystore.jks"
             printf 'storePassword=%s\n' "$STORE_PASS"
@@ -232,6 +240,11 @@ jobs:
           REMOTE_DIAGNOSTICS: ${{ inputs.enable_remote_diagnostics }}
         run: |
           set -euo pipefail
+          # GitHub Actions starts a fresh shell for every run step. Recreate the
+          # sanitized values needed by the cryptographic checks in this step;
+          # variables from the signing-material step are not in scope here.
+          STORE_PASS="$(echo -n "$ANDROID_UPLOAD_STORE_PASSWORD" | tr -d '\r\n')"
+          KEY_ALIAS="$(echo -n "$ANDROID_UPLOAD_KEY_ALIAS" | tr -d '\r\n')"
           flutter build appbundle \
             --release \
             --build-name "$BUILD_NAME" \
@@ -254,44 +267,54 @@ jobs:
             echo "The Android App Bundle was not produced." >&2
             exit 1
           }
-          # AAB signing verification.
-          # NOTE: jarsigner is a JAR/APK v1 tool and ALWAYS returns exit code 4 on AAB files,
-          # even when the AAB is correctly signed with v2/v3 APK Signature Schemes.
-          # The correct check is to verify that Gradle embedded signing metadata (META-INF)
-          # inside the AAB zip, then use keytool to inspect the signing certificate.
-          signing_files="$(unzip -l "$source_aab" | grep -c 'META-INF/' || true)"
-          if [[ "$signing_files" -lt 2 ]]; then
-            echo "Android App Bundle has no signing metadata — release signing was not applied by Gradle." >&2
-            echo "--- key.properties (passwords redacted) ---" >&2
-            cat android/key.properties | sed 's/Password=.*/Password=****/' >&2 || true
-            {
-              echo "### ❌ Android AAB Unsigned"
-              echo "The AAB contains no META-INF signing files."
-              echo "Verify all four secrets in the \`mobile-release-production\` environment:"
-              echo "- \`ANDROID_UPLOAD_KEYSTORE_BASE64\`"
-              echo "- \`ANDROID_UPLOAD_STORE_PASSWORD\`"
-              echo "- \`ANDROID_UPLOAD_KEY_ALIAS\`"
-              echo "- \`ANDROID_UPLOAD_KEY_PASSWORD\`"
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          echo "AAB signing metadata verified: $signing_files META-INF entries found."
           artifact_dir=build/release-candidate/android
           mkdir -p "$artifact_dir"
           candidate="$artifact_dir/pipe-buyer-$PIPE_RELEASE_SHA-$BUILD_NUMBER.aab"
           cp "$source_aab" "$candidate"
-          # Extract the signing certificate from the AAB and record it for audit.
-          unzip -p "$candidate" 'META-INF/*.RSA' 2>/dev/null \
-            | keytool -printcert \
-            > "$artifact_dir/android-public-certificate.txt" 2>&1 || \
-          unzip -p "$candidate" 'META-INF/*.DSA' 2>/dev/null \
-            | keytool -printcert \
-            > "$artifact_dir/android-public-certificate.txt" 2>&1 || \
-          echo "Note: Could not extract DER certificate; AAB may use v2-only signing." \
+
+          # An Android App Bundle is a signed JAR. Verify every entry and anchor
+          # strict certificate validation to the approved upload keystore. This
+          # avoids the untrusted-self-signed warning that makes an otherwise
+          # valid strict verification return non-zero when no trust store is
+          # supplied. Merely finding META-INF files is not signature proof.
+          verification_file="$artifact_dir/android-signature-verification.txt"
+          if ! jarsigner -verify -strict -verbose -certs \
+              -keystore "$RUNNER_TEMP/upload-keystore.jks" \
+              -storepass "$STORE_PASS" \
+              "$candidate" > "$verification_file" 2>&1; then
+            cat "$verification_file" >&2
+            echo "Android App Bundle cryptographic signature verification failed." >&2
+            exit 1
+          fi
+          grep -Fq 'jar verified.' "$verification_file" || {
+            cat "$verification_file" >&2
+            echo "jarsigner did not confirm a verified Android App Bundle." >&2
+            exit 1
+          }
+
+          # A cryptographically valid bundle is still the wrong release if it
+          # was signed by a different key. Compare the exact signer certificate
+          # with the protected upload-key alias used for this build.
+          expected_certificate="$RUNNER_TEMP/android-upload-expected.der"
+          candidate_certificate="$RUNNER_TEMP/android-upload-candidate.der"
+          keytool -exportcert \
+            -keystore "$RUNNER_TEMP/upload-keystore.jks" \
+            -storepass "$STORE_PASS" \
+            -alias "$KEY_ALIAS" \
+            > "$expected_certificate"
+          keytool -printcert -jarfile "$candidate" -rfc \
+            | sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' \
+            | openssl x509 -outform DER \
+            > "$candidate_certificate"
+          cmp -s "$expected_certificate" "$candidate_certificate" || {
+            echo "The AAB signer certificate does not match the approved upload key." >&2
+            exit 1
+          }
+          keytool -printcert -jarfile "$candidate" -v \
             > "$artifact_dir/android-public-certificate.txt"
-          # Record the full list of signing files for audit purposes.
-          unzip -l "$candidate" | grep 'META-INF/' \
-            > "$artifact_dir/android-signature-verification.txt"
+          candidate_certificate_sha256="$(sha256sum "$candidate_certificate" | awk '{print $1}')"
+          printf '\nApproved upload certificate SHA-256: %s\n' \
+            "$candidate_certificate_sha256" >> "$verification_file"
           sha256sum "$candidate" > "$candidate.sha256"
 
 
@@ -307,6 +330,7 @@ jobs:
             versionName: process.env.BUILD_NAME,
             buildNumber: process.env.BUILD_NUMBER,
             signatureVerified: true,
+            signatureVerification: 'jarsigner-strict-and-upload-certificate-match',
             storeValidated: false,
             artifactFile: process.env.CANDIDATE_PATH.split('/').pop(),
             workflowRunUrl: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
@@ -322,7 +346,8 @@ jobs:
             echo "- Commit: \`$PIPE_RELEASE_SHA\`"
             echo "- Version: \`$BUILD_NAME+$BUILD_NUMBER\`"
             echo "- Application ID: \`Pipe.Buyerapp\`"
-            echo "- Signature: verified via META-INF signing manifest ($signing_files entries)"
+            echo "- Signature: strict jarsigner verification passed"
+            echo "- Upload certificate: exact protected-key match ($candidate_certificate_sha256)"
             echo "- Store validation: not performed by this workflow"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -331,7 +356,11 @@ jobs:
         if: always()
         shell: bash
         run: |
-          rm -f android/key.properties "$RUNNER_TEMP/upload-keystore.jks"
+          rm -f \
+            android/key.properties \
+            "$RUNNER_TEMP/upload-keystore.jks" \
+            "$RUNNER_TEMP/android-upload-expected.der" \
+            "$RUNNER_TEMP/android-upload-candidate.der"
 
       - name: Retain signed Android candidate evidence
         if: success()
@@ -444,7 +473,7 @@ jobs:
             {
               echo "### ❌ Environment Guard Mismatch"
               echo "Expected: \`mobile-release-$PIPE_ENV\`"
-              echo "Got: \`$GUARD\`"
+              echo "The protected guard value was not logged."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
@@ -488,6 +517,8 @@ jobs:
           profile_team="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$profile_plist")"
           profile_app="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$profile_plist")"
           profile_push="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:aps-environment' "$profile_plist" 2>/dev/null || true)"
+          profile_apple_sign_in="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.applesignin:0' "$profile_plist" 2>/dev/null || true)"
+          profile_associated_domains="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.associated-domains' "$profile_plist" 2>/dev/null || true)"
           [[ "$profile_team" == "$IOS_DEVELOPMENT_TEAM" ]] || {
             echo "Provisioning profile team does not match IOS_DEVELOPMENT_TEAM." >&2
             exit 1
@@ -500,6 +531,15 @@ jobs:
             echo "Provisioning profile must include production Push Notifications." >&2
             exit 1
           }
+          [[ "$profile_apple_sign_in" == "Default" ]] || {
+            echo "Provisioning profile must include Sign in with Apple with the Default entitlement." >&2
+            exit 1
+          }
+          if ! grep -Eq '^[[:space:]]*applinks:pipebuyer\.com[[:space:]]*$' <<< "$profile_associated_domains" ||
+             ! grep -Eq '^[[:space:]]*applinks:www\.pipebuyer\.com[[:space:]]*$' <<< "$profile_associated_domains"; then
+            echo "Provisioning profile must include Associated Domains for applinks:pipebuyer.com and applinks:www.pipebuyer.com." >&2
+            exit 1
+          fi
           export_team="$(/usr/libexec/PlistBuddy -c 'Print :teamID' "$export_options_path")"
           export_style="$(/usr/libexec/PlistBuddy -c 'Print :signingStyle' "$export_options_path")"
           export_profile="$(/usr/libexec/PlistBuddy -c 'Print :provisioningProfiles:Pipe.Buyerapp' "$export_options_path")"
@@ -607,6 +647,33 @@ jobs:
           echo 'codesign verification passed.' >> "$artifact_dir/ios-signature-verification.txt"
           codesign -dv --verbose=4 "$app_path" \
             2>> "$artifact_dir/ios-signature-verification.txt"
+
+          # Verify the capabilities that actually survived signing/export, not
+          # only the source plist and provisioning profile used as inputs.
+          embedded_entitlements="$artifact_dir/ios-embedded-entitlements.plist"
+          codesign -d --entitlements :- "$app_path" > "$embedded_entitlements"
+          plutil -lint "$embedded_entitlements"
+          embedded_push="$(/usr/libexec/PlistBuddy -c 'Print :aps-environment' "$embedded_entitlements" 2>/dev/null || true)"
+          embedded_apple_sign_in="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.applesignin:0' "$embedded_entitlements" 2>/dev/null || true)"
+          embedded_app_attest="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.devicecheck.appattest-environment' "$embedded_entitlements" 2>/dev/null || true)"
+          embedded_associated_domains="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.associated-domains' "$embedded_entitlements" 2>/dev/null || true)"
+          [[ "$embedded_push" == "production" ]] || {
+            echo "Exported IPA is missing the production Push Notifications entitlement." >&2
+            exit 1
+          }
+          [[ "$embedded_apple_sign_in" == "Default" ]] || {
+            echo "Exported IPA is missing the Sign in with Apple entitlement." >&2
+            exit 1
+          }
+          [[ "$embedded_app_attest" == "production" ]] || {
+            echo "Exported IPA is missing the production App Attest entitlement." >&2
+            exit 1
+          }
+          if ! grep -Eq '^[[:space:]]*applinks:pipebuyer\.com[[:space:]]*$' <<< "$embedded_associated_domains" ||
+             ! grep -Eq '^[[:space:]]*applinks:www\.pipebuyer\.com[[:space:]]*$' <<< "$embedded_associated_domains"; then
+            echo "Exported IPA is missing one or more required Associated Domains." >&2
+            exit 1
+          fi
           shasum -a 256 "$candidate" > "$candidate.sha256"
           CANDIDATE_PATH="$candidate" node <<'NODE'
           const fs = require('node:fs');
@@ -638,6 +705,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload signed IPA to App Store Connect
+        if: inputs.target_environment == 'production'
         continue-on-error: false
         shell: bash
         run: |
@@ -691,6 +759,17 @@ jobs:
             echo "### 🚀 App Store Connect Upload"
             echo "- Status: **Successfully uploaded to App Store Connect!**"
             echo "- The build will appear in your [App Store Connect](https://appstoreconnect.apple.com) dashboard after Apple's processing completes."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record staging Apple upload boundary
+        if: inputs.target_environment == 'staging'
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "### Staging Apple candidate retained"
+            echo "- The signed staging IPA was not uploaded to App Store Connect."
+            echo "- Download the retained artifact for controlled staging validation only."
           } >> "$GITHUB_STEP_SUMMARY"
 
 
