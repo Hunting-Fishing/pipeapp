@@ -19,7 +19,7 @@ class PublicReleaseConfiguration {
 
   /// Must stay identical to `version:` in `pubspec.yaml`.
   /// `test/release_version_contract_test.dart` fails the build if it drifts.
-  static const appVersion = '1.0.5+6';
+  static const appVersion = '1.0.5+10';
   static const releaseSha = String.fromEnvironment('PIPE_RELEASE_SHA', defaultValue: 'dev');
 
   static String get formattedReleaseLabel {

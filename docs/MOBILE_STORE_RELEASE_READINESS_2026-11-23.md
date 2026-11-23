@@ -101,9 +101,9 @@ rollout after valid-traffic monitoring.
 The owner-approved controlled-test setup now restricts both `production` and
 `mobile-release-production` deployments to `main` and requires approval from
 the repository's only admin account, `Hunting-Fishing`. Existing environment
-secrets and variables were preserved. Because there is no second collaborator,
-self-review prevention cannot yet be enabled without deadlocking deployments;
-add an independent reviewer before public release. The production Environment
+secrets and variables were preserved. This is an intentionally solo-owner
+repository, so self-review prevention remains disabled; the owner's explicit
+environment approval is the manual release gate. The production Environment
 still lacks `PIPE_ANDROID_APP_SIGNING_SHA256`, which cannot be finalized until
 the Play app and Play App Signing certificate exist. Staging environments were
 not changed.
@@ -121,11 +121,13 @@ proof fails or the approved capability set changes. Public release remains
 blocked on the Play-console-confirmed public fingerprint and the remaining
 external gates.
 
-The committed source version is currently `1.0.5+6`. It must not be used for a
-signed candidate because its build number is lower than the historically
-observed Apple build 9. After both consoles are current, commit one shared
-version/build greater than every accepted store build; the candidate workflow
-will reject any requested value that differs from source.
+The committed source version is now `1.0.5+10`: it preserves the current product
+version and uses the first shared build number above Apple's confirmed build 9.
+No Play app record or accepted Android version code exists, so build 10 has no
+known Google collision. Before any Apple upload, change the App Store Connect
+version record from `1.0.0` to `1.0.5`; the candidate workflow will reject any
+requested version/build that differs from source. Once build 10 is processed by
+either store, every replacement must use build 11 or higher.
 
 Never copy bank, tax, identity, private-key, service-account, reviewer-login,
 or other secret values into source, CI logs, screenshots, or this document.
@@ -210,9 +212,9 @@ Retain timestamped evidence for the exact AAB/IPA and release commit:
    required signed entitlements, and confirm the future Play App Signing
    SHA-256. Regenerate the Apple profile only if the proof fails or capabilities
    change; leave App Check enforcement off through the observation period.
-5. Production environments are now reviewer-gated and `main`-only. Add an
-   independent reviewer before public release, then store the console-confirmed
-   Android fingerprint when the Play app exists.
+5. Production environments are now owner-approval-gated and `main`-only for the
+   solo-owner workflow. Store the console-confirmed Android fingerprint when the
+   Play app exists.
 6. Apple build 9 is the current confirmed ceiling. After the Play app exists,
    read its highest accepted build too and commit one higher shared
    `major.minor.patch+build` value before producing candidates.
