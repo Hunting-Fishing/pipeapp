@@ -122,6 +122,8 @@ The checked-in Apple privacy manifest declares no tracking and records the
 current account, contact, location, messaging, media, support, purchase,
 interaction, identifier, and diagnostic data used for app functionality. It is
 an engineering input, not a completed App Store Connect or Play Console answer.
+The locked-version SDK and external-service evidence is maintained in
+[`MOBILE_SDK_PRIVACY_INVENTORY_2026-11-23.md`](MOBILE_SDK_PRIVACY_INVENTORY_2026-11-23.md).
 
 Before either questionnaire is approved:
 
