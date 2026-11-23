@@ -1,11 +1,11 @@
 # Pipe Buyer mobile-store release readiness — 2026-11-23
 
-Status: the previously tested source/native-compile baseline is verified. The
-current privacy and account-deletion delta is provisionally ready for exact-head
-validation; controlled store testing remains blocked by that validation and the
-external gates below. No signed distribution artifact, store submission,
-production deployment, or paid-feature activation is authorized by this
-document.
+Status: the source, privacy/account-deletion delta, repository gate, and native
+compile preflight are verified on the current draft-PR head. Controlled store
+testing remains blocked by the external account, signed-candidate, deployment,
+and physical-device gates below. No signed distribution artifact, store
+submission, production deployment, or paid-feature activation is authorized by
+this document.
 
 ## Release source
 
@@ -160,8 +160,8 @@ unapproved native billing path.
 | Gate | Current boundary | Completion evidence |
 | --- | --- | --- |
 | 0 — Source reconciliation | Complete for the audited baseline | Remote-main identity plus branch/worktree/PR comparison |
-| 1 — Mobile compliance source | Complete and verified for the baseline; current privacy/deletion delta pending exact-head evidence | Apple login, privacy/export declarations, account deletion, permissions, association contracts, and current-SDK unsigned iOS compile pass; signed entitlements remain Gate 4 evidence |
-| 2 — Release and dependency controls | Complete and verified for the baseline; current delta pending exact-head evidence | Full local gate plus Android/iOS preflight CI pass with zero production dependency advisories |
+| 1 — Mobile compliance source | Complete and exact-head verified for source/native-compile scope | Apple login, privacy/export declarations, account deletion, permissions, association contracts, and current-SDK unsigned iOS compile pass; signed entitlements remain Gate 4 evidence |
+| 2 — Release and dependency controls | Complete and exact-head verified | Full local gate plus Android/iOS preflight CI pass with zero production dependency advisories |
 | 3 — Store records and owner agreements | Active; 4 of 8 subchecks verified | Apple app/build records, Firebase authentication providers, exact-project App Check registration, and GitHub production protections verified; Apple owner agreements, Google identity/account type, and Google app/testing records remain open; store-aligned version/signing is only partial |
 | 4 — Exact signed candidates | Pending after Gates 1–3 | Current-main AAB and IPA, unique console-confirmed build number, hashes, certificates, and store processing records |
 | 5 — Internal physical-device acceptance | Pending | TestFlight and Play internal/closed-track matrix on supported phone/tablet devices |
@@ -173,9 +173,9 @@ explicitly historical and provisional. They are not a substitute for the
 mobile gates above and must not be reported as present store approval.
 
 Current mobile-store checkpoint: **37.5% overall (3 of 8 gates), verified for
-the baseline and provisional for the current privacy/deletion delta**. The
-active Gate 3 is **50% verified (4 of 8 defined live subchecks)**. These
-percentages describe evidence completed as of November 23, 2026; they are not
+the source, repository, and native-compile scope**. The active Gate 3 is **50%
+verified (4 of 8 defined live subchecks)**. These percentages describe evidence
+completed as of the November 24, 2026 Asia/Manila checkpoint; they are not
 estimates of store-review approval or elapsed calendar time.
 
 The engineering privacy matrix is now drafted in
@@ -204,18 +204,20 @@ stalled during dependency resolution before producing or installing an APK.
 The protected Android compile is green; this result is a local tooling blocker,
 not a confirmed runtime pass or an app-source failure.
 
-The earlier baseline completed with clean Dart analysis, 664 Flutter tests, 36
-repository-control tests, both Functions suites and linters, zero npm audit
-findings, syntax checks, and a release web build. The Android AAB
-disposable-signing compile and current-App-Store-SDK unsigned iOS compile also
-passed on exact baseline commit `aff013cfc97e1dfdea5bc217c0a370c3aba62358` in
-[mobile preflight run 45113439343](https://github.com/Hunting-Fishing/pipeapp/actions/runs/45113439343).
-The baseline repository gate passed in
-[quality run 45113455182](https://github.com/Hunting-Fishing/pipeapp/actions/runs/45113455182).
-These runs predate the current privacy and deletion changes and are not
-exact-head release evidence; exact-head results must replace this paragraph
-after the branch is pushed.
-Neither run produced a store-distribution artifact or store acceptance.
+The current privacy/account-deletion source completed with clean analysis, the
+full Flutter CI gate, 508 exact-source Functions tests, 13 exact-source
+agent-Functions tests, 60 exact-source Firestore/Storage rules tests, and syntax
+and release-tool checks. The preceding full local gate also passed the callable
+integration suite and release web build; the final Apple-authorization cleanup
+was then covered by the full Functions suite and focused regression tests.
+Exact candidate commit
+`74ef7cccf7b31fbe67c0549913e8dcc1de32543f` passed the repository gate in
+[quality run 45211759621](https://github.com/Hunting-Fishing/pipeapp/actions/runs/45211759621)
+and the disposable-signing Android AAB plus current-App-Store-SDK unsigned iOS
+compile in
+[mobile preflight run 45211667005](https://github.com/Hunting-Fishing/pipeapp/actions/runs/45211667005).
+Neither run produced or retained a store-distribution artifact, uploaded a
+build, or established store acceptance.
 
 ## Physical-device acceptance matrix
 
