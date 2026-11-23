@@ -46,8 +46,8 @@ local development can omit it without presenting the build as release-ready.
 | Apple App Privacy | Privacy manifest exists; the live App Privacy page failed to render, so its questionnaire remains unverified | Retry the console, reconcile runtime, backend, and every linked SDK, then have privacy/legal approve the answers |
 | Google Data Safety | No approved console answer set exists | Reconcile all versions/regions, runtime, backend, and SDK behavior, then approve and submit |
 | Review access | App Store Connect contains portal-only sign-in information, reviewer contact, and notes; none is retained in source | Validate least-privilege access against the exact build and create the separate Play review path after its app record exists |
-| Ratings and audience | Apple shows global 12+, but subtitle/category are unset, new rating questions remain, the third-party-content answer needs review, and China compliance is unresolved | Complete category, content rating, target audience, ads, countries, content rights, and applicable regional declarations |
-| Release control | Apple version 1.0.0 currently uses automatic release | Change to manual release only with explicit owner confirmation before submission |
+| Ratings and audience | Apple shows global 12+, but subtitle/category are unset, new rating questions remain, and the third-party-content answer needs review; China mainland is excluded from the 174-region initial scope | Complete category, content rating, target audience, ads, countries, content rights, and applicable regional declarations |
+| Release control | Apple version 1.0.0 is verified as manual release | Preserve manual release through review and require a separate owner go/no-go before publication |
 | Signed and device evidence | Not yet available | Admit exact AAB/IPA through closed testing and retain the physical-device matrix |
 
 Official current field references:
