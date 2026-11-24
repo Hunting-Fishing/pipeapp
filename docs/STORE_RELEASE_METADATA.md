@@ -63,13 +63,13 @@ local development can omit it without presenting the build as release-ready.
 | Product name and identifier | Apple app `Pipe Buyer`, bundle ID `Pipe.Buyerapp`, and SKU `PIPE-BUYER-001` are confirmed live; no Play app record exists | Reuse the Apple record; create the single matching Play record after publisher verification and organization conversion |
 | App icon | Master and generated 1024-pixel Apple/512-pixel artwork exist | Review the exact console crop and rendered device icon |
 | Privacy, Terms, Support, deletion URLs | Public refresh-safe routes exist | Publish approved policy documents, verify production HTTPS responses, and confirm monitored support ownership |
-| Listing copy and keywords | English draft below | Product/legal approval and console preview required |
+| Listing copy and keywords | The owner-approved English subtitle, promotional text, description, and cleaned keywords were saved and verified live on November 24 | Preserve the exact copy through signed-candidate preview; privacy/legal and screenshot approval remain open |
 | Screenshots | The November 23 audit showed 0/3 previews and 0/10 screenshots for both Dynamic-Island iPhone and 13-inch iPad. The November 24 recheck reconfirmed the Dynamic-Island iPhone set and 0/1 header; the iPad set was not refreshed | Capture from the exact admitted candidate with approved or anonymized data |
 | Google feature graphic | No dedicated 1024 x 500 store graphic exists | Design, approve, and upload before the Play listing is complete |
 | Apple App Privacy | Privacy manifest exists; the live page publishes seven linked App Functionality data types, but that answer set is not yet reconciled or approved for the candidate | Reconcile runtime, backend, every linked SDK, the deployed policy, and deletion behavior, then have privacy/legal approve the answers |
 | Google Data Safety | No approved console answer set exists | Reconcile all versions/regions, runtime, backend, and SDK behavior, then approve and submit |
 | Review access | App Store Connect contains portal-only sign-in information, reviewer contact, and notes; none is retained in source | Validate least-privilege access against the exact build and create the separate Play review path after its app record exists |
-| Ratings and audience | Apple shows global 12+; Shopping/Business categories are saved, subtitle is blank, the new Shared Location answer is unset, User-Generated Content is currently No, and the third-party-content answer remains No; China mainland is excluded from the 174-region initial scope | Approve subtitle, correct content rights and rating answers from exact release behavior, and complete applicable audience/regional declarations |
+| Ratings and audience | Apple shows global 12+; Shopping/Business categories and subtitle are saved, the new Shared Location answer is unset, User-Generated Content is currently No, and the third-party-content answer remains No; China mainland is excluded from the 174-region initial scope | Correct content rights and rating answers from exact release behavior, and complete applicable audience/regional declarations |
 | Release control | Apple version 1.0.5 is verified as Prepare for Submission with manual release and no selected build | Preserve manual release through review and require a separate owner go/no-go before publication |
 | Signed and device evidence | Not yet available | Admit exact AAB/IPA through closed testing and retain the physical-device matrix |
 
@@ -87,11 +87,11 @@ Official current field references:
 
 The single current controlled-test copy packet and six-shot media plan are in
 [`APP_STORE_LISTING_DRAFT_2026-11-24.md`](APP_STORE_LISTING_DRAFT_2026-11-24.md).
-That packet is a draft requiring owner approval. It supersedes earlier embedded
-subtitle, promotional, description, keyword, and screenshot-plan variants so
-release operations have one canonical review surface. In the live Apple record,
-subtitle, description, and promotional text remain blank, and the existing
-keywords are not synchronized with that draft.
+Its subtitle, promotional text, description, and keyword set were owner-approved,
+saved, and verified live on November 24. Its screenshot plan remains a draft
+until exact-candidate capture and approval. The packet supersedes earlier
+embedded copy and screenshot-plan variants so release operations have one
+canonical review surface.
 
 ## Privacy and reviewer worksheet
 

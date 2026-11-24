@@ -57,18 +57,19 @@ not a release candidate.
 
 The live listing still has no release media: the Dynamic-Island iPhone set
 shows 0 of 3 previews and 0 of 10 screenshots, and the header asset is 0 of 1.
-Description and promotional text are blank. On November 24, the owner approved
-and the live console verified primary category **Shopping**, secondary category
-**Business**, Support URL `https://www.pipebuyer.com/support`, Marketing URL
-`https://www.pipebuyer.com`, and Privacy Policy URL
-`https://www.pipebuyer.com/privacy`. **Manually release this version** remains
-selected. The current content-rights answer still says the marketplace does not
-contain, show, or access third-party content. That conflicts with the app's
-user-listed goods and marketplace media, so it requires owner/legal correction
-before submission. The age-rating form currently records Messaging and Chat
-and Advertising as Yes, User-Generated Content as No, and Shared Location as
-unanswered. Apple requires the new rating questions before this new app can be
-submitted, so the displayed 12+ rating is not final evidence.
+On November 24, the owner approved and the live console verified subtitle
+**Industrial Buy & Sell**, the 156-character promotional text, the
+1,304-character controlled-test description, the 87-character keyword set,
+primary category **Shopping**, secondary category **Business**, Support URL
+`https://www.pipebuyer.com/support`, Marketing URL `https://www.pipebuyer.com`,
+and Privacy Policy URL `https://www.pipebuyer.com/privacy`. **Manually release
+this version** remains selected. The current content-rights answer still says
+the marketplace does not contain, show, or access third-party content. That
+conflicts with the app's user-listed goods and marketplace media, so it requires
+owner/legal correction before submission. The age-rating form currently records
+Messaging and Chat and Advertising as Yes, User-Generated Content as No, and
+Shared Location as unanswered. Apple requires the new rating questions before
+this new app can be submitted, so the displayed 12+ rating is not final evidence.
 
 The Free Apps Agreement is active. The Paid Apps Agreement is **Pending User
 Info**; DSA/trader status, banking, and U.S./Canadian tax information remain

@@ -1,11 +1,12 @@
 # Pipe Buyer App Store listing draft
 
-> **DRAFT - OWNER APPROVAL REQUIRED BEFORE LIVE SUBMISSION**
+> **LISTING COPY SAVED - MEDIA AND SUBMISSION APPROVAL STILL REQUIRED**
 >
-> This packet is local preparation only. It does not authorize saving more live
-> metadata, uploading media or a build, adding the version for review, or
-> releasing the app. Product, privacy, legal, support, and release owners must
-> approve the exact signed-candidate presentation first.
+> The owner approved the subtitle, promotional text, description, and keywords,
+> and those exact fields were saved and verified in App Store Connect on
+> 2026-11-24. This does not authorize uploading media or a build, adding the
+> version for review, or releasing the app. The screenshot plan and exact
+> signed-candidate presentation still require approval.
 
 Prepared: 2026-11-24 for the controlled free-core mobile test scope.
 
@@ -139,12 +140,12 @@ already passed.
 
 ## Approval checklist
 
-- [ ] Product owner confirms that every pictured and described workflow is
-  enabled in the exact candidate.
+- [x] Product owner approved the exact listing-copy fields for live save on
+  2026-11-24; every pictured workflow still requires exact-candidate review.
 - [ ] Privacy/legal reviewers approve the copy, screenshots, policy alignment,
   category/content-rights answers, and regional presentation.
 - [ ] Support owner confirms the production support path and coverage.
 - [ ] Release owner validates character limits, device media, version/build,
   signed artifact, and live console preview.
-- [ ] Owner gives action-time approval before any field or image is saved in
-  App Store Connect.
+- [x] Owner gave action-time approval for the exact listing-copy fields saved
+  on 2026-11-24. No image, build, review submission, or release was authorized.
