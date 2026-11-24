@@ -63,13 +63,15 @@ On November 24, the owner approved and the live console verified subtitle
 primary category **Shopping**, secondary category **Business**, Support URL
 `https://www.pipebuyer.com/support`, Marketing URL `https://www.pipebuyer.com`,
 and Privacy Policy URL `https://www.pipebuyer.com/privacy`. **Manually release
-this version** remains selected. The current content-rights answer still says
-the marketplace does not contain, show, or access third-party content. That
-conflicts with the app's user-listed goods and marketplace media, so it requires
-owner/legal correction before submission. The age-rating form currently records
-Messaging and Chat and Advertising as Yes, User-Generated Content as No, and
-Shared Location as unanswered. Apple requires the new rating questions before
-this new app can be submitted, so the displayed 12+ rating is not final evidence.
+this version** remains selected. The owner then confirmed that Pipe Buyer has
+the necessary rights to its user/vendor content, and the live Content Rights
+answer was corrected to Yes. The age-rating form now records User-Generated
+Content, Social Media, Messaging and Chat, Shared Location, and Advertising as
+Yes, and Dating and Relationships as No. All other existing content-frequency
+answers were preserved. App Store Connect recalculated the current-framework
+rating to 13+ for 171 countries or regions and 16+ for 2 countries or regions;
+it also displays a 15+ Korea row. The earlier-OS section remains global 12+
+with regional exceptions.
 
 The Free Apps Agreement is active. The Paid Apps Agreement is **Pending User
 Info**; DSA/trader status, banking, and U.S./Canadian tax information remain
@@ -276,9 +278,10 @@ Retain timestamped evidence for the exact AAB/IPA and release commit:
    from repository logs or chat.
 3. Complete the remaining Apple owner gates: DSA/trader status, paid agreement,
    tax and banking information where applicable, App Privacy, export compliance,
-   approved listing copy, content rights, age-rating answers, and media. The
-   production metadata URLs and categories are saved, manual release is
-   selected, and China mainland is excluded from the initial scope.
+   and media. Preserve the saved listing copy, Content Rights, and age-rating
+   answers, and recheck them against the exact signed candidate. The production
+   metadata URLs and categories are saved, manual release is selected, and
+   China mainland is excluded from the initial scope.
 4. Validate App Check tokens on physical Android and Apple devices, prove that
    the protected CI profile matches the current active Apple profile and
    required signed entitlements, and confirm the future Play App Signing
