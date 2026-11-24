@@ -180,7 +180,7 @@ unapproved native billing path.
 | --- | --- | --- |
 | 0 — Source reconciliation | Complete for the audited baseline | Remote-main identity plus branch/worktree/PR comparison |
 | 1 — Mobile compliance source | Complete and exact-head verified for source/native-compile scope | Apple login, privacy/export declarations, account deletion, permissions, association contracts, and current-SDK unsigned iOS compile pass; signed entitlements remain Gate 4 evidence |
-| 2 — Release and dependency controls | Complete and exact-head verified for baseline `6fd4b7f6`; the current default-off upload-control delta is locally verified and pending fresh PR CI | Full local gate plus Android/iOS preflight CI pass with zero production dependency advisories; focused release-workflow tests and analysis pass for the pending delta |
+| 2 — Release and dependency controls | Complete and exact-head verified, including the default-off upload-control delta at `b959755a` | Full local gate plus Android/iOS preflight CI pass with zero production dependency advisories; focused release-workflow tests and analysis pass |
 | 3 — Store records and owner agreements | Active; 4 of 8 subchecks verified | Apple app/build records, Firebase authentication providers, exact-project App Check registration, and GitHub production protections verified; Apple owner agreements, Google identity/account type, and Google app/testing records remain open; store-aligned version/signing is only partial |
 | 4 — Exact signed candidates | Pending after Gates 1–3 | Current-main AAB and IPA, unique console-confirmed build number, hashes, certificates, and store processing records |
 | 5 — Internal physical-device acceptance | Pending | TestFlight and Play internal/closed-track matrix on supported phone/tablet devices |
@@ -192,12 +192,10 @@ explicitly historical and provisional. They are not a substitute for the
 mobile gates above and must not be reported as present store approval.
 
 Current mobile-store checkpoint: **37.5% overall (3 of 8 gates), verified for
-the baseline source, repository, and native-compile scope**. The current
-default-off upload-control delta is locally verified but remains provisional
-until fresh exact-head PR CI passes. The active Gate 3 is **50% verified (4 of 8
-defined live subchecks)**. These percentages describe evidence completed as of
-the November 24, 2026 Asia/Manila checkpoint; they are not estimates of
-store-review approval or elapsed calendar time.
+the source, repository, release-control, and native-compile scope**. The active
+Gate 3 is **50% verified (4 of 8 defined live subchecks)**. These percentages
+describe evidence completed as of the November 24, 2026 Asia/Manila checkpoint;
+they are not estimates of store-review approval or elapsed calendar time.
 
 The engineering privacy matrix is now drafted in
 [`STORE_PRIVACY_ANSWER_MATRIX_2026-11-23.md`](STORE_PRIVACY_ANSWER_MATRIX_2026-11-23.md),
@@ -239,6 +237,15 @@ compile in
 [mobile preflight run 45214309489](https://github.com/Hunting-Fishing/pipeapp/actions/runs/45214309489).
 Neither run produced or retained a store-distribution artifact, uploaded a
 build, or established store acceptance.
+
+Release-control commit
+`b959755a7b108d85455811b8d365db57ce8444a9` added the explicit default-off iOS
+upload boundary and passed the repository gate in
+[quality run 45315902252](https://github.com/Hunting-Fishing/pipeapp/actions/runs/45315902252)
+plus the disposable-signing Android AAB and unsigned Apple compile in
+[mobile preflight run 45315902220](https://github.com/Hunting-Fishing/pipeapp/actions/runs/45315902220).
+These checks did not read production signing credentials, retain distribution
+artifacts, or upload to either store.
 
 ## Physical-device acceptance matrix
 
