@@ -86,6 +86,12 @@ GitHub Environments named `mobile-release-staging` and
 `mobile-release-production`; neither job can read its signing values until its
 environment is admitted.
 
+The `upload_ios` dispatch input defaults to `false`. In that default mode the
+workflow creates, verifies, and retains both signed candidates without sending
+an IPA to App Store Connect. Setting `upload_ios` to `true` is accepted only
+for the production environment and is the explicit authorization boundary for
+the upload step. Android AAB upload is never automatic in this workflow.
+
 Create both environments before running the workflow. Mirror the approved
 `PIPE_FIREBASE_*` public variables into each, add `IOS_DEVELOPMENT_TEAM`, and
 configure these environment secrets:
@@ -100,6 +106,9 @@ configure these environment secrets:
 - `IOS_EXPORT_OPTIONS_PLIST_BASE64`
 - `MOBILE_RELEASE_ENVIRONMENT_GUARD`, set exactly to the environment name
   (`mobile-release-staging` or `mobile-release-production`)
+- `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_ID`, and
+  `APP_STORE_CONNECT_API_KEY_P8`, required only when a production dispatch
+  explicitly sets `upload_ios` to `true`
 
 The Apple export options must use manual signing, the configured Apple team,
 and the exact `Pipe.Buyerapp` provisioning-profile name. The workflow imports
@@ -115,11 +124,13 @@ and SHA/version/build metadata for 14 days. Android verification uses strict
 `jarsigner` validation; Apple verification opens the exported IPA, checks the
 bundle identifier and requested version, and runs strict `codesign`
 verification. Candidate metadata deliberately records `storeValidated: false`:
-the workflow does not upload to either store and cannot be treated as Play or
-App Store validation evidence. Production still requires environment reviewer
-protection, store upload/validation, physical-device acceptance, approved key
-recovery ownership, and transfer of the exact retained artifacts into the
-private Phase 1 acceptance bundle.
+the default `upload_ios: false` path does not upload to either store and cannot
+be treated as Play or App Store validation evidence. An explicitly authorized
+production dispatch with `upload_ios: true` may transmit the IPA, but successful
+transport alone still is not store validation or approval. Production still
+requires environment reviewer protection, store validation, physical-device
+acceptance, approved key recovery ownership, and transfer of the exact retained
+artifacts into the private Phase 1 acceptance bundle.
 
 ## Apple compile gate
 

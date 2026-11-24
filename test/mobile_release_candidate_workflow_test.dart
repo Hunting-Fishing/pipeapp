@@ -10,6 +10,18 @@ void main() {
     expect(workflow, contains('workflow_dispatch:'));
     expect(workflow, isNot(contains('\n  pull_request:')));
     expect(workflow, isNot(contains('\n  push:')));
+    final uploadInput = workflow.substring(
+      workflow.indexOf('      upload_ios:'),
+      workflow.indexOf('\npermissions:'),
+    );
+    expect(uploadInput, contains('default: false'));
+    expect(uploadInput, contains('type: boolean'));
+    expect(
+      workflow,
+      contains(
+        'upload_ios may be enabled only for the production environment.',
+      ),
+    );
     expect(workflow, contains('release_sha:'));
     expect(workflow, contains(r'^[0-9a-f]{40}$'));
     expect(workflow, contains('git merge-base --is-ancestor'));
@@ -208,25 +220,48 @@ void main() {
     expect(workflow, contains('if: always()'));
     expect(workflow, contains('xcrun altool --upload-app'));
     expect(workflow, contains('continue-on-error: false'));
+    final appleJobBeforeUpload = workflow.substring(
+      workflow.indexOf('\n  ios:'),
+      workflow.indexOf('- name: Upload signed IPA to App Store Connect'),
+    );
+    for (final secret in <String>[
+      'APP_STORE_CONNECT_ISSUER_ID',
+      'APP_STORE_CONNECT_KEY_ID',
+      'APP_STORE_CONNECT_API_KEY_P8',
+    ]) {
+      expect(appleJobBeforeUpload, isNot(contains(secret)));
+    }
     final appleUploadStep = workflow.substring(
       workflow.indexOf('- name: Upload signed IPA to App Store Connect'),
-      workflow.indexOf('- name: Record staging Apple upload boundary'),
+      workflow.indexOf('- name: Record Apple build-only boundary'),
     );
     expect(
       appleUploadStep,
-      contains("if: inputs.target_environment == 'production'"),
+      contains(
+        "if: inputs.target_environment == 'production' && inputs.upload_ios",
+      ),
     );
-    final stagingBoundaryStep = workflow.substring(
-      workflow.indexOf('- name: Record staging Apple upload boundary'),
+    for (final secret in <String>[
+      'APP_STORE_CONNECT_ISSUER_ID',
+      'APP_STORE_CONNECT_KEY_ID',
+      'APP_STORE_CONNECT_API_KEY_P8',
+    ]) {
+      expect(appleUploadStep, contains('\${{ secrets.$secret }}'));
+    }
+    final buildOnlyBoundaryStep = workflow.substring(
+      workflow.indexOf('- name: Record Apple build-only boundary'),
       workflow.indexOf('- name: Remove Apple signing material'),
     );
     expect(
-      stagingBoundaryStep,
-      contains("if: inputs.target_environment == 'staging'"),
+      buildOnlyBoundaryStep,
+      contains(r'if: ${{ !inputs.upload_ios }}'),
     );
     expect(
-      stagingBoundaryStep,
-      contains('The signed staging IPA was not uploaded to App Store Connect.'),
+      buildOnlyBoundaryStep,
+      contains(
+        'The signed IPA was not uploaded to App Store Connect because '
+        '\\`upload_ios\\` was false.',
+      ),
     );
     expect(workflow, isNot(contains('play.google.com')));
   });

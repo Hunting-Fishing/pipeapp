@@ -27,6 +27,11 @@ on:
         required: true
         default: false
         type: boolean
+      upload_ios:
+        description: Explicitly upload the signed production IPA to App Store Connect
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -57,6 +62,8 @@ jobs:
           RELEASE_SHA: ${{ inputs.release_sha }}
           BUILD_NAME: ${{ inputs.build_name }}
           BUILD_NUMBER: ${{ inputs.build_number }}
+          TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+          UPLOAD_IOS: ${{ inputs.upload_ios }}
         run: |
           set -euo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
@@ -94,6 +101,10 @@ jobs:
             echo "Release source is not clean." >&2
             exit 1
           }
+          if [[ "$UPLOAD_IOS" == "true" && "$TARGET_ENVIRONMENT" != "production" ]]; then
+            echo "upload_ios may be enabled only for the production environment." >&2
+            exit 1
+          fi
           echo "release_sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
           {
             echo "## Mobile release candidate preflight"
@@ -102,6 +113,7 @@ jobs:
             echo "- Commit: \`$RELEASE_SHA\`"
             echo "- Version: \`$BUILD_NAME+$BUILD_NUMBER\`"
             echo "- Source: exact commit contained in \`main\`"
+            echo "- App Store Connect upload requested: \`$UPLOAD_IOS\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
   android:
@@ -396,9 +408,6 @@ jobs:
       IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
       IOS_EXPORT_OPTIONS_PLIST_BASE64: ${{ secrets.IOS_EXPORT_OPTIONS_PLIST_BASE64 }}
       MOBILE_RELEASE_ENVIRONMENT_GUARD: ${{ secrets.MOBILE_RELEASE_ENVIRONMENT_GUARD }}
-      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
 
 
     steps:
@@ -705,8 +714,12 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload signed IPA to App Store Connect
-        if: inputs.target_environment == 'production'
+        if: inputs.target_environment == 'production' && inputs.upload_ios
         continue-on-error: false
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
         shell: bash
         run: |
           set -euo pipefail
@@ -761,15 +774,16 @@ jobs:
             echo "- The build will appear in your [App Store Connect](https://appstoreconnect.apple.com) dashboard after Apple's processing completes."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Record staging Apple upload boundary
-        if: inputs.target_environment == 'staging'
+      - name: Record Apple build-only boundary
+        if: ${{ !inputs.upload_ios }}
         shell: bash
         run: |
           {
             echo ""
-            echo "### Staging Apple candidate retained"
-            echo "- The signed staging IPA was not uploaded to App Store Connect."
-            echo "- Download the retained artifact for controlled staging validation only."
+            echo "### Apple candidate retained without upload"
+            echo "- Environment: \`$PIPE_ENV\`"
+            echo "- The signed IPA was not uploaded to App Store Connect because \`upload_ios\` was false."
+            echo "- Download the retained artifact for controlled validation only."
           } >> "$GITHUB_STEP_SUMMARY"
 
 

@@ -74,7 +74,8 @@ Copy the reviewed Firebase public configuration variables into
 - `ANDROID_UPLOAD_KEY_PASSWORD`
 - Apple distribution certificate and password required by the workflow
 - Apple provisioning profile for bundle ID `Pipe.Buyerapp`
-- App Store Connect API issuer, key ID, and private key required by the workflow
+- App Store Connect API issuer, key ID, and private key, exposed only to the
+  upload step when a production dispatch explicitly sets `upload_ios=true`
 
 Secret values must be entered directly in GitHub or the provider console and
 must never be committed or pasted into issues, pull requests, logs, or chat.
@@ -188,10 +189,10 @@ Retain the `firebase-release-evidence-*` artifact and the workflow URL.
   release identity before producing the candidate; do not rely on a workflow
   input to silently override older source metadata.
 - Run `Build signed mobile release candidates` with the exact green `main` SHA,
-  production environment, and that exact source-controlled version. The
-  workflow rejects a version/build mismatch, performs strict cryptographic
-  `jarsigner` verification, and requires the embedded signer certificate to
-  exactly match the protected upload-key alias.
+  production environment, that exact source-controlled version, and
+  `upload_ios=false`. The workflow rejects a version/build mismatch, performs
+  strict cryptographic `jarsigner` verification, and requires the embedded
+  signer certificate to exactly match the protected upload-key alias.
 - Download the signed `.aab` artifact, verify its SHA-256 and public-certificate
   evidence, and upload it to an internal test track first.
 - Complete internal testing, closed/open testing requirements when applicable,
@@ -212,10 +213,13 @@ The repository currently compiles and targets Android API 36.
 - Confirm the highest build number already uploaded in App Store Connect, then
   commit a higher source-controlled `major.minor.patch+build` identity as
   described for Android above.
-- Run `Build signed mobile release candidates` using the exact green `main` SHA
-  and that exact source-controlled version/build.
-- Upload the signed IPA through the controlled release workflow or approved
-  App Store Connect tooling.
+- Run `Build signed mobile release candidates` using the exact green `main` SHA,
+  that exact source-controlled version/build, and the default
+  `upload_ios=false` to retain a signed IPA without transmission.
+- After explicit upload authorization, either upload that exact retained IPA
+  through approved App Store Connect tooling or start a production dispatch
+  with `upload_ios=true`. The latter exposes the API key only to the gated
+  upload step and does not submit the build for review.
 - Test through TestFlight, resolve review findings, select the approved build,
   and submit it for App Review.
 

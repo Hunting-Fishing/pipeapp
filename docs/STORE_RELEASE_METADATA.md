@@ -1,6 +1,6 @@
 # Pipe Buyer store release metadata
 
-Status: Engineering draft re-audited November 23, 2026; product, privacy,
+Status: Engineering draft re-audited November 24, 2026; product, privacy,
 legal, release-bound artwork, and store approval pending
 
 Owner: Product and release operations
@@ -20,9 +20,10 @@ For staging, prepend the approved staging origin such as
 production origin. Do not enter staging, localhost, a private console link, or
 an unapproved redirect in either store.
 
-The November 23 live Apple audit found both Support and Marketing still pointed
-at `https://pipebuyer-5c77f.web.app`. Replace them with the approved production
-origin only after the public pages and support ownership pass acceptance.
+The November 24 live Apple update saved and verified the production Marketing,
+Support, and Privacy URLs shown below. This verifies the store fields only. The
+production site still serves the older policy/release content, so publication
+acceptance and policy/legal approval remain open before submission.
 
 The November 23 production recheck returned HTTP 200 for the public root,
 Privacy, Terms, Support, and Account Deletion routes, and for both mobile-link
@@ -34,9 +35,9 @@ association files. The prepared production store and review URLs are:
 - Account deletion evidence for Google Play and external review:
   `https://www.pipebuyer.com/account-deletion`
 
-This verification prepares the values but does not authorize changing the live
-store record; saving public metadata remains an explicit owner action. Apple
-does not provide a separate account-deletion URL metadata field for this app;
+The owner approved this exact URL batch and the live Apple fields were saved and
+verified on November 24. Apple does not provide a separate account-deletion URL
+metadata field for this app;
 App Review must verify the in-app deletion flow, with a direct web link used
 only where the account type requires completion on the website.
 
@@ -63,13 +64,13 @@ local development can omit it without presenting the build as release-ready.
 | App icon | Master and generated 1024-pixel Apple/512-pixel artwork exist | Review the exact console crop and rendered device icon |
 | Privacy, Terms, Support, deletion URLs | Public refresh-safe routes exist | Publish approved policy documents, verify production HTTPS responses, and confirm monitored support ownership |
 | Listing copy and keywords | English draft below | Product/legal approval and console preview required |
-| Screenshots | Live Apple sets show 0/3 previews and 0/10 screenshots for both Dynamic-Island iPhone and 13-inch iPad; header is 0/1 | Capture from the exact admitted candidate with approved or anonymized data |
+| Screenshots | The November 23 audit showed 0/3 previews and 0/10 screenshots for both Dynamic-Island iPhone and 13-inch iPad. The November 24 recheck reconfirmed the Dynamic-Island iPhone set and 0/1 header; the iPad set was not refreshed | Capture from the exact admitted candidate with approved or anonymized data |
 | Google feature graphic | No dedicated 1024 x 500 store graphic exists | Design, approve, and upload before the Play listing is complete |
-| Apple App Privacy | Privacy manifest exists; the live App Privacy page failed to render, so its questionnaire remains unverified | Retry the console, reconcile runtime, backend, and every linked SDK, then have privacy/legal approve the answers |
+| Apple App Privacy | Privacy manifest exists; the live page publishes seven linked App Functionality data types, but that answer set is not yet reconciled or approved for the candidate | Reconcile runtime, backend, every linked SDK, the deployed policy, and deletion behavior, then have privacy/legal approve the answers |
 | Google Data Safety | No approved console answer set exists | Reconcile all versions/regions, runtime, backend, and SDK behavior, then approve and submit |
 | Review access | App Store Connect contains portal-only sign-in information, reviewer contact, and notes; none is retained in source | Validate least-privilege access against the exact build and create the separate Play review path after its app record exists |
-| Ratings and audience | Apple shows global 12+, but subtitle/category are unset, new rating questions remain, and the third-party-content answer needs review; China mainland is excluded from the 174-region initial scope | Complete category, content rating, target audience, ads, countries, content rights, and applicable regional declarations |
-| Release control | Apple version 1.0.0 is verified as manual release | Preserve manual release through review and require a separate owner go/no-go before publication |
+| Ratings and audience | Apple shows global 12+; Shopping/Business categories are saved, subtitle is blank, the new Shared Location answer is unset, User-Generated Content is currently No, and the third-party-content answer remains No; China mainland is excluded from the 174-region initial scope | Approve subtitle, correct content rights and rating answers from exact release behavior, and complete applicable audience/regional declarations |
+| Release control | Apple version 1.0.5 is verified as Prepare for Submission with manual release and no selected build | Preserve manual release through review and require a separate owner go/no-go before publication |
 | Signed and device evidence | Not yet available | Admit exact AAB/IPA through closed testing and retain the physical-device matrix |
 
 Official current field references:
@@ -82,74 +83,15 @@ Official current field references:
   [Data Safety](https://support.google.com/googleplay/android-developer/answer/10787469),
   and [App content](https://support.google.com/googleplay/android-developer/answer/9859455).
 
-## Proposed English listing copy
+## Canonical English listing and screenshot draft
 
-This copy is a product draft. It must be reviewed in both store consoles before
-its status is changed to approved in the Phase 1 acceptance evidence.
-
-In the live Apple record, subtitle, description, and promotional text are blank,
-and the existing keywords are not synchronized with this approved-length draft.
-
-Application name:
-
-> Pipe Buyer
-
-Apple categories:
-
-- Primary: Shopping
-- Secondary: Business
-
-Google Play short description:
-
-> Buy, sell, auction and dispatch industrial equipment and materials.
-
-Apple subtitle:
-
-> Industrial marketplace
-
-Promotional summary:
-
-> Find industrial equipment and materials, negotiate documented offers, bid in timed auctions, and request professional trucking quotes in one focused marketplace.
-
-Full description:
-
-> Pipe Buyer connects verified buyers, sellers, and approved Dispatch providers across the industrial marketplace.
->
-> Browse equipment and materials, post wanted ads, save listings, message securely, attach supporting photos, and negotiate price, quantity, purchase, transfer, and trucking dates with permanent offer history.
->
-> Timed auctions support clear increments, bidding history, Buy It Now options, and controlled completion. Dispatch requests let users publish load details, receive carrier quote revisions, award work, and follow delivery milestones.
->
-> Reporting, evidence attachments, administrator review, appeals, account privacy controls, and versioned marketplace policies help keep participation professional and accountable.
->
-> Pipe Buyer does not hold purchase funds, provide escrow, or replace carrier, legal, tax, safety, inspection, or regulatory advice. Buyers, sellers, and service providers remain responsible for verification, final contracts, payment, permits, loading, and transportation compliance.
-
-Suggested Apple keywords:
-
-> industrial,equipment,materials,auction,trucking,dispatch,pipe,machinery
-
-## Screenshot plan
-
-Capture original screenshots from the exact signed release candidate, not from
-demo artwork or a development build. Remove or anonymize personal information.
-
-Apple currently accepts one to ten screenshots per required device size. Supply
-the current required iPhone set and, while the target supports iPad, the current
-13-inch iPad set. Google requires two to eight phone screenshots and a dedicated
-1024 x 500 feature graphic. Use the dimensions and formats shown by the live
-consoles and the linked official specifications; do not stretch a screenshot or
-reuse an unrelated web hero as the Play feature graphic.
-
-1. Marketplace Browse with real release-safe empty or approved sample data.
-2. Detailed equipment or materials listing with user media.
-3. Offer comparison showing price, quantity, and schedule analytics.
-4. Timed auction detail and bid history.
-5. Dispatch request and carrier quote workflow.
-6. Account safety, reporting, and privacy controls.
-
-Retain the original image files, store-console previews, review timestamp, and
-reviewer identity in the private release acceptance bundle. Complete the
-six-shot plan wherever the console/device set supports it; the plan itself does
-not count as captured or approved evidence.
+The single current controlled-test copy packet and six-shot media plan are in
+[`APP_STORE_LISTING_DRAFT_2026-11-24.md`](APP_STORE_LISTING_DRAFT_2026-11-24.md).
+That packet is a draft requiring owner approval. It supersedes earlier embedded
+subtitle, promotional, description, keyword, and screenshot-plan variants so
+release operations have one canonical review surface. In the live Apple record,
+subtitle, description, and promotional text remain blank, and the existing
+keywords are not synchronized with that draft.
 
 ## Privacy and reviewer worksheet
 
