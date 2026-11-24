@@ -4,6 +4,7 @@ const { AccountSecurityError } = require("./account_security");
 
 const DELETION_CONFIRMATION = "DELETE MY ACCOUNT";
 const DELETION_GRACE_DAYS = 14;
+const DELETION_MODES = new Set(["immediate", "scheduled"]);
 const EXPORT_RETENTION_DAYS = 7;
 const DEVICE_HISTORY_DAYS = 180;
 const RECENT_AUTH_SECONDS = 10 * 60;
@@ -67,9 +68,20 @@ function requireDeletionConfirmation(data = {}) {
   if (String(data.confirmation || "").trim() !== DELETION_CONFIRMATION) {
     throw new AccountSecurityError(
       "invalid-argument",
-      `Enter ${DELETION_CONFIRMATION} to schedule account deletion.`,
+      `Enter ${DELETION_CONFIRMATION} to request account deletion.`,
     );
   }
+}
+
+function normalizeDeletionMode(data = {}) {
+  const mode = String(data.mode || "scheduled").trim().toLowerCase();
+  if (!DELETION_MODES.has(mode)) {
+    throw new AccountSecurityError(
+      "invalid-argument",
+      "Account deletion mode must be immediate or scheduled.",
+    );
+  }
+  return mode;
 }
 
 function summarizeDeletionBlockers(results = {}) {
@@ -107,6 +119,7 @@ module.exports = {
   EXPORT_RETENTION_DAYS,
   RECENT_AUTH_SECONDS,
   normalizeDeviceRegistration,
+  normalizeDeletionMode,
   requireDeletionConfirmation,
   requireNoDeletionBlockers,
   requireRecentAuthentication,

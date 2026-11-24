@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../auth/firebase_auth/apple_auth.dart';
 import '../core/accessibility/pipe_status_feedback.dart';
 import '../core/data/bounded_firestore_query.dart';
 import '../core/design/pipe_buyer_modern_cards.dart';
@@ -3894,22 +3895,59 @@ class _AccountSettingsState extends State<_AccountSettings> {
 
   Future<void> _requestDeletion() async {
     final controller = TextEditingController();
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            icon: Icon(
-              Icons.delete_forever_outlined,
-              size: 36,
-              color: Colors.red.shade700,
-            ),
-            title: const Text('Schedule account deletion'),
-            content: Column(
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final usesApple = userUsesAppleProvider(user);
+    var selectedMode = 'immediate';
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          icon: Icon(
+            Icons.delete_forever_outlined,
+            size: 36,
+            color: Colors.red.shade700,
+          ),
+          title: const Text('Delete account'),
+          content: SingleChildScrollView(
+            child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Open listings, transactions, Dispatch jobs, and administrator responsibilities must be closed first. A 14-day cancellation period begins after this request.',
+                  'Open listings, transactions, Dispatch jobs, and administrator responsibilities must be closed first.',
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
+                RadioGroup<String>(
+                  groupValue: selectedMode,
+                  onChanged: (value) => setDialogState(
+                    () => selectedMode = value ?? 'immediate',
+                  ),
+                  child: Column(
+                    children: [
+                      RadioListTile<String>(
+                        contentPadding: EdgeInsets.zero,
+                        value: 'immediate',
+                        title: const Text('Delete now'),
+                        subtitle: Text(
+                          usesApple
+                              ? 'Required for Apple-linked accounts. Apple will ask you to sign in again so its authorization can be revoked before deletion begins.'
+                              : 'Deletion begins immediately. You will be signed out and cannot cancel the request.',
+                        ),
+                      ),
+                      if (!usesApple)
+                        const RadioListTile<String>(
+                          contentPadding: EdgeInsets.zero,
+                          value: 'scheduled',
+                          title: Text('Delete after 14 days'),
+                          subtitle: Text(
+                            'Keep a 14-day cancellation period before deletion.',
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: controller,
                   decoration: const InputDecoration(
@@ -3919,34 +3957,102 @@ class _AccountSettingsState extends State<_AccountSettings> {
                 ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Keep account'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.red.shade700,
-                ),
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Schedule deletion'),
-              ),
-            ],
           ),
-        ) ??
-        false;
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Keep account'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+              ),
+              onPressed: () => Navigator.pop(
+                dialogContext,
+                selectedMode,
+              ),
+              child: Text(
+                selectedMode == 'immediate'
+                    ? 'Delete now'
+                    : 'Schedule deletion',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
     final confirmation = controller.text.trim();
     controller.dispose();
-    if (!confirmed || !mounted) return;
+    if (selected == null || !mounted) return;
     setState(() => _deleting = true);
+    var appleRevocationCompleted = false;
     try {
-      final result = await MarketplaceCommandClient().execute(
-        'requestAccountDeletion',
-        {'confirmation': confirmation},
-      );
-      _notice('Account deletion is scheduled for ${result['deleteAt']}.');
-    } catch (error) {
-      _notice('$error'.replaceFirst('Bad state: ', ''), error: true);
+      late Map<String, dynamic> result;
+      try {
+        final readiness = await MarketplaceCommandClient().execute(
+          'checkAccountDeletionReadiness',
+          {'confirmation': confirmation},
+        );
+        final requiresAppleRevocation =
+            readiness['requiresAppleRevocation'] == true;
+        final appleDeletionAuthorizationId =
+            '${readiness['appleDeletionAuthorizationId'] ?? ''}'.trim();
+        if (requiresAppleRevocation && selected != 'immediate') {
+          throw StateError(
+            'Apple-linked accounts must use Delete now so Apple authorization '
+            'can be revoked first.',
+          );
+        }
+        if (requiresAppleRevocation) {
+          if (appleDeletionAuthorizationId.isEmpty) {
+            throw StateError(
+              'The server did not issue an Apple deletion authorization. '
+              'Start deletion again.',
+            );
+          }
+          await revokeAppleAuthorizationForAccountDeletion(
+            requiredByServer: true,
+          );
+          appleRevocationCompleted = true;
+        }
+        result = await MarketplaceCommandClient().execute(
+          'requestAccountDeletion',
+          {
+            'confirmation': confirmation,
+            'mode': selected,
+            if (requiresAppleRevocation)
+              'appleDeletionAuthorizationId': appleDeletionAuthorizationId,
+          },
+        );
+      } catch (error) {
+        final detail = '$error'.replaceFirst('Bad state: ', '');
+        _notice(
+          appleRevocationCompleted
+              ? 'Apple authorization was revoked, but the deletion request '
+                  'could not be confirmed. Sign in again or use the public '
+                  'deletion-request email. $detail'
+              : detail,
+          error: true,
+        );
+        return;
+      }
+      if (selected == 'immediate') {
+        try {
+          await FirebaseAuth.instance.signOut();
+        } catch (error) {
+          debugPrint('Local sign-out after accepted deletion failed: $error');
+        }
+        if (!mounted) return;
+        PipeFeedback.show(
+          context,
+          message:
+              'Immediate account deletion is processing. Account access has been disabled.',
+          tone: PipeStatusTone.success,
+        );
+        MarketplaceNavigation.goHome(context);
+      } else {
+        _notice('Account deletion is scheduled for ${result['deleteAt']}.');
+      }
     } finally {
       if (mounted) setState(() => _deleting = false);
     }
@@ -4129,7 +4235,8 @@ class _AccountSettingsState extends State<_AccountSettings> {
               .snapshots(),
           builder: (context, snapshot) {
             final data = snapshot.data?.data();
-            final scheduled = data?['status'] == 'scheduled';
+            final scheduled =
+                data?['status'] == 'scheduled' && data?['mode'] != 'immediate';
             return Card(
               color: Colors.red.shade50,
               child: Padding(
@@ -4157,7 +4264,7 @@ class _AccountSettingsState extends State<_AccountSettings> {
                     Text(
                       scheduled
                           ? 'Your account remains available during the cancellation period.'
-                          : 'Permanently remove your account after a 14-day cancellation period. Shared transaction and safety records may be retained where required.',
+                          : 'Delete immediately, or choose a 14-day cancellation period when eligible. Apple-linked accounts use immediate deletion so Apple authorization can be revoked. Shared transaction and safety records may be retained where required.',
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
@@ -4179,7 +4286,7 @@ class _AccountSettingsState extends State<_AccountSettings> {
                       label: Text(
                         scheduled
                             ? 'Cancel scheduled deletion'
-                            : 'Schedule account deletion',
+                            : 'Request account deletion',
                       ),
                     ),
                   ],

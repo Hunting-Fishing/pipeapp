@@ -86,6 +86,12 @@ GitHub Environments named `mobile-release-staging` and
 `mobile-release-production`; neither job can read its signing values until its
 environment is admitted.
 
+The `upload_ios` dispatch input defaults to `false`. In that default mode the
+workflow creates, verifies, and retains both signed candidates without sending
+an IPA to App Store Connect. Setting `upload_ios` to `true` is accepted only
+for the production environment and is the explicit authorization boundary for
+the upload step. Android AAB upload is never automatic in this workflow.
+
 Create both environments before running the workflow. Mirror the approved
 `PIPE_FIREBASE_*` public variables into each, add `IOS_DEVELOPMENT_TEAM`, and
 configure these environment secrets:
@@ -100,25 +106,31 @@ configure these environment secrets:
 - `IOS_EXPORT_OPTIONS_PLIST_BASE64`
 - `MOBILE_RELEASE_ENVIRONMENT_GUARD`, set exactly to the environment name
   (`mobile-release-staging` or `mobile-release-production`)
+- `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_ID`, and
+  `APP_STORE_CONNECT_API_KEY_P8`, required only when a production dispatch
+  explicitly sets `upload_ios` to `true`
 
 The Apple export options must use manual signing, the configured Apple team,
 and the exact `Pipe.Buyerapp` provisioning-profile name. The workflow imports
-the certificate into an ephemeral keychain, verifies the profile team and
-application identifier, passes signing settings to Flutter through its
-`FLUTTER_XCODE_*` CI boundary, and removes the keychain/profile even after a
-failed build. Android writes its temporary `key.properties` only on the runner
-and removes it and the decoded upload keystore after the build.
+the certificate into an ephemeral keychain, verifies the profile team,
+application identifier, production push entitlement, Sign in with Apple, and
+both production Associated Domains, then passes the export options directly to
+`flutter build ipa`. It removes the keychain/profile even after a failed build.
+Android writes its temporary `key.properties` only on the runner and removes it
+and the decoded upload keystore after the build.
 
 Successful runs retain the AAB or IPA, SHA-256 digest, public signature output,
 and SHA/version/build metadata for 14 days. Android verification uses strict
 `jarsigner` validation; Apple verification opens the exported IPA, checks the
 bundle identifier and requested version, and runs strict `codesign`
 verification. Candidate metadata deliberately records `storeValidated: false`:
-the workflow does not upload to either store and cannot be treated as Play or
-App Store validation evidence. Production still requires environment reviewer
-protection, store upload/validation, physical-device acceptance, approved key
-recovery ownership, and transfer of the exact retained artifacts into the
-private Phase 1 acceptance bundle.
+the default `upload_ios: false` path does not upload to either store and cannot
+be treated as Play or App Store validation evidence. An explicitly authorized
+production dispatch with `upload_ios: true` may transmit the IPA, but successful
+transport alone still is not store validation or approval. Production still
+requires environment reviewer protection, store validation, physical-device
+acceptance, approved key recovery ownership, and transfer of the exact retained
+artifacts into the private Phase 1 acceptance bundle.
 
 ## Apple compile gate
 
@@ -156,6 +168,23 @@ and the obsolete Runner CocoaPods integration has been removed. CI explicitly
 enables Flutter Swift Package Manager before restoring packages. A release
 contract rejects a restored Podfile, Pods build phases, Pods framework,
 `PODS_ROOT`, or Pods xcconfig includes so Firebase has one native owner.
+
+## Sign in with Apple
+
+The native iOS authentication surface offers Sign in with Apple alongside
+Google sign-in. It uses Firebase's Apple OAuth credential path with a
+cryptographically random nonce, declares the Sign in with Apple entitlement,
+and records the Xcode target capability. Android continues to show its existing
+Google sign-in control without presenting an Apple-only native control.
+
+Source integration is not store activation evidence. Before the iOS candidate
+is accepted, release operations must confirm that the Apple App ID and the
+distribution provisioning profile both include Sign in with Apple, then retain
+a physical-device sign-in, cancellation, private-relay-email, existing-account
+conflict, and sign-out/sign-in acceptance record for the exact release build.
+The signed-candidate workflow also extracts the entitlements embedded in the
+exported application and rejects an IPA missing Apple login, both Associated
+Domains, production Push Notifications, or production App Attest.
 
 ## Media and location disclosures
 

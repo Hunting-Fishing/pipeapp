@@ -23,10 +23,10 @@ function Get-TextSha256([string]$Text) {
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
 
-$branch = 'design/formal-beautification-foundation'
+$branch = 'main'
 
 if ([string]::IsNullOrWhiteSpace($ReleaseSha)) {
-  Write-Step 'Resolving current formal branch release SHA'
+  Write-Step 'Resolving current production branch release SHA'
   git fetch origin $branch
   if ($LASTEXITCODE -ne 0) {
     throw 'Could not fetch the formal branch.'
@@ -118,7 +118,7 @@ if ($bundleHashes[$defaultHost] -ne $bundleHashes[$customHost]) {
 }
 
 Write-Step 'Checking public production routes'
-foreach ($path in @('/', '/about', '/privacy', '/terms')) {
+foreach ($path in @('/', '/about', '/privacy', '/terms', '/support', '/account-deletion')) {
   $url = "https://www.pipebuyer.com$path"
   $response = Invoke-WebRequest `
     -Uri $url `
@@ -134,6 +134,16 @@ foreach ($path in @('/', '/about', '/privacy', '/terms')) {
   Write-Host "$url -> HTTP 200" -ForegroundColor Green
 }
 
+Write-Step 'Rendering support and account-deletion routes'
+& (Join-Path $PSScriptRoot 'web_visual_smoke.ps1') `
+  -Url 'https://www.pipebuyer.com/support' `
+  -ExpectedTextPattern 'Help and support' `
+  -ScreenshotPath 'build/acceptance/support-mobile-390x844.png'
+& (Join-Path $PSScriptRoot 'web_visual_smoke.ps1') `
+  -Url 'https://www.pipebuyer.com/account-deletion' `
+  -ExpectedTextPattern 'Delete your account' `
+  -ScreenshotPath 'build/acceptance/account-deletion-mobile-390x844.png'
+
 Write-Host ''
 Write-Host '======================================================' -ForegroundColor Green
 Write-Host ' PIPE BUYER VERIFIED WEB RELEASE IS LIVE' -ForegroundColor Green
@@ -146,3 +156,4 @@ Write-Host 'Firebase default host: PASS' -ForegroundColor Green
 Write-Host 'www.pipebuyer.com: PASS' -ForegroundColor Green
 Write-Host 'Dispatch feature markers: PASS' -ForegroundColor Green
 Write-Host 'Public routes: PASS' -ForegroundColor Green
+Write-Host 'Rendered support/deletion routes: PASS' -ForegroundColor Green

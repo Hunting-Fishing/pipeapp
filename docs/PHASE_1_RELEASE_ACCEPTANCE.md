@@ -19,8 +19,8 @@ release-bound evidence workspace instead of copying the template by hand:
 ```powershell
 node tool/prepare_phase1_acceptance.mjs `
   --release-manifest build/release-manifest.json `
-  --version-name 1.0.0 `
-  --build-number 1 `
+  --version-name 1.0.5 `
+  --build-number 10 `
   --output-root build/acceptance
 ```
 
@@ -58,6 +58,12 @@ Android upload key, Apple distribution certificate, exact provisioning
 profile, and manual export options. Its retained signature metadata still says
 `storeValidated: false`; change the acceptance record to passed only after the
 exact artifact succeeds in the appropriate store console.
+
+Leave the workflow's `upload_ios` input at its default `false` while producing
+artifacts for inspection. Set it to `true` only on an explicitly authorized
+production dispatch that is intended to transmit the IPA to App Store Connect;
+staging dispatches reject that combination. The Android artifact is always
+retained for a separate controlled Play Console upload.
 
 Copy the exact Android AAB and exported Apple IPA into the private evidence
 directory. Each record must name the current `Pipe.Buyerapp` identifier, exact

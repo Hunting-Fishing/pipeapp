@@ -131,6 +131,13 @@ test("accounts scheduled for deletion are experienced but never publicly scored"
   assert.equal(leaving.reputationStatus, "emerging");
   assert.equal(leaving.scoreVersion, 0);
   assert.equal("reputationScore" in leaving, false);
+  const processing = project({
+    completedTransactionCount: 9,
+    accountStatus: "deletion_processing",
+  });
+  assert.equal(processing.reputationStatus, "emerging");
+  assert.equal(processing.scoreVersion, 0);
+  assert.equal("reputationScore" in processing, false);
   assert.equal("reputationScore" in project({completedTransactionCount: 9, accountStatus: "active"}), true);
   assert.equal("reputationScore" in project({completedTransactionCount: 9}), true);
 });

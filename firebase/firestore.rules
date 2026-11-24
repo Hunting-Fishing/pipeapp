@@ -2,7 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
-      return request.auth != null;
+      return request.auth != null &&
+        !exists(
+          /databases/$(database)/documents/account_deletion_tombstones/$(request.auth.uid)
+        );
     }
 
     function owns(uid) {
@@ -454,6 +457,16 @@ service cloud.firestore {
 
     match /account_deletion_requests/{uid} {
       allow read: if owns(uid) || isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /account_deletion_authorizations/{uid} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /account_deletion_tombstones/{uid} {
+      allow read: if isAdmin();
       allow create, update, delete: if false;
     }
 

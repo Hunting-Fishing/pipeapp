@@ -169,7 +169,8 @@ class _PublicPageHeader extends StatelessWidget {
                       ),
                       child: IndustrialAssetIcon(
                         label: kind.title,
-                        assetPath: kind == MarketplacePublicInformationKind.support
+                        assetPath: kind ==
+                                MarketplacePublicInformationKind.support
                             ? IndustrialIconAssets.messages
                             : kind == MarketplacePublicInformationKind.privacy
                                 ? IndustrialIconAssets.safetyShield
@@ -490,7 +491,7 @@ class _AccountDeletion extends StatelessWidget {
   final PublicReleaseConfiguration configuration;
 
   Future<void> _email(BuildContext context) async {
-    final uri = configuration.supportMailto;
+    final uri = configuration.accountDeletionMailto;
     if (uri == null) return;
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened && context.mounted) {
@@ -510,15 +511,15 @@ class _AccountDeletion extends StatelessWidget {
             icon: Icons.settings_outlined,
             title: 'Request deletion in Pipe Buyer',
             message:
-                'Sign in, open Account, choose Settings, then Privacy & account and Schedule account deletion. Recent authentication and an exact confirmation are required.',
+                'Sign in, open Account, choose Settings, then Privacy & account. You can request immediate deletion; eligible non-Apple accounts may instead choose a 14-day cancellation period. Recent authentication and an exact confirmation are required.',
             tone: PipeBuyerColors.orange,
           ),
           const SizedBox(height: 12),
           const _InformationCard(
             icon: Icons.event_available_outlined,
-            title: 'Fourteen-day cancellation period',
+            title: 'Optional 14-day cancellation period',
             message:
-                'You can cancel the request during the 14-day waiting period. The service rechecks active listings, offers, transactions, Dispatch work, disputes, and administrator responsibilities before final deletion.',
+                'If eligible and you choose scheduled deletion, you can cancel during the 14-day waiting period. The service rechecks active listings, offers, transactions, Dispatch work, disputes, and administrator responsibilities before final deletion.',
             tone: PipeBuyerColors.industrialBlue,
           ),
           const SizedBox(height: 12),
@@ -526,16 +527,24 @@ class _AccountDeletion extends StatelessWidget {
             icon: Icons.inventory_2_outlined,
             title: 'Records that must be retained',
             message:
-                'Private profile and owned media are removed when deletion completes. Records required for safety, disputes, completed transactions, fraud prevention, or legal obligations may be anonymized and retained under the approved retention policy.',
+                'Your private profile and owner-only profile, listing, and business media are removed when deletion completes. Attachments and participant references in shared messages, marketplace or Dispatch records, disputes, and safety records may remain where needed for other users, fraud prevention, accounting, or legal obligations. Anonymization is applied only where supported.',
             tone: PipeBuyerColors.slate,
           ),
           if (configuration.hasValidSupportEmail) ...[
+            const SizedBox(height: 12),
+            const _InformationCard(
+              icon: Icons.mark_email_read_outlined,
+              title: 'Request deletion without the app',
+              message:
+                  'You do not need to reinstall or open Pipe Buyer. Email the deletion address using the account email when available; otherwise identify the account phone number. Ownership confirmation is required before a request can be processed. Never send a password or verification code.',
+              tone: PipeBuyerColors.orange,
+            ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: () => _email(context),
               icon: const Icon(Icons.email_outlined),
               label: Text(
-                'Account-access help: ${configuration.normalizedSupportEmail}',
+                'Request account deletion: ${configuration.normalizedSupportEmail}',
               ),
             ),
           ],

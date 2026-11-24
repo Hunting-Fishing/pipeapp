@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
   DELETION_CONFIRMATION,
+  normalizeDeletionMode,
   normalizeDeviceRegistration,
   requireDeletionConfirmation,
   requireNoDeletionBlockers,
@@ -70,6 +71,16 @@ test("deletion confirmation is explicit and cannot be approximated", () => {
   );
   assert.throws(
     () => requireDeletionConfirmation({ confirmation: "delete" }),
+    (error) => error.code === "invalid-argument",
+  );
+});
+
+test("deletion mode is bounded and keeps legacy requests scheduled", () => {
+  assert.equal(normalizeDeletionMode({mode: "immediate"}), "immediate");
+  assert.equal(normalizeDeletionMode({mode: "scheduled"}), "scheduled");
+  assert.equal(normalizeDeletionMode({}), "scheduled");
+  assert.throws(
+    () => normalizeDeletionMode({mode: "eventually"}),
     (error) => error.code === "invalid-argument",
   );
 });

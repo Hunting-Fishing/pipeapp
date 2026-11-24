@@ -23,7 +23,7 @@
   <div class="container">
     <h1>Privacy Policy for Pipe Buyer</h1>
     <p><strong>Effective Date:</strong> August 29, 2026<br>
-    <strong>Last updated:</strong> August 29, 2026</p>
+    <strong>Proposed source revision:</strong> November 23, 2026 — pending privacy/legal approval and production publication</p>
 
     <p><strong>Application Overview:</strong> Pipe Buyer, accessible at <a href="https://www.pipebuyer.com">https://www.pipebuyer.com</a>, is a business-to-business marketplace for industrial equipment and materials. The platform includes listings, wanted ads, offers, timed buying and auction tools, messaging, seller payout onboarding, enabled payment features, and a freight Dispatch network. Initial operations focus on Canada and the United States.</p>
 
@@ -45,7 +45,7 @@
       <tr><td>Subscription and payment metadata</td><td>Stripe customer/subscription/session/payment identifiers, current plan, invoice/payment status, amount/currency, fee schedule revision, tax/reconciliation status, refund and dispute identifiers, and related provider events.</td></tr>
       <tr><td>Seller payout metadata</td><td>Stripe connected-account identifier, seller country, onboarding status, transfer capability/readiness, payout holds, and transfer identifiers. Stripe collects the underlying bank, identity, and tax information required for its onboarding.</td></tr>
       <tr><td>Safety and support information</td><td>Reports, evidence, appeals, fraud-review information, support enquiries, and administrative action records.</td></tr>
-      <tr><td>Device and diagnostic information</td><td>Session/device identifiers, notification tokens, crash/performance measurements, abuse-rate-limit records, and security telemetry used to protect and improve the service.</td></tr>
+      <tr><td>Device and diagnostic information</td><td>Session/device identifiers, notification tokens, abuse-rate-limit records, and security telemetry used to protect the service. Crash diagnostics are collected only in a release that explicitly enables and discloses remote diagnostics. Firebase Performance Monitoring is not included in the current mobile release candidate.</td></tr>
     </table>
 
     <p>We may also receive information from payment providers when a payment, subscription, refund, dispute, transfer, payout, or verification status changes. We use provider-signed webhooks and server-side verification rather than trusting a browser return page as proof of payment.</p>
@@ -93,7 +93,7 @@
     <h2>6. Other Data Sharing</h2>
     <p><strong>Other users.</strong> Public profiles and listings are visible according to the feature. Messages are visible to conversation participants. Exact private Dispatch details are limited to users who require them for the job workflow.</p>
 
-    <p><strong>Cloud and infrastructure providers.</strong> We use Google Firebase and Google Cloud services, including Authentication, Firestore, Cloud Storage, Cloud Functions, Cloud Messaging, App Check, Crashlytics, Performance Monitoring, and related infrastructure.</p>
+    <p><strong>Cloud and infrastructure providers.</strong> We use Google Firebase and Google Cloud services, including Authentication, Firestore, Cloud Storage, Cloud Functions, Cloud Messaging, App Check, and related infrastructure. The Crashlytics SDK is present but collection is off by default and is used only in a release that explicitly enables and discloses remote diagnostics. Firebase Performance Monitoring is not included in the current mobile release candidate.</p>
 
     <p><strong>Service providers.</strong> We may use specialist providers for maps/routing, messaging/communications, security, analytics, support, accounting, tax, and other functions as the platform expands. We limit sharing to what is reasonably required for the service.</p>
 
@@ -108,10 +108,11 @@
     <table>
       <tr><th>Data</th><th>General retention approach</th></tr>
       <tr><td>Account and profile</td><td>While your account is open and for any required post-closure period.</td></tr>
-      <tr><td>Deletion requests</td><td>Subject to the in-app deletion grace period before eligible account data is removed.</td></tr>
+      <tr><td>Deletion requests</td><td>Eligible users may choose immediate deletion, which cannot be cancelled once accepted. Non-Apple-linked accounts may instead choose a 14-day cancellation period. Apple-linked accounts use immediate deletion so Apple authorization can be revoked during reauthentication before deletion begins.</td></tr>
       <tr><td>Export files</td><td>Time-limited and automatically removed after the stated availability period.</td></tr>
       <tr><td>Session/device history</td><td>Retained for a limited security and support period.</td></tr>
-      <tr><td>Listings, offers, bids, transactions, payments, refunds, disputes, payout and tax/accounting records</td><td>Retained as needed for transaction integrity, reconciliation, fraud prevention, accounting, dispute resolution, tax, legal compliance, and audit obligations.</td></tr>
+      <tr><td>Listings, offers, bids, transactions, payments, refunds, disputes, payout and tax/accounting records</td><td>Retained as needed for transaction integrity, reconciliation, fraud prevention, accounting, dispute resolution, tax, legal compliance, and audit obligations. Participant references may remain where the shared record is retained.</td></tr>
+      <tr><td>Shared messages, attachments, and Marketplace or Dispatch participant records</td><td>May remain where needed for another participant, safety review, dispute handling, fraud prevention, accounting, or legal obligations. Anonymization is applied only where the record and approved retention policy support it.</td></tr>
       <tr><td>Moderation/security records</td><td>Retained as reasonably necessary to enforce policies, investigate abuse, protect users, and meet legal obligations.</td></tr>
     </table>
 
@@ -119,7 +120,7 @@
     <ul>
       <li><strong>Access/export:</strong> request an export of eligible Pipe Buyer account data.</li>
       <li><strong>Correction:</strong> edit eligible profile and listing information.</li>
-      <li><strong>Deletion:</strong> request account deletion, subject to the displayed grace period and required retention of transaction/legal records.</li>
+      <li><strong>Deletion:</strong> request immediate deletion in the app, or for eligible non-Apple-linked accounts choose a displayed 14-day cancellation period. The public <a href="https://www.pipebuyer.com/account-deletion">account-deletion page</a> also provides a request path that does not require reinstalling the app. Shared messages and attachments, participant references, Marketplace or Dispatch records, transactions, disputes, fraud-prevention, safety, tax, accounting, and legal records may still be retained where required; anonymization is applied only where supported.</li>
       <li><strong>Sessions:</strong> review or revoke supported active sessions.</li>
       <li><strong>Notifications:</strong> manage push permissions and in-app preferences.</li>
       <li><strong>Location:</strong> grant or revoke device location permission in device/browser settings.</li>

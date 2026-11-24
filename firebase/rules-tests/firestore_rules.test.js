@@ -1438,6 +1438,37 @@ test("account privacy records are owner-readable and server-only", async () => {
   await assertFails(deleteDoc(doc(ownerDb, "users", "buyer")));
 });
 
+test("deletion tombstones block cached authenticated tokens", async () => {
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, "users", "deleting-user"), {
+      accountType: "personal",
+      accountVerified: false,
+      userScore: 70,
+    });
+    await setDoc(doc(db, "account_deletion_tombstones", "deleting-user"), {
+      ownerUid: "deleting-user",
+      status: "processing",
+    });
+  });
+  const cachedTokenDb = testEnvironment
+      .authenticatedContext("deleting-user")
+      .firestore();
+  await assertFails(getDoc(doc(cachedTokenDb, "users", "deleting-user")));
+  await assertFails(updateDoc(doc(
+      cachedTokenDb,
+      "users",
+      "deleting-user",
+  ), {displayName: "Recreated data"}));
+  await assertFails(setDoc(doc(
+      cachedTokenDb,
+      "users",
+      "deleting-user",
+      "saved_listings",
+      "listing",
+  ), {listingId: "listing"}));
+});
+
 test("notification endpoints and delivery evidence are server-controlled", async () => {
   const ownerDb = testEnvironment.authenticatedContext("buyer").firestore();
   const strangerDb = testEnvironment.authenticatedContext("stranger").firestore();

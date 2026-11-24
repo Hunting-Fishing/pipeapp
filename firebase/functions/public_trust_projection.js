@@ -53,7 +53,10 @@ const USER_SCORE_VERSION = 2;
 const SCORE_EVENT_READ_LIMIT = 500;
 const REPORT_READ_LIMIT = 200;
 const MODERATION_PENALTY_FLOOR = -100;
-const INELIGIBLE_ACCOUNT_STATUSES = Object.freeze(["deletion_scheduled"]);
+const INELIGIBLE_ACCOUNT_STATUSES = Object.freeze([
+  "deletion_scheduled",
+  "deletion_processing",
+]);
 
 // A report only counts once an administrator confirmed it (or upheld it on
 // appeal). Pending, dismissed, appealed-and-under-review, and overturned

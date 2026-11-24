@@ -1,0 +1,173 @@
+name: Mobile release preflight
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-preflight-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  android-release-compile:
+    name: Compile Android release bundle with disposable signing
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out candidate source
+        uses: actions/checkout@v7.0.0
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Install Android Java toolchain
+        uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Restore Flutter dependencies
+        run: flutter pub get
+
+      - name: Verify mobile release-control contracts
+        run: |
+          flutter test \
+            test/deployment_workflow_test.dart \
+            test/marketplace_apple_sign_in_test.dart \
+            test/mobile_link_association_contract_test.dart \
+            test/mobile_release_candidate_workflow_test.dart \
+            test/mobile_release_preflight_workflow_test.dart
+          node --test tool/mobile_link_associations_test.mjs
+
+      - name: Create disposable compile-only upload key
+        shell: bash
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -noprompt \
+            -keystore "$RUNNER_TEMP/mobile-preflight.jks" \
+            -storepass mobile-preflight-only \
+            -keypass mobile-preflight-only \
+            -alias mobile-preflight-only \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 1 \
+            -dname "CN=Pipe Buyer Mobile Preflight, O=Compile Only, C=US"
+          {
+            printf 'storeFile=%s\n' "$RUNNER_TEMP/mobile-preflight.jks"
+            printf 'storePassword=%s\n' 'mobile-preflight-only'
+            printf 'keyAlias=%s\n' 'mobile-preflight-only'
+            printf 'keyPassword=%s\n' 'mobile-preflight-only'
+          } > android/key.properties
+          chmod 600 android/key.properties "$RUNNER_TEMP/mobile-preflight.jks"
+
+      - name: Compile and cryptographically verify Android release bundle
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          flutter build appbundle \
+            --release \
+            --build-name 0.0.0 \
+            --build-number 1 \
+            --dart-define=PIPE_ENV=continuous-integration \
+            --dart-define="PIPE_RELEASE_SHA=$RELEASE_SHA" \
+            --dart-define=PIPE_APP_CHECK_REQUIRED=true \
+            --dart-define=PIPE_PUBLIC_SUPPORT_EMAIL=support@pipebuyer.com
+          bundle=build/app/outputs/bundle/release/app-release.aab
+          test -s "$bundle"
+          jarsigner -verify -verbose -certs "$bundle" \
+            > "$RUNNER_TEMP/android-jarsigner-verification.txt"
+          grep -Fq 'jar verified.' "$RUNNER_TEMP/android-jarsigner-verification.txt"
+
+      - name: Remove disposable Android signing material
+        if: always()
+        shell: bash
+        run: rm -f android/key.properties "$RUNNER_TEMP/mobile-preflight.jks"
+
+      - name: Record Android preflight boundary
+        shell: bash
+        run: |
+          {
+            echo '## Android release compile passed'
+            echo ''
+            echo '- The release AAB compiled and its JAR signature was cryptographically verified.'
+            echo '- The key was disposable and is not authorized for Google Play.'
+            echo '- No artifact was retained or uploaded.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ios-release-compile:
+    name: Compile unsigned Apple release application
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out candidate source
+        uses: actions/checkout@v7.0.0
+
+      - name: Install pinned Flutter SDK
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+          cache: true
+
+      - name: Verify current App Store SDK baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          sdk_major="${sdk_version%%.*}"
+          if [[ ! "$sdk_major" =~ ^[0-9]+$ || "$sdk_major" -lt 26 ]]; then
+            echo "The Apple preflight requires the iOS 26 SDK or later; found $sdk_version." >&2
+            exit 1
+          fi
+
+      - name: Restore Flutter dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter config --enable-swift-package-manager
+          flutter pub get
+
+      - name: Compile unsigned Apple release application
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          flutter build ios \
+            --release \
+            --no-codesign \
+            --build-name 0.0.0 \
+            --build-number 1 \
+            --dart-define=PIPE_ENV=continuous-integration \
+            --dart-define="PIPE_RELEASE_SHA=$RELEASE_SHA" \
+            --dart-define=PIPE_APP_CHECK_REQUIRED=true \
+            --dart-define=PIPE_PUBLIC_SUPPORT_EMAIL=support@pipebuyer.com
+          app=build/ios/iphoneos/Runner.app
+          test -d "$app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")" = 'Pipe.Buyerapp'
+          plutil -lint ios/Runner/Info.plist ios/Runner/PrivacyInfo.xcprivacy
+
+      - name: Record Apple preflight boundary
+        shell: bash
+        run: |
+          {
+            echo '## Apple release compile passed'
+            echo ''
+            echo '- The release Runner application compiled with the current App Store SDK baseline.'
+            echo '- This job does not sign, export, retain, upload, or validate an IPA.'
+          } >> "$GITHUB_STEP_SUMMARY"
