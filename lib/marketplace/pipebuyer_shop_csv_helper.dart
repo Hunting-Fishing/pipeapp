@@ -267,6 +267,19 @@ abstract final class PipeBuyerShopCsvHelper {
             )
           : parsedLink.eligibleCountries;
 
+      final rawQualityTier = cell(row, const <String>[
+        'quality_tier',
+        'qualitytier',
+        'tier',
+      ]);
+      final qualityTier = PipeBuyerShopUrlBuilder.inferQualityTier(
+        explicitTier: rawQualityTier,
+        brand: effectiveBrand,
+        title: effectiveTitle,
+        badgeText: badgeText,
+        description: description,
+      );
+
       ready.add(<String, Object?>{
         if (rawId.isNotEmpty) 'id': rawId,
         'rawAffiliateInput':
@@ -279,6 +292,7 @@ abstract final class PipeBuyerShopCsvHelper {
                 ? parsedLink.suggestedVendorName
                 : (effectiveBrand.isEmpty ? 'Partner' : effectiveBrand)),
         'sourceType': sourceType.code,
+        'qualityTier': qualityTier,
         'status': 'active',
         'categoryCode': categoryCode,
         'subcategory': subcategory,

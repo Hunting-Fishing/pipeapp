@@ -888,30 +888,38 @@ void main() {
   );
 
   test(
-      '1,000-item Master CSV & 48 Subcategories parse cleanly and skip pending blank rows',
+      '1,500-item Master CSV & 52 Subcategories parse cleanly with Pro Grade and Budget Line quality tiers',
       () {
     expect(PipeBuyerShopTaxonomy.categories, hasLength(8));
     final allSubs = PipeBuyerShopTaxonomy.subcategoriesForCategory(null);
-    expect(allSubs, hasLength(48));
-    expect(allSubs.toSet(), hasLength(48));
+    expect(allSubs, hasLength(52));
+    expect(allSubs.toSet(), hasLength(52));
 
     final masterCsv = File(
       'docs/shop_catalog/pipebuyer_store_1000_items_master.csv',
     ).readAsStringSync();
     const settings = PipeBuyerShopSettings(
-      amazonAssociateTagUs: 'pipebuyer-20',
+      amazonAssociateTagUs: '366industri09-20',
+      amazonAssociateTagCa: '',
     );
-    final blankScan = PipeBuyerShopCsvHelper.parseSpreadsheetText(
+    final fullScan = PipeBuyerShopCsvHelper.parseSpreadsheetText(
       masterCsv,
       settings,
     );
-    expect(blankScan.totalDataRows, 1000);
-    expect(
-      blankScan.readyPayloads.length + blankScan.pendingBlankLinkRows,
-      1000,
-    );
-    expect(blankScan.readyPayloads.length, greaterThanOrEqualTo(8));
-    expect(blankScan.invalidRows, isEmpty);
+    expect(fullScan.totalDataRows, 1500);
+    expect(fullScan.readyPayloads, hasLength(1500));
+    expect(fullScan.pendingBlankLinkRows, 0);
+    expect(fullScan.invalidRows, isEmpty);
+
+    final proItems = fullScan.readyPayloads
+        .where((p) => p['qualityTier'] == 'pro_grade')
+        .length;
+    final budgetItems = fullScan.readyPayloads
+        .where((p) => p['qualityTier'] == 'budget_line')
+        .length;
+    expect(proItems, greaterThan(1000));
+    expect(budgetItems, greaterThan(250));
+    expect(proItems + budgetItems, 1500);
 
     const partialCsv =
         'item_id,category_code,subcategory,title,brand,amazon_search_helper_url,amazon_affiliate_link\n'

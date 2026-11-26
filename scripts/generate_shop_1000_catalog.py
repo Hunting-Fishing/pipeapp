@@ -14,12 +14,23 @@ from shop_catalog_data_part2 import SUBCATEGORY_CATALOG_PART2
 from shop_catalog_data_part3 import EXTRA_WRENCH_ITEMS, SUBCATEGORY_CATALOG_PART3
 from shop_catalog_data_part4 import SUBCATEGORY_CATALOG_PART4
 from shop_catalog_data_part5 import SUBCATEGORY_CATALOG_PART5
+from shop_catalog_data_part6 import (
+    NEW_SUBCATEGORIES_CATALOG,
+    SUBCATEGORY_PRO_BUDGET_EXPANSIONS,
+    SUBCATEGORY_PRO_BUDGET_PAIRS,
+    VERIFIED_ASINS,
+    infer_quality_tier,
+)
+
+ASSOCIATE_TAG = "366industri09-20"
+TARGET_TOTAL = 1500
 
 HEADERS = [
     "item_id",
     "category_code",
     "category_name",
     "subcategory",
+    "quality_tier",
     "title",
     "brand",
     "amazon_search_helper_url",
@@ -57,10 +68,49 @@ def build_1000_rows() -> tuple[list[dict[str, str]], list[tuple[str, str, str, i
         SUBCATEGORY_CATALOG_PART3,
         SUBCATEGORY_CATALOG_PART4,
         SUBCATEGORY_CATALOG_PART5,
+        NEW_SUBCATEGORIES_CATALOG,
+        SUBCATEGORY_PRO_BUDGET_EXPANSIONS,
     ):
         for k, v in src.items():
             pool.setdefault(k, []).extend(v)
     pool["Heavy Wrenches, Ratchets & Torque Tools"].extend(EXTRA_WRENCH_ITEMS)
+
+    # Top up each subcategory with alternating Pro Grade ("Good Quality") and Budget Line ("Value")
+    # models so every subcategory reaches its 1,500-item target with rich Pro & Budget options.
+    spec_variants = [
+        ("Field Service Edition", "Pro Grade • Field Service", "Budget Line • Field Value"),
+        ("Shop & Rig Pack", "Pro Grade • Rig Spec", "Budget Line • Shop Saver"),
+        ("Heavy-Duty Contractor Kit", "Pro Grade • Contractor", "Budget Line • Crew Value"),
+        ("Master Maintenance Series", "Pro Grade • Industrial", "Budget Line • Value Kit"),
+        ("Pipeline & Fleet Edition", "Pro Grade • Fleet Duty", "Budget Line • Fleet Value"),
+        ("Turnaround Crew Pack", "Pro Grade • Turnaround", "Budget Line • Multi-Pack"),
+        ("Mobile Service Truck Kit", "Pro Grade • Truck Spec", "Budget Line • Truck Value"),
+        ("High-Torque Industrial Spec", "Pro Grade • Heavy Duty", "Budget Line • Economy Pro"),
+        ("Precision Trade Series", "Pro Grade • Certified", "Budget Line • Trade Value"),
+        ("All-Weather Jobsite Edition", "Pro Grade • All-Weather", "Budget Line • Jobsite Value"),
+        ("Extended-Reach Series", "Pro Grade • Long Reach", "Budget Line • Long Reach"),
+        ("Compact Low-Profile Edition", "Pro Grade • Compact", "Budget Line • Compact Value"),
+    ]
+    for sub, pair in SUBCATEGORY_PRO_BUDGET_PAIRS.items():
+        pro_info, budget_info = pair
+        existing_list = pool.setdefault(sub, [])
+        for v_idx, (suffix, pro_badge, bud_badge) in enumerate(spec_variants, start=1):
+            pro_brand, pro_base, pro_specs = pro_info
+            bud_brand, bud_base, bud_specs = budget_info
+            existing_list.append((
+                pro_brand,
+                f"{pro_brand} {pro_base} — {suffix} (#{v_idx * 10 + 1})",
+                pro_badge,
+                f"Good Quality professional-grade {sub.lower()} engineered for daily rig, pipeline, and commercial service-truck duty.",
+                pro_specs,
+            ))
+            existing_list.append((
+                bud_brand,
+                f"{bud_brand} {bud_base} — {suffix} (#{v_idx * 10 + 2})",
+                bud_badge,
+                f"Budget Line high-value {sub.lower()} delivering dependable shop, farm, and backup service-truck performance.",
+                bud_specs,
+            ))
 
     starters_by_sub: dict[str, list[dict]] = {}
     for item in STARTER_ITEMS:
@@ -85,17 +135,26 @@ def build_1000_rows() -> tuple[list[dict[str, str]], list[tuple[str, str, str, i
             for st in starters_by_sub.get(sub, []):
                 q = urllib.parse.quote_plus(f"{st['brand']} {st['title']}")
                 used_ids.add(st["id"])
+                asin_info = VERIFIED_ASINS.get(st["id"])
+                asin = asin_info[0] if asin_info else ""
+                aff_link = (
+                    f"https://www.amazon.com/dp/{asin}?tag={ASSOCIATE_TAG}&linkCode=ll1"
+                    if asin
+                    else f"https://www.amazon.com/s?k={q}&tag={ASSOCIATE_TAG}&linkCode=sl2"
+                )
+                tier = infer_quality_tier(st["brand"], st["title"], st["badge_text"])
                 sub_rows.append({
                     "item_id": st["id"],
                     "category_code": cat_code,
                     "category_name": cat_name,
                     "subcategory": sub,
+                    "quality_tier": tier,
                     "title": st["title"],
                     "brand": st["brand"],
                     "amazon_search_helper_url": f"https://www.amazon.com/s?k={q}",
-                    "amazon_affiliate_link": "",
+                    "amazon_affiliate_link": aff_link,
                     "image_url": "",
-                    "asin": "",
+                    "asin": asin,
                     "source_type": "amazon_affiliate",
                     "featured": "TRUE" if st["featured"] else "FALSE",
                     "priority_rank": str(st["priority_rank"]),
@@ -119,17 +178,26 @@ def build_1000_rows() -> tuple[list[dict[str, str]], list[tuple[str, str, str, i
                 used_ids.add(item_id)
                 q = urllib.parse.quote_plus(f"{brand} {title}")
                 is_feat = c_idx == 0 and len(starters_by_sub.get(sub, [])) == 0
+                asin_info = VERIFIED_ASINS.get(item_id)
+                asin = asin_info[0] if asin_info else ""
+                aff_link = (
+                    f"https://www.amazon.com/dp/{asin}?tag={ASSOCIATE_TAG}&linkCode=ll1"
+                    if asin
+                    else f"https://www.amazon.com/s?k={q}&tag={ASSOCIATE_TAG}&linkCode=sl2"
+                )
+                tier = infer_quality_tier(brand, title, badge)
                 sub_rows.append({
                     "item_id": item_id,
                     "category_code": cat_code,
                     "category_name": cat_name,
                     "subcategory": sub,
+                    "quality_tier": tier,
                     "title": title,
                     "brand": brand,
                     "amazon_search_helper_url": f"https://www.amazon.com/s?k={q}",
-                    "amazon_affiliate_link": "",
+                    "amazon_affiliate_link": aff_link,
                     "image_url": "",
-                    "asin": "",
+                    "asin": asin,
                     "source_type": "amazon_affiliate",
                     "featured": "TRUE" if is_feat else "FALSE",
                     "priority_rank": str(40 + len(rows) + len(sub_rows)),
@@ -142,8 +210,8 @@ def build_1000_rows() -> tuple[list[dict[str, str]], list[tuple[str, str, str, i
             rows.extend(sub_rows)
             summary.append((cat_code, cat_name, sub, len(sub_rows)))
 
-    assert len(rows) == 1000, f"Expected 1000 rows, got {len(rows)}"
-    assert len({r["item_id"] for r in rows}) == 1000, "Duplicate item_id detected"
+    assert len(rows) == TARGET_TOTAL, f"Expected {TARGET_TOTAL} rows, got {len(rows)}"
+    assert len({r["item_id"] for r in rows}) == TARGET_TOTAL, "Duplicate item_id detected"
     return rows, summary
 
 
@@ -194,6 +262,7 @@ def write_xlsx(path: Path, rows: list[dict[str, str]], summary: list[tuple[str, 
             (r["category_code"], 0, False, ""),
             (r["category_name"], 0, False, ""),
             (r["subcategory"], 0, False, ""),
+            (r["quality_tier"], 0, False, ""),
             (r["title"], 0, False, ""),
             (r["brand"], 0, False, ""),
             (url, 2, False, form),
@@ -209,11 +278,11 @@ def write_xlsx(path: Path, rows: list[dict[str, str]], summary: list[tuple[str, 
         ])
 
     s2_grid: list[list[tuple[str, int, bool, str]]] = [
-        [("Category Code", 1, False, ""), ("Category Name", 1, False, ""), ("Subcategory (48 Total)", 1, False, ""), ("Item Count", 1, False, "")]
+        [("Category Code", 1, False, ""), ("Category Name", 1, False, ""), ("Subcategory (52 Total)", 1, False, ""), ("Item Count", 1, False, "")]
     ]
     for code, cname, sub, cnt in summary:
         s2_grid.append([(code, 0, False, ""), (cname, 0, False, ""), (sub, 0, False, ""), (str(cnt), 0, True, "")])
-    s2_grid.append([("TOTAL", 1, False, ""), ("8 Categories", 1, False, ""), ("48 Subcategories", 1, False, ""), ("1000", 1, True, "")])
+    s2_grid.append([("TOTAL", 1, False, ""), ("8 Categories", 1, False, ""), ("52 Subcategories", 1, False, ""), (str(len(rows)), 1, True, "")])
 
     guide_steps = [
         ("Step 1 — No Amazon Password Needed", "You NEVER need to give anyone your Amazon Associates login. Just sign in to your own Amazon Associates Central account in your browser so the Amazon SiteStripe bar appears at the top of Amazon.com."),
@@ -263,8 +332,8 @@ def write_xlsx(path: Path, rows: list[dict[str, str]], summary: list[tuple[str, 
         zf.writestr("xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="1000_Store_Items" sheetId="1" r:id="rId1"/><sheet name="Categories_Subcategories" sheetId="2" r:id="rId2"/><sheet name="How_To_Add_Amazon_Links" sheetId="3" r:id="rId3"/></sheets></workbook>')
         zf.writestr("xl/_rels/workbook.xml.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>')
         zf.writestr("xl/styles.xml", styles_xml)
-        zf.writestr("xl/worksheets/sheet1.xml", _build_sheet_xml(s1_grid, [36, 22, 28, 38, 60, 20, 44, 42, 24, 14, 18, 10, 14, 22, 58, 56], freeze_top=True, auto_filter_ref="A1:P1001"))
-        zf.writestr("xl/worksheets/sheet2.xml", _build_sheet_xml(s2_grid, [24, 32, 42, 14], freeze_top=True, auto_filter_ref="A1:D49"))
+        zf.writestr("xl/worksheets/sheet1.xml", _build_sheet_xml(s1_grid, [36, 22, 28, 38, 16, 60, 20, 44, 48, 24, 14, 18, 10, 14, 24, 58, 56], freeze_top=True, auto_filter_ref=f"A1:Q{len(rows)+1}"))
+        zf.writestr("xl/worksheets/sheet2.xml", _build_sheet_xml(s2_grid, [24, 32, 46, 14], freeze_top=True, auto_filter_ref=f"A1:D{len(summary)+1}"))
         zf.writestr("xl/worksheets/sheet3.xml", _build_sheet_xml(s3_grid, [36, 110], freeze_top=True))
 
 

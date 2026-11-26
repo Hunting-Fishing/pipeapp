@@ -730,11 +730,11 @@ test("Store roles (Admin like jordilwbailey@gmail.com + Catalog Editor) can add 
   assert.equal(subFiltered.products[0].id, "pb-0025-ridgid-824");
 });
 
-test("SHOP_CATEGORIES defines 8 categories and 48 trade subcategories", () => {
+test("SHOP_CATEGORIES defines 8 categories and 52 trade subcategories", () => {
   assert.equal(SHOP_CATEGORIES.length, 8);
   const allSubs = SHOP_CATEGORIES.flatMap((c) => c.subcategories || []);
-  assert.equal(allSubs.length, 48);
-  assert.equal(new Set(allSubs).size, 48);
+  assert.equal(allSubs.length, 52);
+  assert.equal(new Set(allSubs).size, 52);
 });
 
 test("inferEligibleCountries, doesProductShipToCountry, and extractHtmlProductMetadata work across global affiliate platforms", () => {
