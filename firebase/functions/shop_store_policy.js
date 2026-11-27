@@ -1268,17 +1268,19 @@ function extractAmazonSearchCandidates(html, settings = DEFAULT_STORE_SETTINGS) 
       cleanMarketplaceTitle(x[1].replace(/<[^>]+>/g, " ").replace(/^Sponsored Ad\s*[-–—:]?\s*/i, "")),
     ).filter(Boolean);
     const longestH2 = h2Matches.sort((a, b) => b.length - a.length)[0] || "";
-    const imgAltMatch = block.match(/<img[^>]+class=["'][^"']*s-image[^"']*["'][^>]+alt=["']([^"']+)["']/i);
-    const altTitle = imgAltMatch && imgAltMatch[1] ?
-      cleanMarketplaceTitle(imgAltMatch[1].replace(/^Sponsored Ad\s*[-–—:]?\s*/i, "")) :
+    const sImageTagMatch = block.match(/<img\b[^>]*\bclass=["'][^"']*\bs-image\b[^"']*["'][^>]*>/i);
+    const sImageTag = sImageTagMatch ? sImageTagMatch[0] : "";
+    const altMatch = sImageTag.match(/\balt=["']([^"']+)["']/i);
+    const altTitle = altMatch && altMatch[1] ?
+      cleanMarketplaceTitle(altMatch[1].replace(/^Sponsored Ad\s*[-–—:]?\s*/i, "")) :
       "";
     const title = altTitle.length > longestH2.length ? altTitle : longestH2;
     if (!title || title.length < 4) continue;
 
-    const imgSrcMatch =
-      block.match(/<img[^>]+class=["'][^"']*s-image[^"']*["'][^>]+src=["'](https:\/\/m\.media-amazon\.com\/images\/I\/[^"']+)["']/i) ||
-      block.match(/src=["'](https:\/\/m\.media-amazon\.com\/images\/I\/[^"']+)["']/i);
-    const rawImg = imgSrcMatch && imgSrcMatch[1] ? imgSrcMatch[1] : "";
+    const sImgSrcMatch =
+      sImageTag.match(/\bsrc=["'](https:\/\/m\.media-amazon\.com\/images\/I\/[^"']+)["']/i) ||
+      block.match(/\bsrc=["'](https:\/\/m\.media-amazon\.com\/images\/I\/[^"']+)["']/i);
+    const rawImg = sImgSrcMatch && sImgSrcMatch[1] ? sImgSrcMatch[1] : "";
     const imageUrl = upgradeAmazonCdnImageResolution(toValidProductImageUrl(rawImg, "https://www.amazon.com"));
 
     const priceMatch =
