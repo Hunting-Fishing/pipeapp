@@ -1264,12 +1264,15 @@ function extractAmazonSearchCandidates(html, settings = DEFAULT_STORE_SETTINGS) 
       Math.min(source.length, start + 24000);
     const block = source.slice(start, end);
 
-    const h2Match = block.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i);
+    const h2Matches = [...block.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)].map((x) =>
+      cleanMarketplaceTitle(x[1].replace(/<[^>]+>/g, " ").replace(/^Sponsored Ad\s*[-–—:]?\s*/i, "")),
+    ).filter(Boolean);
+    const longestH2 = h2Matches.sort((a, b) => b.length - a.length)[0] || "";
     const imgAltMatch = block.match(/<img[^>]+class=["'][^"']*s-image[^"']*["'][^>]+alt=["']([^"']+)["']/i);
-    const rawTitle = h2Match && h2Match[1] ?
-      h2Match[1].replace(/<[^>]+>/g, " ") :
-      (imgAltMatch && imgAltMatch[1] ? imgAltMatch[1] : "");
-    const title = cleanMarketplaceTitle(rawTitle.replace(/^Sponsored Ad\s*[-–—:]?\s*/i, ""));
+    const altTitle = imgAltMatch && imgAltMatch[1] ?
+      cleanMarketplaceTitle(imgAltMatch[1].replace(/^Sponsored Ad\s*[-–—:]?\s*/i, "")) :
+      "";
+    const title = altTitle.length > longestH2.length ? altTitle : longestH2;
     if (!title || title.length < 4) continue;
 
     const imgSrcMatch =
@@ -1278,10 +1281,17 @@ function extractAmazonSearchCandidates(html, settings = DEFAULT_STORE_SETTINGS) 
     const rawImg = imgSrcMatch && imgSrcMatch[1] ? imgSrcMatch[1] : "";
     const imageUrl = upgradeAmazonCdnImageResolution(toValidProductImageUrl(rawImg, "https://www.amazon.com"));
 
-    const priceMatch = block.match(
-        /class=["'][^"']*a-price[^"']*["'][^>]*>\s*<span[^>]*class=["'][^"']*a-offscreen[^"']*["'][^>]*>(\$[0-9,]+(?:\.[0-9]{2})?)<\/span>/i,
-    );
-    const priceDisplay = priceMatch && priceMatch[1] ? cleanText(decodeHtmlEntities(priceMatch[1]), 32) : "";
+    const priceMatch =
+      block.match(/class=["'][^"']*a-offscreen[^"']*["'][^>]*>(\$[0-9,]+(?:\.[0-9]{2})?)<\/span>/i) ||
+      block.match(/(\$[0-9,]+(?:\.[0-9]{2}))/);
+    let priceDisplay = priceMatch && priceMatch[1] ? cleanText(decodeHtmlEntities(priceMatch[1]), 32) : "";
+    if (!priceDisplay) {
+      const wholeMatch = block.match(/class=["'][^"']*a-price-whole[^"']*["'][^>]*>([0-9,]+)/i);
+      const fracMatch = block.match(/class=["'][^"']*a-price-fraction[^"']*["'][^>]*>([0-9]{2})/i);
+      if (wholeMatch && wholeMatch[1]) {
+        priceDisplay = `$${wholeMatch[1]}.${(fracMatch && fracMatch[1]) || "00"}`;
+      }
+    }
 
     const brand = inferBrandFromText(title);
     const categoryCode = inferCategoryCodeFromText(`${title} ${brand}`);
