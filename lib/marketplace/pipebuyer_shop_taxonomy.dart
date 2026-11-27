@@ -1154,17 +1154,21 @@ abstract final class PipeBuyerShopUrlBuilder {
     if (product.sourceType == PipeBuyerShopSourceType.amazonAffiliate ||
         _isAmazonHost(uri.host)) {
       var targetHost = uri.host;
+      final caTag = settings.amazonAssociateTagCa.trim();
       if (upperRegion == 'CA' &&
-          product.destinationUrlCa.trim().isEmpty &&
-          settings.amazonAssociateTagCa.trim().isNotEmpty &&
+          caTag.isNotEmpty &&
           targetHost.toLowerCase().endsWith('amazon.com')) {
         targetHost = 'www.amazon.ca';
       }
       final tag = _resolveTagForHost(targetHost, settings).trim();
       final params = Map<String, String>.from(uri.queryParameters);
       final existingTag = (params['tag'] ?? '').trim();
+      final switchedToCa =
+          targetHost.toLowerCase().endsWith('amazon.ca') && caTag.isNotEmpty;
       if (tag.isNotEmpty &&
-          (existingTag.isEmpty || settings.forceOverrideAmazonTag)) {
+          (existingTag.isEmpty ||
+              settings.forceOverrideAmazonTag ||
+              (switchedToCa && existingTag != caTag))) {
         params['tag'] = tag;
       }
       return uri
@@ -1813,14 +1817,15 @@ abstract final class PipeBuyerShopUrlBuilder {
     var surroundingText = '';
     if (extractedHref.isEmpty) {
       final urlMatch = RegExp(
-        r'''https?://[^\s"'<>]+''',
+        r'''https?://[^\s"'<>*`]+''',
         caseSensitive: false,
       ).firstMatch(decoded);
       if (urlMatch != null && urlMatch.group(0) != null) {
         final rawMatched = urlMatch.group(0)!;
-        extractedHref = rawMatched.replaceFirst(RegExp(r'[),.;!?]+$'), '');
+        extractedHref = rawMatched.replaceFirst(RegExp(r'[),.;!?*`]+$'), '');
         surroundingText = decoded
             .replaceFirst(rawMatched, ' ')
+            .replaceAll(RegExp(r'^[*`\s]+|[*`\s]+$'), '')
             .replaceFirst(
               RegExp(
                 r'^(check (?:this )?out(?:\s+on\s+[a-z0-9.]+)?|just found this amazing item on aliexpress|deal(?:\s+of\s+the\s+day)?|amazon(?:\.com|\.ca)?|shopee|lazada|aliexpress)[\s:,-]*',
@@ -1832,7 +1837,7 @@ abstract final class PipeBuyerShopUrlBuilder {
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
       } else {
-        extractedHref = decoded;
+        extractedHref = decoded.replaceAll(RegExp(r'^[*`\s]+|[*`\s]+$'), '');
       }
     }
 
@@ -3373,6 +3378,7 @@ abstract final class PipeBuyerShopTaxonomy {
       subcategory: 'Cordless Impact Wrenches & Socket Sets',
       asin: 'B094RDL3QR',
       destinationUrl: 'https://www.amazon.com/dp/B094RDL3QR?linkCode=ll1',
+      destinationUrlCa: 'https://www.amazon.ca/dp/B0CLF1DHHW?linkCode=ll1',
       imageUrl:
           'https://m.media-amazon.com/images/I/51efp2NB2HL._AC_SL1000_.jpg',
       priceDisplay: '\$279.90',

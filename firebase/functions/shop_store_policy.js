@@ -1632,17 +1632,23 @@ function buildMonetizedDestinationUrl(product, settings = DEFAULT_STORE_SETTINGS
   }
 
   if (sourceType === "amazon_affiliate" || isAmazonFullHostname(parsed.hostname)) {
+    const caTag = cleanText(mergedSettings.amazonAssociateTagCa, 64);
     if (
       regionCode === "CA" &&
-      !rawCaDestination &&
       parsed.hostname.endsWith("amazon.com") &&
-      cleanText(mergedSettings.amazonAssociateTagCa, 64)
+      caTag
     ) {
       parsed.hostname = "www.amazon.ca";
     }
     const associateTag = resolveAmazonAssociateTag(parsed.hostname, mergedSettings);
     const existingTag = cleanText(parsed.searchParams.get("tag"), 64);
-    if (associateTag && (!existingTag || mergedSettings.forceOverrideAmazonTag === true)) {
+    const isCaHost = parsed.hostname.endsWith("amazon.ca") && Boolean(caTag);
+    if (
+      associateTag &&
+      (!existingTag ||
+        mergedSettings.forceOverrideAmazonTag === true ||
+        (isCaHost && existingTag !== caTag))
+    ) {
       parsed.searchParams.set("tag", associateTag);
     }
     return parsed.toString();
@@ -2077,12 +2083,13 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
   // Case 3: Mobile App Share text ("Check out this on Shopee/AliExpress/Lazada/Amazon ... https://...") or direct URL
   let surroundingText = "";
   if (!extractedHref) {
-    const urlMatch = decoded.match(/https?:\/\/[^\s"'<>]+/i);
+    const urlMatch = decoded.match(/https?:\/\/[^\s"'<>*`]+/i);
     if (urlMatch && urlMatch[0]) {
-      extractedHref = urlMatch[0].replace(/[),.;!?]+$/, "");
+      extractedHref = urlMatch[0].replace(/[),.;!?*`]+$/, "");
       surroundingText = cleanText(
           decoded
               .replace(urlMatch[0], " ")
+              .replace(/^[*`\s]+|[*`\s]+$/g, "")
               .replace(
                   /^(check (?:this )?out(?: on (?:amazon|shopee|lazada|aliexpress|ebay|temu|tiktok))?|just found this amazing item on aliexpress|share from (?:lazada|shopee)|deal(?: of the day)?|amazon(?:\.com|\.ca)?)[\s:!,|-]*/i,
                   "",
@@ -2090,7 +2097,7 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
           160,
       );
     } else {
-      extractedHref = decoded;
+      extractedHref = decoded.replace(/^[*`\s]+|[*`\s]+$/g, "");
     }
   }
 

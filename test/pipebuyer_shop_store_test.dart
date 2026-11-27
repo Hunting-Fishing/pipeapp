@@ -1556,4 +1556,70 @@ void main() {
       expect(find.text('APPROVED'), findsOneWidget);
     },
   );
+
+  test(
+    'PipeBuyerShopUrlBuilder strips surrounding asterisks from * https://link.amazon/B025ZZNd1 * and routes CA clicks with dimensionalfu-20',
+    () {
+      const settings = PipeBuyerShopSettings(
+        amazonAssociateTagUs: '366industri09-20',
+        amazonAssociateTagCa: 'dimensionalfu-20',
+        forceOverrideAmazonTag: true,
+      );
+
+      final parsed = PipeBuyerShopUrlBuilder.parseAffiliateSubmission(
+        '* https://link.amazon/B025ZZNd1 *',
+        settings,
+      );
+      expect(parsed, isNotNull);
+      expect(parsed!.isAmazonLink, isTrue);
+      expect(parsed.isShortLink, isTrue);
+      expect(parsed.destinationUrl, 'https://link.amazon/B025ZZNd1');
+
+      final milwaukee = PipeBuyerShopTaxonomy.starterCatalog.firstWhere(
+        (p) => p.id == 'milwaukee-m18-fuel-high-torque-impact',
+      );
+      final milwaukeeCaUrl = Uri.parse(
+        PipeBuyerShopUrlBuilder.buildMonetizedUrl(
+          milwaukee,
+          settings,
+          regionCode: 'CA',
+        ),
+      );
+      expect(milwaukeeCaUrl.host, 'www.amazon.ca');
+      expect(milwaukeeCaUrl.path, '/dp/B0CLF1DHHW');
+      expect(milwaukeeCaUrl.queryParameters['tag'], 'dimensionalfu-20');
+      final usUrl = Uri.parse(
+        PipeBuyerShopUrlBuilder.buildMonetizedUrl(
+          milwaukee,
+          settings,
+          regionCode: 'US',
+        ),
+      );
+      expect(usUrl.host, 'www.amazon.com');
+      expect(usUrl.queryParameters['tag'], '366industri09-20');
+
+      // Item with stale amazon.com destinationUrlCa rewrites to www.amazon.ca with dimensionalfu-20 in CA mode
+      const staleCaProduct = PipeBuyerShopProduct(
+        id: 'test-ca-rewrite',
+        title: 'RIDGID Pipe Wrench',
+        brand: 'RIDGID',
+        vendorName: 'Amazon',
+        sourceType: PipeBuyerShopSourceType.amazonAffiliate,
+        categoryCode: 'pipe_welding_fab',
+        destinationUrl:
+            'https://www.amazon.com/dp/B0000224J8?tag=366industri09-20&linkCode=ll1',
+        destinationUrlCa:
+            'https://www.amazon.com/dp/B0000224J8?tag=366industri09-20&linkCode=ll1',
+      );
+      final caUrl = Uri.parse(
+        PipeBuyerShopUrlBuilder.buildMonetizedUrl(
+          staleCaProduct,
+          settings,
+          regionCode: 'CA',
+        ),
+      );
+      expect(caUrl.host, 'www.amazon.ca');
+      expect(caUrl.queryParameters['tag'], 'dimensionalfu-20');
+    },
+  );
 }

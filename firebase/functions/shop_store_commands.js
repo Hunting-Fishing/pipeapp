@@ -263,6 +263,10 @@ async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn, settings =
         isAmazonFullHostname(resolvedHost)
       ) {
         const resolvedTag = cleanText(currentUrl.searchParams.get("tag"), 64);
+        if (resolvedTag) {
+          result.embeddedAssociateTag = resolvedTag;
+          result.effectiveAssociateTag = `${resolvedTag} (Embedded in Amazon Short Link)`;
+        }
         const canonicalBase = `https://${resolvedHost}/dp/${resolvedAsin}?linkCode=ll1${
           resolvedTag ? `&tag=${encodeURIComponent(resolvedTag)}` : ""
         }`;
@@ -272,10 +276,11 @@ async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn, settings =
           asin: resolvedAsin,
           destinationUrl: canonicalBase,
         };
+        const targetRegion = resolvedHost.endsWith("amazon.ca") ? "CA" : "US";
         result.canonicalProductUrl = buildMonetizedDestinationUrl(
             draft,
             settings,
-            {regionCode: "US"},
+            {regionCode: targetRegion},
         );
       }
     }
@@ -777,6 +782,11 @@ function createShopStoreCommands(admin, {
     }
 
     products.sort((a, b) => {
+      const aHasImg = Boolean(String(a.imageUrl || "").trim());
+      const bHasImg = Boolean(String(b.imageUrl || "").trim());
+      if (aHasImg !== bHasImg) {
+        return aHasImg ? -1 : 1;
+      }
       if (Boolean(a.featured) !== Boolean(b.featured)) {
         return a.featured ? -1 : 1;
       }

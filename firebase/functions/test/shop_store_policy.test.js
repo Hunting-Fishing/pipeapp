@@ -1349,3 +1349,52 @@ test("Vendor, Distributor & Brand Portal supports guest OEM submissions, multi-c
   assert.equal(myApps.applications[0].companyName, "Brandt Tractor Ltd.");
   assert.equal(myApps.applications[0].status, "approved");
 });
+
+test("parseAmazonAffiliateSubmission and buildMonetizedDestinationUrl handle * https://link.amazon/B025ZZNd1 * and Canada dimensionalfu-20 tag", () => {
+  const settings = normalizeStoreSettings({
+    amazonAssociateTagUs: "366industri09-20",
+    amazonAssociateTagCa: "dimensionalfu-20",
+    forceOverrideAmazonTag: true,
+  });
+
+  // 1. Pasted SiteStripe short link wrapped in asterisks (* https://link.amazon/B025ZZNd1 *)
+  const parsed = parseAmazonAffiliateSubmission(
+      "* https://link.amazon/B025ZZNd1 *",
+      settings,
+  );
+  assert.equal(parsed.isAmazonLink, true);
+  assert.equal(parsed.isShortLink, true);
+  assert.equal(parsed.destinationUrl, "https://link.amazon/B025ZZNd1");
+  assert.equal(parsed.monetizedPreviewUs, "https://link.amazon/B025ZZNd1");
+
+  // 2. When destinationUrlCa was previously populated with an amazon.com URL, CA mode rewrites to amazon.ca with tag=dimensionalfu-20
+  const staleCaProduct = {
+    sourceType: "amazon_affiliate",
+    asin: "B094RDL3QR",
+    destinationUrl: "https://www.amazon.com/dp/B094RDL3QR?tag=366industri09-20&linkCode=ll1",
+    destinationUrlCa: "https://www.amazon.com/dp/B094RDL3QR?tag=366industri09-20&linkCode=ll1",
+  };
+  const caResolved = new URL(
+      buildMonetizedDestinationUrl(staleCaProduct, settings, {regionCode: "CA"}),
+  );
+  assert.equal(caResolved.hostname, "www.amazon.ca");
+  assert.equal(caResolved.searchParams.get("tag"), "dimensionalfu-20");
+
+  // 3. When destinationUrlCa is an Amazon.ca short link (https://link.amazon/B025ZZNd1), CA mode preserves it and US mode uses amazon.com with tag=366industri09-20
+  const milwaukeeImpact = {
+    sourceType: "amazon_affiliate",
+    asin: "B094RDL3QR",
+    destinationUrl: "https://www.amazon.com/dp/B094RDL3QR?linkCode=ll1",
+    destinationUrlCa: "https://link.amazon/B025ZZNd1",
+  };
+  assert.equal(
+      buildMonetizedDestinationUrl(milwaukeeImpact, settings, {regionCode: "CA"}),
+      "https://link.amazon/B025ZZNd1",
+  );
+  const usResolved = new URL(
+      buildMonetizedDestinationUrl(milwaukeeImpact, settings, {regionCode: "US"}),
+  );
+  assert.equal(usResolved.hostname, "www.amazon.com");
+  assert.equal(usResolved.searchParams.get("tag"), "366industri09-20");
+});
+

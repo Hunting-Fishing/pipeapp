@@ -301,6 +301,9 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
         });
       default:
         matched.sort((a, b) {
+          final aHasImg = a.imageUrl.trim().isNotEmpty;
+          final bHasImg = b.imageUrl.trim().isNotEmpty;
+          if (aHasImg != bHasImg) return aHasImg ? -1 : 1;
           if (a.featured != b.featured) return a.featured ? -1 : 1;
           final rankCmp = a.priorityRank.compareTo(b.priorityRank);
           if (rankCmp != 0) return rankCmp;
