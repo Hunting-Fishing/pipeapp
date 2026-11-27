@@ -6,7 +6,7 @@ CATEGORIES = [
     {
         "code": "pipe_welding_fab",
         "name": "Pipefitting, Welding & Fab",
-        "target": 150,
+        "target": 200,
         "subcategories": [
             "Pipe Wrenches, Chain Tongs & Vises",
             "Pipe Cutting, Threading & Beveling",
@@ -19,7 +19,7 @@ CATEGORIES = [
     {
         "code": "power_hand_tools",
         "name": "Power & Cordless Tools",
-        "target": 140,
+        "target": 280,
         "subcategories": [
             "Cordless Impact Wrenches & Socket Sets",
             "Angle Grinders, Bandsaws & Mag Drills",
@@ -27,12 +27,14 @@ CATEGORIES = [
             "Pliers, Hammers, Spuds & Pry Bars",
             "Mechanics, Electrician & Tap/Die Kits",
             "Cordless Batteries, Chargers & Packout",
+            "Tool Storage: Boxes, Modular Systems, Bags & Organizers",
+            "Tool Accessories: Bits, Blades, Abrasives & Hole Saws",
         ],
     },
     {
         "code": "rigging_hauling_cargo",
         "name": "Rigging, Chains & Cargo Control",
-        "target": 130,
+        "target": 170,
         "subcategories": [
             "Shackles, Hooks, Swivels & Hardware",
             "Web Slings, Round Slings & Wire Chokers",
@@ -45,7 +47,7 @@ CATEGORIES = [
     {
         "code": "ppe_fr_safety",
         "name": "FR Workwear, PPE & Gas Detection",
-        "target": 125,
+        "target": 165,
         "subcategories": [
             "FR Shirts, Coveralls & Winter Outerwear",
             "Pipeline & Oilfield Safety Work Boots",
@@ -58,23 +60,25 @@ CATEGORIES = [
     {
         "code": "hydraulics_fleet_shop",
         "name": "Fleet, Hydraulics & Field Service",
-        "target": 120,
+        "target": 200,
         "subcategories": [
             "Diesel Transfer Pumps, Meters & Filters",
             "Grease Guns, Hose Reels & Lubrication",
             "Hydraulic Jacks, Rams, Pumps & Couplers",
             "Service Truck Compressors & Air Tools",
             "12V/24V Jump Packs, Chargers & HD Scanners",
+            "Bi-Directional OBD2 Readers & Diagnostic Scanners",
             "Tire Service, Mud Flaps & Shop Consumables",
         ],
     },
     {
         "code": "lighting_power_jobsite",
         "name": "Jobsite Lighting, Power & Storage",
-        "target": 115,
+        "target": 195,
         "subcategories": [
             "Cordless Tower, Magnetic & Flood Lights",
             "Intrinsically Safe Flashlights & Headlamps",
+            "EDC, Tactical, Magnetic & Rechargeable Flashlights",
             "Generators, Power Stations & Spider Boxes",
             "Heavy Cold-Weather Cords & Welding Adapters",
             "Jobsite Gang Boxes, Truck Chests & Cases",
@@ -84,7 +88,7 @@ CATEGORIES = [
     {
         "code": "measuring_inspection",
         "name": "Inspection, Gauges & Pipe Testing",
-        "target": 110,
+        "target": 145,
         "subcategories": [
             "Ultrasonic Wall Thickness & NDT Kits",
             "Liquid-Filled Pressure Gauges & Hydrotest",
@@ -97,7 +101,7 @@ CATEGORIES = [
     {
         "code": "ranch_fencing_ag",
         "name": "Farm, Ranch & Pipe Fencing Gear",
-        "target": 110,
+        "target": 145,
         "subcategories": [
             "Pipe Fence Coping, Saddles & Notchers",
             "Weld-On Hinges, Latches & Gate Hardware",

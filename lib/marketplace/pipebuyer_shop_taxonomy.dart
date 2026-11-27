@@ -251,6 +251,7 @@ class PipeBuyerShopProduct {
     this.destinationUrlCa = '',
     this.asin = '',
     this.subcategory = '',
+    this.qualityTier = '',
     this.description = '',
     this.imageUrl = '',
     this.fallbackIconAsset = '',
@@ -278,6 +279,7 @@ class PipeBuyerShopProduct {
   final String destinationUrlCa;
   final String asin;
   final String subcategory;
+  final String qualityTier;
   final String description;
   final String imageUrl;
   final String fallbackIconAsset;
@@ -373,6 +375,19 @@ class PipeBuyerShopProduct {
     return double.tryParse(match.group(1)!);
   }
 
+  String get effectiveQualityTier => PipeBuyerShopUrlBuilder.inferQualityTier(
+        explicitTier: qualityTier,
+        brand: brand,
+        title: title,
+        badgeText: badgeText,
+        description: description,
+      );
+
+  bool get isBudgetLine => effectiveQualityTier == 'budget_line';
+
+  String get qualityTierLabel =>
+      isBudgetLine ? 'Budget / Value Line' : 'Good Quality • Pro Grade';
+
   factory PipeBuyerShopProduct.fromJson(Map<String, dynamic> json) {
     List<String> strList(Object? raw) {
       if (raw is String && raw.trim().isNotEmpty) {
@@ -408,6 +423,9 @@ class PipeBuyerShopProduct {
       destinationUrlCa: json['destinationUrlCa']?.toString().trim() ?? '',
       asin: json['asin']?.toString().trim() ?? '',
       subcategory: json['subcategory']?.toString().trim() ?? '',
+      qualityTier: json['qualityTier']?.toString().trim() ??
+          json['quality_tier']?.toString().trim() ??
+          '',
       description: json['description']?.toString().trim() ?? '',
       imageUrl: json['imageUrl']?.toString().trim() ?? '',
       fallbackIconAsset: json['fallbackIconAsset']?.toString().trim() ?? '',
@@ -439,6 +457,7 @@ class PipeBuyerShopProduct {
         'status': status,
         'categoryCode': categoryCode,
         'subcategory': subcategory,
+        'qualityTier': effectiveQualityTier,
         'description': description,
         'asin': asin,
         'destinationUrl': destinationUrl,
@@ -1135,17 +1154,21 @@ abstract final class PipeBuyerShopUrlBuilder {
     if (product.sourceType == PipeBuyerShopSourceType.amazonAffiliate ||
         _isAmazonHost(uri.host)) {
       var targetHost = uri.host;
+      final caTag = settings.amazonAssociateTagCa.trim();
       if (upperRegion == 'CA' &&
-          product.destinationUrlCa.trim().isEmpty &&
-          settings.amazonAssociateTagCa.trim().isNotEmpty &&
+          caTag.isNotEmpty &&
           targetHost.toLowerCase().endsWith('amazon.com')) {
         targetHost = 'www.amazon.ca';
       }
       final tag = _resolveTagForHost(targetHost, settings).trim();
       final params = Map<String, String>.from(uri.queryParameters);
       final existingTag = (params['tag'] ?? '').trim();
+      final switchedToCa =
+          targetHost.toLowerCase().endsWith('amazon.ca') && caTag.isNotEmpty;
       if (tag.isNotEmpty &&
-          (existingTag.isEmpty || settings.forceOverrideAmazonTag)) {
+          (existingTag.isEmpty ||
+              settings.forceOverrideAmazonTag ||
+              (switchedToCa && existingTag != caTag))) {
         params['tag'] = tag;
       }
       return uri
@@ -1264,43 +1287,173 @@ abstract final class PipeBuyerShopUrlBuilder {
   static const List<String> _knownBrands = <String>[
     'Lincoln Electric',
     'BW Technologies',
+    'Astro Pneumatic',
+    'Grey Pneumatic',
     'Crescent JOBOX',
+    'Weather Guard',
     'Flange Wizard',
+    'Veto Pro Pac',
+    'Wright Tool',
+    'Streamlight',
     'Klein Tools',
+    'Channellock',
+    'Capri Tools',
+    'Total Tools',
+    'BlueDriver',
+    'GearWrench',
+    'Stahlwille',
+    'Nightstick',
+    'LockNLube',
     'Milwaukee',
+    'WORKPRO',
+    'DURATECH',
+    'HORUSDY',
+    'LEXIVON',
+    'CRAFTSMAN',
+    'HexArmor',
+    'Mitutoyo',
+    'Nitecore',
+    'Thinkcar',
+    'Snap-on',
+    'Williams',
+    'Starrett',
+    'Enerpac',
+    'Fill-Rite',
+    'Pelican',
+    'Midland',
+    'Gallagher',
+    'Honeywell',
+    'Foxwell',
+    'Estwing',
+    'Norseman',
     'RIDGID',
     'DeWalt',
     'DEWALT',
     'Miller',
     'Carhartt',
     'Crosby',
-    'HexArmor',
-    'Mitutoyo',
+    'Makita',
+    'Knipex',
+    'Sumner',
+    'Hobart',
+    'Olight',
+    'Topdon',
+    'OTOFIX',
+    'Innova',
+    'Tekton',
+    'Mayhew',
+    'Diablo',
+    'Milton',
     'iGaging',
     'Fluke',
     'Ariat',
-    'Honeywell',
-    'MSA',
-    'Starrett',
-    'Makita',
     'Bosch',
-    'Knipex',
     'Proto',
-    'Enerpac',
-    'Fill-Rite',
-    'NOCO',
     'Honda',
-    'Pelican',
-    'Midland',
-    'Gallagher',
-    'Sumner',
-    'ESAB',
-    'Hobart',
+    'Fenix',
+    'Coast',
+    'Autel',
+    'Launch',
+    'XTOOL',
+    'ANCEL',
+    'Sunex',
+    'Lisle',
+    'Irwin',
+    'Lenox',
+    'NEIKO',
+    'Husky',
     'VEVOR',
     'Ingco',
-    'Total Tools',
     'Stanley',
+    'Wera',
+    'Wiha',
+    'ARES',
+    'ESAB',
+    'NOCO',
+    'MSA',
+    'OTC',
   ];
+
+  static const Set<String> _budgetLineBrands = <String>{
+    'vevor',
+    'neiko',
+    'workpro',
+    'duratech',
+    'horusdy',
+    'lexivon',
+    'capri tools',
+    'ares',
+    'sunex',
+    'grey pneumatic',
+    'tekton',
+    'astro pneumatic',
+    'lisle',
+    'otc',
+    'irwin',
+    'coast',
+    'braun',
+    'ancel',
+    'foxwell',
+    'xtool',
+    'innova',
+    'thinkcar',
+    'otofix',
+    'yeswelder',
+    'titanium',
+    'vulcan',
+    'mega cargo control',
+    'kje',
+    'mytee products',
+    'boxertool',
+    'ergodyne',
+    'pyramex',
+    'radians',
+    'sellstrom',
+    'jackson safety',
+    'igaging',
+    'fowler',
+    'rexbeti',
+    'craftsman',
+    'stanley',
+    'husky',
+    'kobalt',
+    'pittsburgh',
+    'u.s. general',
+    'ingco',
+    'total tools',
+    'wen',
+  };
+
+  static String inferQualityTier({
+    String explicitTier = '',
+    String brand = '',
+    String title = '',
+    String badgeText = '',
+    String description = '',
+  }) {
+    final cleanExplicit = explicitTier.trim().toLowerCase();
+    if (cleanExplicit == 'budget_line' ||
+        cleanExplicit == 'budget' ||
+        cleanExplicit == 'value') {
+      return 'budget_line';
+    }
+    if (cleanExplicit == 'pro_grade' ||
+        cleanExplicit == 'pro' ||
+        cleanExplicit == 'good_quality') {
+      return 'pro_grade';
+    }
+    final cleanBrand = brand.trim().toLowerCase();
+    if (cleanBrand.isNotEmpty && _budgetLineBrands.contains(cleanBrand)) {
+      return 'budget_line';
+    }
+    final combined = '$title $badgeText $description'.toLowerCase();
+    if (RegExp(
+      r'\b(budget|value line|shop saver|economy|starter kit|affordable|diy)\b',
+    ).hasMatch(combined)) {
+      return 'budget_line';
+    }
+    return 'pro_grade';
+  }
 
   static String decodeHtmlEntities(String raw) {
     return raw
@@ -1412,6 +1565,16 @@ abstract final class PipeBuyerShopUrlBuilder {
             .hasMatch(lower)) {
           return 'Heavy Wrenches, Ratchets & Torque Tools';
         }
+        if (RegExp(
+          r'\b(tool storage|tool box|modular.*box|tool bag|tool backpack|socket organizer|wrench rack|roller cabinet|tool chest)\b',
+        ).hasMatch(lower)) {
+          return 'Tool Storage: Boxes, Modular Systems, Bags & Organizers';
+        }
+        if (RegExp(
+          r'\b(drill bit|step drill|driver bit|hole saw|sawzall blade|bandsaw blade|carbide burr|cut[- ]off wheel|wire brush|accessory)\b',
+        ).hasMatch(lower)) {
+          return 'Tool Accessories: Bits, Blades, Abrasives & Hole Saws';
+        }
         if (RegExp(r'\b(battery|charger|packout|redlithium|flexvolt)\b')
             .hasMatch(lower)) {
           return 'Cordless Batteries, Chargers & Packout';
@@ -1468,12 +1631,26 @@ abstract final class PipeBuyerShopUrlBuilder {
             .hasMatch(lower)) {
           return 'Grease Guns, Hose Reels & Lubrication';
         }
+        if (RegExp(
+          r'\b(bi[- ]directional|obd2|obdii|code reader|diagnostic scanner|autel|launch x431|topdon|xtool|foxwell|ancel|dpf regen|j1939)\b',
+        ).hasMatch(lower)) {
+          return 'Bi-Directional OBD2 Readers & Diagnostic Scanners';
+        }
         if (RegExp(r'\b(jump starter|noco|booster|charger|scanner)\b')
             .hasMatch(lower)) {
           return '12V/24V Jump Packs, Chargers & HD Scanners';
         }
         return fallback;
       case 'lighting_power_jobsite':
+        if (RegExp(
+          r'\b(edc|tactical|pocket|arkfeld|stinger|strion|macrostream|wedge|pd36r|seeker|warrior|baton)\b',
+        ).hasMatch(lower)) {
+          return 'EDC, Tactical, Magnetic & Rechargeable Flashlights';
+        }
+        if (RegExp(r'\b(headlamp|flashlight|intrinsically safe|penlight)\b')
+            .hasMatch(lower)) {
+          return 'Intrinsically Safe Flashlights & Headlamps';
+        }
         if (RegExp(r'\b(gang box|jobox|site[- ]vault|chest|tool box)\b')
             .hasMatch(lower)) {
           return 'Jobsite Gang Boxes, Truck Chests & Cases';
@@ -1640,14 +1817,15 @@ abstract final class PipeBuyerShopUrlBuilder {
     var surroundingText = '';
     if (extractedHref.isEmpty) {
       final urlMatch = RegExp(
-        r'''https?://[^\s"'<>]+''',
+        r'''https?://[^\s"'<>*`]+''',
         caseSensitive: false,
       ).firstMatch(decoded);
       if (urlMatch != null && urlMatch.group(0) != null) {
         final rawMatched = urlMatch.group(0)!;
-        extractedHref = rawMatched.replaceFirst(RegExp(r'[),.;!?]+$'), '');
+        extractedHref = rawMatched.replaceFirst(RegExp(r'[),.;!?*`]+$'), '');
         surroundingText = decoded
             .replaceFirst(rawMatched, ' ')
+            .replaceAll(RegExp(r'^[*`\s]+|[*`\s]+$'), '')
             .replaceFirst(
               RegExp(
                 r'^(check (?:this )?out(?:\s+on\s+[a-z0-9.]+)?|just found this amazing item on aliexpress|deal(?:\s+of\s+the\s+day)?|amazon(?:\.com|\.ca)?|shopee|lazada|aliexpress)[\s:,-]*',
@@ -1659,7 +1837,7 @@ abstract final class PipeBuyerShopUrlBuilder {
             .replaceAll(RegExp(r'\s+'), ' ')
             .trim();
       } else {
-        extractedHref = decoded;
+        extractedHref = decoded.replaceAll(RegExp(r'^[*`\s]+|[*`\s]+$'), '');
       }
     }
 
@@ -2405,6 +2583,8 @@ abstract final class PipeBuyerShopTaxonomy {
         'Pliers, Hammers, Spuds & Pry Bars',
         'Mechanics, Electrician & Tap/Die Kits',
         'Cordless Batteries, Chargers & Packout',
+        'Tool Storage: Boxes, Modular Systems, Bags & Organizers',
+        'Tool Accessories: Bits, Blades, Abrasives & Hole Saws',
       ],
     ),
     PipeBuyerShopCategory(
@@ -2472,6 +2652,7 @@ abstract final class PipeBuyerShopTaxonomy {
         'Hydraulic Jacks, Rams, Pumps & Couplers',
         'Service Truck Compressors & Air Tools',
         '12V/24V Jump Packs, Chargers & HD Scanners',
+        'Bi-Directional OBD2 Readers & Diagnostic Scanners',
         'Tire Service, Mud Flaps & Shop Consumables',
       ],
     ),
@@ -2480,7 +2661,7 @@ abstract final class PipeBuyerShopTaxonomy {
       label: 'Jobsite Lighting, Power & Storage',
       shortLabel: 'Lighting & Power',
       subtitle:
-          'Magnetic LED work lights, inverter generators, cold-weather cords, radios & steel gang boxes.',
+          'Magnetic LED work lights, tactical & IS flashlights, inverter generators, cords, radios & gang boxes.',
       icon: Icons.bolt_rounded,
       iconAsset:
           'assets/images/industrial_icons/07-oil-and-gas-equipment/05-generator-units.svg',
@@ -2493,6 +2674,7 @@ abstract final class PipeBuyerShopTaxonomy {
       subcategories: <String>[
         'Cordless Tower, Magnetic & Flood Lights',
         'Intrinsically Safe Flashlights & Headlamps',
+        'EDC, Tactical, Magnetic & Rechargeable Flashlights',
         'Generators, Power Stations & Spider Boxes',
         'Heavy Cold-Weather Cords & Welding Adapters',
         'Jobsite Gang Boxes, Truck Chests & Cases',
@@ -3196,6 +3378,7 @@ abstract final class PipeBuyerShopTaxonomy {
       subcategory: 'Cordless Impact Wrenches & Socket Sets',
       asin: 'B094RDL3QR',
       destinationUrl: 'https://www.amazon.com/dp/B094RDL3QR?linkCode=ll1',
+      destinationUrlCa: 'https://www.amazon.ca/dp/B0CLF1DHHW?linkCode=ll1',
       imageUrl:
           'https://m.media-amazon.com/images/I/51efp2NB2HL._AC_SL1000_.jpg',
       priceDisplay: '\$279.90',

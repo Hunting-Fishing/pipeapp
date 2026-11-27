@@ -888,30 +888,38 @@ void main() {
   );
 
   test(
-      '1,000-item Master CSV & 48 Subcategories parse cleanly and skip pending blank rows',
+      '1,500-item Master CSV & 52 Subcategories parse cleanly with Pro Grade and Budget Line quality tiers',
       () {
     expect(PipeBuyerShopTaxonomy.categories, hasLength(8));
     final allSubs = PipeBuyerShopTaxonomy.subcategoriesForCategory(null);
-    expect(allSubs, hasLength(48));
-    expect(allSubs.toSet(), hasLength(48));
+    expect(allSubs, hasLength(52));
+    expect(allSubs.toSet(), hasLength(52));
 
     final masterCsv = File(
       'docs/shop_catalog/pipebuyer_store_1000_items_master.csv',
     ).readAsStringSync();
     const settings = PipeBuyerShopSettings(
-      amazonAssociateTagUs: 'pipebuyer-20',
+      amazonAssociateTagUs: '366industri09-20',
+      amazonAssociateTagCa: '',
     );
-    final blankScan = PipeBuyerShopCsvHelper.parseSpreadsheetText(
+    final fullScan = PipeBuyerShopCsvHelper.parseSpreadsheetText(
       masterCsv,
       settings,
     );
-    expect(blankScan.totalDataRows, 1000);
-    expect(
-      blankScan.readyPayloads.length + blankScan.pendingBlankLinkRows,
-      1000,
-    );
-    expect(blankScan.readyPayloads.length, greaterThanOrEqualTo(8));
-    expect(blankScan.invalidRows, isEmpty);
+    expect(fullScan.totalDataRows, 1500);
+    expect(fullScan.readyPayloads, hasLength(1500));
+    expect(fullScan.pendingBlankLinkRows, 0);
+    expect(fullScan.invalidRows, isEmpty);
+
+    final proItems = fullScan.readyPayloads
+        .where((p) => p['qualityTier'] == 'pro_grade')
+        .length;
+    final budgetItems = fullScan.readyPayloads
+        .where((p) => p['qualityTier'] == 'budget_line')
+        .length;
+    expect(proItems, greaterThan(1000));
+    expect(budgetItems, greaterThan(250));
+    expect(proItems + budgetItems, 1500);
 
     const partialCsv =
         'item_id,category_code,subcategory,title,brand,amazon_search_helper_url,amazon_affiliate_link\n'
@@ -1546,6 +1554,72 @@ void main() {
         'Approved for Pipe Buyer Storefront & Heavy Equipment showcase.',
       );
       expect(find.text('APPROVED'), findsOneWidget);
+    },
+  );
+
+  test(
+    'PipeBuyerShopUrlBuilder strips surrounding asterisks from * https://link.amazon/B025ZZNd1 * and routes CA clicks with dimensionalfu-20',
+    () {
+      const settings = PipeBuyerShopSettings(
+        amazonAssociateTagUs: '366industri09-20',
+        amazonAssociateTagCa: 'dimensionalfu-20',
+        forceOverrideAmazonTag: true,
+      );
+
+      final parsed = PipeBuyerShopUrlBuilder.parseAffiliateSubmission(
+        '* https://link.amazon/B025ZZNd1 *',
+        settings,
+      );
+      expect(parsed, isNotNull);
+      expect(parsed!.isAmazonLink, isTrue);
+      expect(parsed.isShortLink, isTrue);
+      expect(parsed.destinationUrl, 'https://link.amazon/B025ZZNd1');
+
+      final milwaukee = PipeBuyerShopTaxonomy.starterCatalog.firstWhere(
+        (p) => p.id == 'milwaukee-m18-fuel-high-torque-impact',
+      );
+      final milwaukeeCaUrl = Uri.parse(
+        PipeBuyerShopUrlBuilder.buildMonetizedUrl(
+          milwaukee,
+          settings,
+          regionCode: 'CA',
+        ),
+      );
+      expect(milwaukeeCaUrl.host, 'www.amazon.ca');
+      expect(milwaukeeCaUrl.path, '/dp/B0CLF1DHHW');
+      expect(milwaukeeCaUrl.queryParameters['tag'], 'dimensionalfu-20');
+      final usUrl = Uri.parse(
+        PipeBuyerShopUrlBuilder.buildMonetizedUrl(
+          milwaukee,
+          settings,
+          regionCode: 'US',
+        ),
+      );
+      expect(usUrl.host, 'www.amazon.com');
+      expect(usUrl.queryParameters['tag'], '366industri09-20');
+
+      // Item with stale amazon.com destinationUrlCa rewrites to www.amazon.ca with dimensionalfu-20 in CA mode
+      const staleCaProduct = PipeBuyerShopProduct(
+        id: 'test-ca-rewrite',
+        title: 'RIDGID Pipe Wrench',
+        brand: 'RIDGID',
+        vendorName: 'Amazon',
+        sourceType: PipeBuyerShopSourceType.amazonAffiliate,
+        categoryCode: 'pipe_welding_fab',
+        destinationUrl:
+            'https://www.amazon.com/dp/B0000224J8?tag=366industri09-20&linkCode=ll1',
+        destinationUrlCa:
+            'https://www.amazon.com/dp/B0000224J8?tag=366industri09-20&linkCode=ll1',
+      );
+      final caUrl = Uri.parse(
+        PipeBuyerShopUrlBuilder.buildMonetizedUrl(
+          staleCaProduct,
+          settings,
+          regionCode: 'CA',
+        ),
+      );
+      expect(caUrl.host, 'www.amazon.ca');
+      expect(caUrl.queryParameters['tag'], 'dimensionalfu-20');
     },
   );
 }

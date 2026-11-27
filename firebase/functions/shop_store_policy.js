@@ -33,6 +33,8 @@ const SHOP_CATEGORIES = Object.freeze([
       "Pliers, Hammers, Spuds & Pry Bars",
       "Mechanics, Electrician & Tap/Die Kits",
       "Cordless Batteries, Chargers & Packout",
+      "Tool Storage: Boxes, Modular Systems, Bags & Organizers",
+      "Tool Accessories: Bits, Blades, Abrasives & Hole Saws",
     ],
   },
   {
@@ -80,6 +82,7 @@ const SHOP_CATEGORIES = Object.freeze([
       "Hydraulic Jacks, Rams, Pumps & Couplers",
       "Service Truck Compressors & Air Tools",
       "12V/24V Jump Packs, Chargers & HD Scanners",
+      "Bi-Directional OBD2 Readers & Diagnostic Scanners",
       "Tire Service, Mud Flaps & Shop Consumables",
     ],
   },
@@ -87,12 +90,13 @@ const SHOP_CATEGORIES = Object.freeze([
     code: "lighting_power_jobsite",
     label: "Jobsite Lighting, Power & Comms",
     shortLabel: "Lighting & Power",
-    subtitle: "Magnetic LED work lights, inverter generators, heavy cords, two-way radios & jobsite boxes.",
+    subtitle: "Magnetic LED work lights, tactical & IS flashlights, inverter generators, cords, radios & gang boxes.",
     marketplaceCategories: ["Portable Buildings", "Heavy Equipment", "Land & Commercial Property"],
     iconAsset: "assets/images/industrial_icons/07-oil-and-gas-equipment/05-generator-units.svg",
     subcategories: [
       "Cordless Tower, Magnetic & Flood Lights",
       "Intrinsically Safe Flashlights & Headlamps",
+      "EDC, Tactical, Magnetic & Rechargeable Flashlights",
       "Generators, Power Stations & Spider Boxes",
       "Heavy Cold-Weather Cords & Welding Adapters",
       "Jobsite Gang Boxes, Truck Chests & Cases",
@@ -471,14 +475,55 @@ const ALL_SHOP_ROLES = new Set([
 const KNOWN_INDUSTRIAL_BRANDS = Object.freeze([
   "Lincoln Electric",
   "BW Technologies",
+  "Astro Pneumatic",
+  "Grey Pneumatic",
+  "Crescent JOBOX",
   "Brandt Tractor",
+  "Weather Guard",
+  "Flange Wizard",
+  "Veto Pro Pac",
+  "Wright Tool",
+  "Streamlight",
   "Caterpillar",
   "Klein Tools",
+  "Channellock",
+  "Capri Tools",
+  "Total Tools",
+  "BlueDriver",
   "John Deere",
+  "GearWrench",
+  "Stahlwille",
+  "Nightstick",
+  "LockNLube",
   "Milwaukee",
+  "Workpro",
+  "WORKPRO",
+  "Duratech",
+  "DURATECH",
+  "Horusdy",
+  "HORUSDY",
+  "Lexivon",
+  "LEXIVON",
+  "Craftsman",
+  "CRAFTSMAN",
+  "HexArmor",
+  "Mitutoyo",
+  "Nitecore",
+  "Thinkcar",
   "Snap-on",
   "Snap-On",
   "Komatsu",
+  "Williams",
+  "Starrett",
+  "Enerpac",
+  "Fill-Rite",
+  "Pelican",
+  "Midland",
+  "Gallagher",
+  "Honeywell",
+  "Foxwell",
+  "Estwing",
+  "Norseman",
   "RIDGID",
   "DeWalt",
   "DEWALT",
@@ -487,29 +532,120 @@ const KNOWN_INDUSTRIAL_BRANDS = Object.freeze([
   "Brandt",
   "Carhartt",
   "Crosby",
+  "Makita",
+  "Knipex",
+  "Sumner",
+  "Hobart",
+  "Olight",
+  "Topdon",
+  "OTOFIX",
+  "Innova",
+  "Tekton",
+  "Mayhew",
+  "Diablo",
+  "Milton",
   "Fluke",
   "Ariat",
-  "Honeywell",
-  "MSA",
-  "Starrett",
-  "Makita",
   "Bosch",
-  "Knipex",
   "Proto",
-  "Enerpac",
-  "Fill-Rite",
   "Honda",
-  "Pelican",
-  "Midland",
-  "Gallagher",
-  "Sumner",
-  "ESAB",
-  "Hobart",
+  "Fenix",
+  "Coast",
+  "Autel",
+  "Launch",
+  "XTOOL",
+  "ANCEL",
+  "Sunex",
+  "Lisle",
+  "Irwin",
+  "Lenox",
+  "NEIKO",
+  "Husky",
   "VEVOR",
   "Ingco",
-  "Total Tools",
   "Stanley",
+  "Wera",
+  "Wiha",
+  "ARES",
+  "ESAB",
+  "NOCO",
+  "MSA",
+  "OTC",
 ]);
+
+const SHOP_QUALITY_TIERS = new Set([
+  "pro_grade",
+  "budget_line",
+]);
+
+const BUDGET_LINE_BRANDS = new Set([
+  "vevor",
+  "neiko",
+  "workpro",
+  "duratech",
+  "horusdy",
+  "lexivon",
+  "capri tools",
+  "ares",
+  "sunex",
+  "grey pneumatic",
+  "tekton",
+  "astro pneumatic",
+  "lisle",
+  "otc",
+  "irwin",
+  "coast",
+  "braun",
+  "ancel",
+  "foxwell",
+  "xtool",
+  "innova",
+  "thinkcar",
+  "otofix",
+  "yeswelder",
+  "titanium",
+  "vulcan",
+  "mega cargo control",
+  "kje",
+  "mytee products",
+  "boxertool",
+  "ergodyne",
+  "pyramex",
+  "radians",
+  "sellstrom",
+  "jackson safety",
+  "igaging",
+  "fowler",
+  "rexbeti",
+  "craftsman",
+  "stanley",
+  "husky",
+  "kobalt",
+  "pittsburgh",
+  "u.s. general",
+  "ingco",
+  "total tools",
+  "wen",
+]);
+
+function inferQualityTier(raw = {}) {
+  const explicit = cleanText(raw.qualityTier || raw.quality_tier, 32).toLowerCase();
+  if (explicit === "budget_line" || explicit === "budget" || explicit === "value") {
+    return "budget_line";
+  }
+  if (explicit === "pro_grade" || explicit === "pro" || explicit === "good_quality") {
+    return "pro_grade";
+  }
+  const brand = cleanText(raw.brand, 80).toLowerCase();
+  if (brand && BUDGET_LINE_BRANDS.has(brand)) {
+    return "budget_line";
+  }
+  const combined = `${raw.title || ""} ${raw.badgeText || ""} ${raw.description || ""}`.toLowerCase();
+  if (/\b(budget|value line|shop saver|economy|starter kit|affordable|diy)\b/.test(combined)) {
+    return "budget_line";
+  }
+  return "pro_grade";
+}
 
 const DEFAULT_STORE_SETTINGS = Object.freeze({
   storeEnabled: true,
@@ -1128,24 +1264,36 @@ function extractAmazonSearchCandidates(html, settings = DEFAULT_STORE_SETTINGS) 
       Math.min(source.length, start + 24000);
     const block = source.slice(start, end);
 
-    const h2Match = block.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i);
-    const imgAltMatch = block.match(/<img[^>]+class=["'][^"']*s-image[^"']*["'][^>]+alt=["']([^"']+)["']/i);
-    const rawTitle = h2Match && h2Match[1] ?
-      h2Match[1].replace(/<[^>]+>/g, " ") :
-      (imgAltMatch && imgAltMatch[1] ? imgAltMatch[1] : "");
-    const title = cleanMarketplaceTitle(rawTitle.replace(/^Sponsored Ad\s*[-–—:]?\s*/i, ""));
+    const h2Matches = [...block.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)].map((x) =>
+      cleanMarketplaceTitle(x[1].replace(/<[^>]+>/g, " ").replace(/^Sponsored Ad\s*[-–—:]?\s*/i, "")),
+    ).filter(Boolean);
+    const longestH2 = h2Matches.sort((a, b) => b.length - a.length)[0] || "";
+    const sImageTagMatch = block.match(/<img\b[^>]*\bclass=["'][^"']*\bs-image\b[^"']*["'][^>]*>/i);
+    const sImageTag = sImageTagMatch ? sImageTagMatch[0] : "";
+    const altMatch = sImageTag.match(/\balt=["']([^"']+)["']/i);
+    const altTitle = altMatch && altMatch[1] ?
+      cleanMarketplaceTitle(altMatch[1].replace(/^Sponsored Ad\s*[-–—:]?\s*/i, "")) :
+      "";
+    const title = altTitle.length > longestH2.length ? altTitle : longestH2;
     if (!title || title.length < 4) continue;
 
-    const imgSrcMatch =
-      block.match(/<img[^>]+class=["'][^"']*s-image[^"']*["'][^>]+src=["'](https:\/\/m\.media-amazon\.com\/images\/I\/[^"']+)["']/i) ||
-      block.match(/src=["'](https:\/\/m\.media-amazon\.com\/images\/I\/[^"']+)["']/i);
-    const rawImg = imgSrcMatch && imgSrcMatch[1] ? imgSrcMatch[1] : "";
+    const sImgSrcMatch =
+      sImageTag.match(/\bsrc=["'](https:\/\/m\.media-amazon\.com\/images\/I\/[^"']+)["']/i) ||
+      block.match(/\bsrc=["'](https:\/\/m\.media-amazon\.com\/images\/I\/[^"']+)["']/i);
+    const rawImg = sImgSrcMatch && sImgSrcMatch[1] ? sImgSrcMatch[1] : "";
     const imageUrl = upgradeAmazonCdnImageResolution(toValidProductImageUrl(rawImg, "https://www.amazon.com"));
 
-    const priceMatch = block.match(
-        /class=["'][^"']*a-price[^"']*["'][^>]*>\s*<span[^>]*class=["'][^"']*a-offscreen[^"']*["'][^>]*>(\$[0-9,]+(?:\.[0-9]{2})?)<\/span>/i,
-    );
-    const priceDisplay = priceMatch && priceMatch[1] ? cleanText(decodeHtmlEntities(priceMatch[1]), 32) : "";
+    const priceMatch =
+      block.match(/class=["'][^"']*a-offscreen[^"']*["'][^>]*>(\$[0-9,]+(?:\.[0-9]{2})?)<\/span>/i) ||
+      block.match(/(\$[0-9,]+(?:\.[0-9]{2}))/);
+    let priceDisplay = priceMatch && priceMatch[1] ? cleanText(decodeHtmlEntities(priceMatch[1]), 32) : "";
+    if (!priceDisplay) {
+      const wholeMatch = block.match(/class=["'][^"']*a-price-whole[^"']*["'][^>]*>([0-9,]+)/i);
+      const fracMatch = block.match(/class=["'][^"']*a-price-fraction[^"']*["'][^>]*>([0-9]{2})/i);
+      if (wholeMatch && wholeMatch[1]) {
+        priceDisplay = `$${wholeMatch[1]}.${(fracMatch && fracMatch[1]) || "00"}`;
+      }
+    }
 
     const brand = inferBrandFromText(title);
     const categoryCode = inferCategoryCodeFromText(`${title} ${brand}`);
@@ -1496,17 +1644,23 @@ function buildMonetizedDestinationUrl(product, settings = DEFAULT_STORE_SETTINGS
   }
 
   if (sourceType === "amazon_affiliate" || isAmazonFullHostname(parsed.hostname)) {
+    const caTag = cleanText(mergedSettings.amazonAssociateTagCa, 64);
     if (
       regionCode === "CA" &&
-      !rawCaDestination &&
       parsed.hostname.endsWith("amazon.com") &&
-      cleanText(mergedSettings.amazonAssociateTagCa, 64)
+      caTag
     ) {
       parsed.hostname = "www.amazon.ca";
     }
     const associateTag = resolveAmazonAssociateTag(parsed.hostname, mergedSettings);
     const existingTag = cleanText(parsed.searchParams.get("tag"), 64);
-    if (associateTag && (!existingTag || mergedSettings.forceOverrideAmazonTag === true)) {
+    const isCaHost = parsed.hostname.endsWith("amazon.ca") && Boolean(caTag);
+    if (
+      associateTag &&
+      (!existingTag ||
+        mergedSettings.forceOverrideAmazonTag === true ||
+        (isCaHost && existingTag !== caTag))
+    ) {
       parsed.searchParams.set("tag", associateTag);
     }
     return parsed.toString();
@@ -1692,6 +1846,12 @@ function inferSubcategoryFromText(rawText, categoryCode = "") {
       if (/\b(tap.*die|mechanic.*set|electrician|crimper|stripper|bit set)\b/.test(text)) {
         return "Mechanics, Electrician & Tap/Die Kits";
       }
+      if (/\b(tool storage|tool box|modular.*box|tool bag|tool backpack|socket organizer|wrench rack|roller cabinet|tool chest)\b/.test(text)) {
+        return "Tool Storage: Boxes, Modular Systems, Bags & Organizers";
+      }
+      if (/\b(drill bit|step drill|driver bit|hole saw|sawzall blade|bandsaw blade|carbide burr|cut[- ]off wheel|wire brush|accessory)\b/.test(text)) {
+        return "Tool Accessories: Bits, Blades, Abrasives & Hole Saws";
+      }
       if (/\b(battery|charger|packout|redlithium|flexvolt)\b/.test(text)) {
         return "Cordless Batteries, Chargers & Packout";
       }
@@ -1740,6 +1900,9 @@ function inferSubcategoryFromText(rawText, categoryCode = "") {
       if (/\b(air compressor|air hose|air impact|inflator|blow gun)\b/.test(text)) {
         return "Service Truck Compressors & Air Tools";
       }
+      if (/\b(bi[- ]directional|obd2|obdii|code reader|diagnostic scanner|autel|launch x431|topdon|xtool|foxwell|ancel|dpf regen|j1939)\b/.test(text)) {
+        return "Bi-Directional OBD2 Readers & Diagnostic Scanners";
+      }
       if (/\b(jump starter|jump pack|noco|battery charger|obd|scanner)\b/.test(text)) {
         return "12V/24V Jump Packs, Chargers & HD Scanners";
       }
@@ -1748,7 +1911,13 @@ function inferSubcategoryFromText(rawText, categoryCode = "") {
       }
       return "Diesel Transfer Pumps, Meters & Filters";
     case "lighting_power_jobsite":
-      if (/\b(headlamp|flashlight|intrinsically safe|penlight)\b/.test(text)) {
+      if (/\b(intrinsically safe|class i div 1|haz[- ]lo|zone 0|explosion proof)\b/.test(text)) {
+        return "Intrinsically Safe Flashlights & Headlamps";
+      }
+      if (/\b(edc|tactical flashlight|pocket flashlight|rechargeable flashlight|streamlight|fenix|olight|nitecore|penlight|inspection flashlight|headlamp|flashlight)\b/.test(text)) {
+        if (/\b(edc|tactical|pocket|arkfeld|stinger|strion|macrostream|wedge|pd36r|seeker|warrior|baton)\b/.test(text)) {
+          return "EDC, Tactical, Magnetic & Rechargeable Flashlights";
+        }
         return "Intrinsically Safe Flashlights & Headlamps";
       }
       if (/\b(generator|inverter|power station|spider box)\b/.test(text)) {
@@ -1926,12 +2095,13 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
   // Case 3: Mobile App Share text ("Check out this on Shopee/AliExpress/Lazada/Amazon ... https://...") or direct URL
   let surroundingText = "";
   if (!extractedHref) {
-    const urlMatch = decoded.match(/https?:\/\/[^\s"'<>]+/i);
+    const urlMatch = decoded.match(/https?:\/\/[^\s"'<>*`]+/i);
     if (urlMatch && urlMatch[0]) {
-      extractedHref = urlMatch[0].replace(/[),.;!?]+$/, "");
+      extractedHref = urlMatch[0].replace(/[),.;!?*`]+$/, "");
       surroundingText = cleanText(
           decoded
               .replace(urlMatch[0], " ")
+              .replace(/^[*`\s]+|[*`\s]+$/g, "")
               .replace(
                   /^(check (?:this )?out(?: on (?:amazon|shopee|lazada|aliexpress|ebay|temu|tiktok))?|just found this amazing item on aliexpress|share from (?:lazada|shopee)|deal(?: of the day)?|amazon(?:\.com|\.ca)?)[\s:!,|-]*/i,
                   "",
@@ -1939,7 +2109,7 @@ function parseAmazonAffiliateSubmission(rawInput, settings = DEFAULT_STORE_SETTI
           160,
       );
     } else {
-      extractedHref = decoded;
+      extractedHref = decoded.replace(/^[*`\s]+|[*`\s]+$/g, "");
     }
   }
 
@@ -2337,12 +2507,21 @@ function validateShopProductInput(raw = {}, existing = null) {
       normalizeEligibleCountries(base.eligibleCountries, defaultCountries) :
       defaultCountries);
 
+  const qualityTier = inferQualityTier({
+    qualityTier: raw.qualityTier ?? raw.quality_tier ?? base.qualityTier,
+    brand,
+    title,
+    badgeText,
+    description,
+  });
+
   const normalized = {
     title,
     brand,
     vendorName,
     vendorId: vendorId || null,
     sourceType,
+    qualityTier,
     status,
     categoryCode,
     categoryLabel: category.label,
@@ -2390,6 +2569,7 @@ function buildPublicShopProduct(id, productData, settings = DEFAULT_STORE_SETTIN
     vendorName: productData.vendorName,
     vendorId: productData.vendorId || null,
     sourceType: productData.sourceType,
+    qualityTier: inferQualityTier(productData),
     categoryCode: productData.categoryCode,
     categoryLabel: productData.categoryLabel,
     subcategory: productData.subcategory || "",
@@ -2546,6 +2726,7 @@ module.exports = {
   SHOP_COUNTRY_CODES,
   SHOP_PLACEMENTS,
   SHOP_PRODUCT_STATUSES,
+  SHOP_QUALITY_TIERS,
   SHOP_SOURCE_TYPES,
   SHOP_STAFF_ROLES,
   VENDOR_APPLICATION_CATEGORY_CODES,
@@ -2571,6 +2752,7 @@ module.exports = {
   inferBrandFromText,
   inferCategoryCodeFromText,
   inferEligibleCountries,
+  inferQualityTier,
   inferSubcategoryFromText,
   isAmazonFullHostname,
   isAmazonSearchPageUrl,

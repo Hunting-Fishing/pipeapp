@@ -263,6 +263,10 @@ async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn, settings =
         isAmazonFullHostname(resolvedHost)
       ) {
         const resolvedTag = cleanText(currentUrl.searchParams.get("tag"), 64);
+        if (resolvedTag) {
+          result.embeddedAssociateTag = resolvedTag;
+          result.effectiveAssociateTag = `${resolvedTag} (Embedded in Amazon Short Link)`;
+        }
         const canonicalBase = `https://${resolvedHost}/dp/${resolvedAsin}?linkCode=ll1${
           resolvedTag ? `&tag=${encodeURIComponent(resolvedTag)}` : ""
         }`;
@@ -272,10 +276,11 @@ async function enrichParsedAffiliateWithLiveMetadata(parsed, fetchFn, settings =
           asin: resolvedAsin,
           destinationUrl: canonicalBase,
         };
+        const targetRegion = resolvedHost.endsWith("amazon.ca") ? "CA" : "US";
         result.canonicalProductUrl = buildMonetizedDestinationUrl(
             draft,
             settings,
-            {regionCode: "US"},
+            {regionCode: targetRegion},
         );
       }
     }
@@ -701,13 +706,14 @@ function createShopStoreCommands(admin, {
     const subcategoryFilter = cleanText(data.subcategory, 120).toLowerCase();
     const sourceFilter = cleanText(data.sourceType, 40);
     const brandFilter = cleanText(data.brand, 80).toLowerCase();
+    const qualityTierFilter = cleanText(data.qualityTier, 32).toLowerCase();
     const countryFilter = cleanText(data.countryCode, 24).toUpperCase();
     const queryText = cleanText(data.query, 120).toLowerCase();
 
     const [publicConfigSnap, productsSnap, allProductsSnap, vendorsSnap] = await Promise.all([
       db().collection(SHOP_SETTINGS_COLLECTION).doc(PUBLIC_CONFIG_DOC).get(),
-      db().collection(SHOP_PUBLIC_PRODUCTS_COLLECTION).limit(1500).get(),
-      db().collection(SHOP_PRODUCTS_COLLECTION).limit(1500).get(),
+      db().collection(SHOP_PUBLIC_PRODUCTS_COLLECTION).limit(2500).get(),
+      db().collection(SHOP_PRODUCTS_COLLECTION).limit(2500).get(),
       db().collection(SHOP_VENDORS_COLLECTION).where("active", "==", true).limit(150).get(),
     ]);
 
@@ -751,6 +757,11 @@ function createShopStoreCommands(admin, {
           (item) => String(item.brand || "").toLowerCase() === brandFilter,
       );
     }
+    if (qualityTierFilter === "pro_grade" || qualityTierFilter === "budget_line") {
+      products = products.filter(
+          (item) => String(item.qualityTier || "pro_grade").toLowerCase() === qualityTierFilter,
+      );
+    }
     if (queryText) {
       const terms = queryText.split(/\s+/).filter(Boolean);
       products = products.filter((item) => {
@@ -771,6 +782,11 @@ function createShopStoreCommands(admin, {
     }
 
     products.sort((a, b) => {
+      const aHasImg = Boolean(String(a.imageUrl || "").trim());
+      const bHasImg = Boolean(String(b.imageUrl || "").trim());
+      if (aHasImg !== bHasImg) {
+        return aHasImg ? -1 : 1;
+      }
       if (Boolean(a.featured) !== Boolean(b.featured)) {
         return a.featured ? -1 : 1;
       }
@@ -1023,7 +1039,7 @@ function createShopStoreCommands(admin, {
     const [settings, productsSnap, appsSnap, vendorsSnap, clicksSnap, staffSnap] =
       await Promise.all([
         loadEffectiveSettings(),
-        db().collection(SHOP_PRODUCTS_COLLECTION).limit(1500).get(),
+        db().collection(SHOP_PRODUCTS_COLLECTION).limit(2500).get(),
         canSeeVendorsAndStaff ?
           db().collection(SHOP_APPLICATIONS_COLLECTION).orderBy("createdAt", "desc").limit(150).get() :
           Promise.resolve({docs: []}),
@@ -1147,7 +1163,7 @@ function createShopStoreCommands(admin, {
     const activeSnap = await db()
         .collection(SHOP_PRODUCTS_COLLECTION)
         .where("status", "==", "active")
-        .limit(1500)
+        .limit(2500)
         .get();
     if (!activeSnap.empty) {
       const chunkSize = 400;
@@ -1299,7 +1315,7 @@ function createShopStoreCommands(admin, {
 
     const [settings, existingSnap] = await Promise.all([
       loadEffectiveSettings(),
-      db().collection(SHOP_PRODUCTS_COLLECTION).limit(1500).get(),
+      db().collection(SHOP_PRODUCTS_COLLECTION).limit(2500).get(),
     ]);
     const existingById = new Map(
         existingSnap.docs.map((doc) => [doc.id, doc.data() || {}]),

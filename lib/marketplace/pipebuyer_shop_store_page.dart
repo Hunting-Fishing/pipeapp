@@ -39,22 +39,27 @@ class PipeBuyerShopStorePage extends StatefulWidget {
 class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
   static const List<String> _trendingKeywords = <String>[
     'Milwaukee M18',
+    'Bi-Directional OBD2',
+    'Streamlight Flashlight',
+    'Knipex Pliers',
+    'Tool Storage',
     'Pipe Wrench',
     'Welding Helmet',
-    'Grade 70 Chain',
     'H2S Monitor',
-    'Transfer Pump',
-    'Post Driver',
   ];
 
   static const List<(String label, String brand)> _featuredBrandPills =
       <(String, String)>[
     ('Milwaukee Tool Selection', 'Milwaukee'),
     ('RIDGID Pipe Tools', 'RIDGID'),
+    ('DEWALT Industrial', 'DEWALT'),
+    ('Knipex Hand Tools', 'Knipex'),
+    ('Streamlight Flashlights', 'Streamlight'),
+    ('Autel OBD2 Diagnostics', 'Autel'),
+    ('Klein Tools', 'Klein Tools'),
     ('Lincoln Electric', 'Lincoln Electric'),
-    ('Miller Welding', 'Miller'),
-    ('Fill-Rite Pumps', 'Fill-Rite'),
-    ('Carhartt FR', 'Carhartt'),
+    ('VEVOR Value Line', 'VEVOR'),
+    ('NEIKO Budget Pro', 'NEIKO'),
   ];
 
   late PipeBuyerShopClient _client;
@@ -69,6 +74,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
   late String _selectedCategoryCode;
   String _selectedSubcategory = '';
   late String _selectedBrand;
+  String _selectedQualityTier = '';
   PipeBuyerShopSourceType? _selectedSource;
   String _regionCode = 'US';
   String _sortBy = 'featured';
@@ -206,6 +212,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
       _selectedCategoryCode = '';
       _selectedSubcategory = '';
       _selectedBrand = '';
+      _selectedQualityTier = '';
       _selectedSource = null;
       _savedOnly = false;
       _visibleLimit = 60;
@@ -229,6 +236,10 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
               _selectedSubcategory.toLowerCase()) {
         return false;
       }
+      if (_selectedQualityTier.isNotEmpty &&
+          item.effectiveQualityTier != _selectedQualityTier) {
+        return false;
+      }
       if (_selectedSource != null && item.sourceType != _selectedSource) {
         return false;
       }
@@ -242,6 +253,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
           item.brand,
           item.vendorName,
           item.subcategory,
+          item.qualityTierLabel,
           item.description,
           item.category.label,
           ...item.highlights,
@@ -289,6 +301,9 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
         });
       default:
         matched.sort((a, b) {
+          final aHasImg = a.imageUrl.trim().isNotEmpty;
+          final bHasImg = b.imageUrl.trim().isNotEmpty;
+          if (aHasImg != bHasImg) return aHasImg ? -1 : 1;
           if (a.featured != b.featured) return a.featured ? -1 : 1;
           final rankCmp = a.priorityRank.compareTo(b.priorityRank);
           if (rankCmp != 0) return rankCmp;
@@ -313,12 +328,20 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
           p.categoryCode != _selectedCategoryCode) {
         continue;
       }
+      if (_selectedQualityTier.isNotEmpty &&
+          p.effectiveQualityTier != _selectedQualityTier) {
+        continue;
+      }
       if (p.brand.trim().isEmpty) continue;
       counts[p.brand] = (counts[p.brand] ?? 0) + 1;
     }
     final brands = counts.keys.toList()
-      ..sort((a, b) => (counts[b] ?? 0).compareTo(counts[a] ?? 0));
-    return brands.take(12).toList(growable: false);
+      ..sort((a, b) {
+        final cmp = (counts[b] ?? 0).compareTo(counts[a] ?? 0);
+        if (cmp != 0) return cmp;
+        return a.compareTo(b);
+      });
+    return brands.take(80).toList(growable: false);
   }
 
   @override
@@ -328,6 +351,7 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
         _selectedCategoryCode.isNotEmpty ||
         _selectedSubcategory.isNotEmpty ||
         _selectedBrand.isNotEmpty ||
+        _selectedQualityTier.isNotEmpty ||
         _selectedSource != null ||
         _savedOnly;
 
@@ -1333,11 +1357,58 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
     final brands = _availableBrands;
     final hiddenByCountry = _hiddenByCountryCount;
 
+    var proGradeCount = 0;
+    var budgetLineCount = 0;
+    for (final p in _products) {
+      if (p.status != 'active' || !p.shipsToCountry(_regionCode)) continue;
+      if (_selectedCategoryCode.isNotEmpty &&
+          p.categoryCode != _selectedCategoryCode) {
+        continue;
+      }
+      if (_selectedSubcategory.isNotEmpty &&
+          p.subcategory.toLowerCase() != _selectedSubcategory.toLowerCase()) {
+        continue;
+      }
+      if (p.isBudgetLine) {
+        budgetLineCount += 1;
+      } else {
+        proGradeCount += 1;
+      }
+    }
+
     const sortTabs = <(String, String)>[
       ('featured', 'Top Picks'),
       ('popular', 'Popular'),
       ('price_asc', 'Price: Low to High'),
       ('price_desc', 'Price: High to Low'),
+    ];
+
+    const quickSubcategoryFocus = <(String label, String catCode, String sub)>[
+      (
+        'Flashlights',
+        'lighting_power_jobsite',
+        'EDC, Tactical, Magnetic & Rechargeable Flashlights',
+      ),
+      (
+        'Bi-Directional OBD2 Readers',
+        'hydraulics_fleet_shop',
+        'Bi-Directional OBD2 Readers & Diagnostic Scanners',
+      ),
+      (
+        'Hand Tools',
+        'power_hand_tools',
+        'Heavy Wrenches, Ratchets & Torque Tools',
+      ),
+      (
+        'Tool Storage',
+        'power_hand_tools',
+        'Tool Storage: Boxes, Modular Systems, Bags & Organizers',
+      ),
+      (
+        'Tool Accessories',
+        'power_hand_tools',
+        'Tool Accessories: Bits, Blades, Abrasives & Hole Saws',
+      ),
     ];
 
     return Container(
@@ -1347,141 +1418,277 @@ class _PipeBuyerShopStorePageState extends State<PipeBuyerShopStorePage> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: PipeBuyerColors.line),
       ),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Text(
-                'Sort by',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: PipeBuyerColors.muted,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              ...sortTabs.map((tab) {
-                final active = _sortBy == tab.$1;
-                return InkWell(
-                  borderRadius: BorderRadius.circular(5),
-                  onTap: () => setState(() => _sortBy = tab.$1),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 7,
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Text(
+                    'Quality Tier',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: PipeBuyerColors.muted,
+                      fontWeight: FontWeight.w800,
                     ),
-                    decoration: BoxDecoration(
-                      color: active ? _kShopeeOrange : _kStoreCanvas,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Text(
-                      tab.$2,
-                      style: TextStyle(
-                        fontSize: 12,
+                  ),
+                  ChoiceChip(
+                    key: const Key('shop_quality_tier_all'),
+                    label: Text(
+                      'All Tiers (${proGradeCount + budgetLineCount})',
+                      style: const TextStyle(
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w800,
-                        color: active ? Colors.white : PipeBuyerColors.ink,
                       ),
                     ),
+                    selected: _selectedQualityTier.isEmpty,
+                    selectedColor: const Color(0xFFFFEDE8),
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (_) => setState(() {
+                      _selectedQualityTier = '';
+                      _visibleLimit = 60;
+                    }),
                   ),
-                );
-              }),
-              if (brands.isNotEmpty)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 185),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: _kStoreCanvas,
-                      borderRadius: BorderRadius.circular(5),
+                  ChoiceChip(
+                    key: const Key('shop_quality_tier_pro_grade'),
+                    avatar: const Icon(
+                      Icons.verified_rounded,
+                      size: 15,
+                      color: Color(0xFF0F52BA),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        value: brands.any(
-                          (b) =>
-                              b.toLowerCase() == _selectedBrand.toLowerCase(),
-                        )
-                            ? brands.firstWhere(
-                                (b) =>
-                                    b.toLowerCase() ==
-                                    _selectedBrand.toLowerCase(),
-                              )
-                            : '',
-                        isDense: true,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: PipeBuyerColors.ink,
-                        ),
-                        items: [
-                          const DropdownMenuItem(
-                            value: '',
-                            child: Text(
-                              'All Brands',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          ...brands.map(
-                            (b) => DropdownMenuItem(
-                              value: b,
-                              child: Text(
-                                b,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                        ],
-                        onChanged: (v) =>
-                            setState(() => _selectedBrand = v ?? ''),
+                    label: Text(
+                      'Good Quality / Pro Grade ($proGradeCount)',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
+                    selected: _selectedQualityTier == 'pro_grade',
+                    selectedColor: const Color(0xFFDBEAFE),
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (_) => setState(() {
+                      _selectedQualityTier = _selectedQualityTier == 'pro_grade'
+                          ? ''
+                          : 'pro_grade';
+                      _visibleLimit = 60;
+                    }),
                   ),
-                ),
+                  ChoiceChip(
+                    key: const Key('shop_quality_tier_budget_line'),
+                    avatar: const Icon(
+                      Icons.sell_outlined,
+                      size: 15,
+                      color: Color(0xFF047857),
+                    ),
+                    label: Text(
+                      'Budget Line / Value ($budgetLineCount)',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    selected: _selectedQualityTier == 'budget_line',
+                    selectedColor: const Color(0xFFD1FAE5),
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (_) => setState(() {
+                      _selectedQualityTier =
+                          _selectedQualityTier == 'budget_line'
+                              ? ''
+                              : 'budget_line';
+                      _visibleLimit = 60;
+                    }),
+                  ),
+                ],
+              ),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: quickSubcategoryFocus.map((focus) {
+                  final active = _selectedCategoryCode == focus.$2 &&
+                      _selectedSubcategory.toLowerCase() ==
+                          focus.$3.toLowerCase();
+                  return ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    backgroundColor:
+                        active ? const Color(0xFFFFEDE8) : _kStoreCanvas,
+                    side: BorderSide(
+                      color: active ? _kShopeeOrange : const Color(0xFFE2E8F0),
+                    ),
+                    label: Text(
+                      focus.$1,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color:
+                            active ? _kShopeeOrangeDark : PipeBuyerColors.ink,
+                      ),
+                    ),
+                    onPressed: () => setState(() {
+                      if (active) {
+                        _selectedCategoryCode = '';
+                        _selectedSubcategory = '';
+                      } else {
+                        _selectedCategoryCode = focus.$2;
+                        _selectedSubcategory = focus.$3;
+                      }
+                      _visibleLimit = 60;
+                    }),
+                  );
+                }).toList(growable: false),
+              ),
             ],
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Divider(height: 1),
           ),
           Wrap(
             spacing: 8,
-            runSpacing: 6,
+            runSpacing: 8,
+            alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              if (hiddenByCountry > 0)
-                TextButton.icon(
-                  onPressed: () => _setRegion('ALL'),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: _kShopeeOrangeDark,
-                  ),
-                  icon: const Icon(Icons.public_rounded, size: 15),
-                  label: Text(
-                    '$hiddenByCountry regional item${hiddenByCountry == 1 ? '' : 's'} hidden for $_regionCode • Show All',
-                    style: const TextStyle(
-                      fontSize: 11.5,
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Text(
+                    'Sort by',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: PipeBuyerColors.muted,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-              if (hasActiveFilters)
-                TextButton.icon(
-                  onPressed: _clearAllFilters,
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
+                  ...sortTabs.map((tab) {
+                    final active = _sortBy == tab.$1;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(5),
+                      onTap: () => setState(() => _sortBy = tab.$1),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: active ? _kShopeeOrange : _kStoreCanvas,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          tab.$2,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: active ? Colors.white : PipeBuyerColors.ink,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  if (brands.isNotEmpty)
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 185),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: _kStoreCanvas,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: brands.any(
+                              (b) =>
+                                  b.toLowerCase() ==
+                                  _selectedBrand.toLowerCase(),
+                            )
+                                ? brands.firstWhere(
+                                    (b) =>
+                                        b.toLowerCase() ==
+                                        _selectedBrand.toLowerCase(),
+                                  )
+                                : '',
+                            isDense: true,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: PipeBuyerColors.ink,
+                            ),
+                            items: [
+                              const DropdownMenuItem(
+                                value: '',
+                                child: Text(
+                                  'All Brands',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              ...brands.map(
+                                (b) => DropdownMenuItem(
+                                  value: b,
+                                  child: Text(
+                                    b,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            onChanged: (v) =>
+                                setState(() => _selectedBrand = v ?? ''),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (hiddenByCountry > 0)
+                    TextButton.icon(
+                      onPressed: () => _setRegion('ALL'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: _kShopeeOrangeDark,
+                      ),
+                      icon: const Icon(Icons.public_rounded, size: 15),
+                      label: Text(
+                        '$hiddenByCountry regional item${hiddenByCountry == 1 ? '' : 's'} hidden for $_regionCode • Show All',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  if (hasActiveFilters)
+                    TextButton.icon(
+                      onPressed: _clearAllFilters,
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                      label: const Text('Reset'),
+                    ),
+                  Text(
+                    '$resultCount product${resultCount == 1 ? '' : 's'}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: PipeBuyerColors.muted,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                  icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                  label: const Text('Reset'),
-                ),
-              Text(
-                '$resultCount product${resultCount == 1 ? '' : 's'}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: PipeBuyerColors.muted,
-                  fontWeight: FontWeight.w800,
-                ),
+                ],
               ),
             ],
           ),
@@ -2523,13 +2730,38 @@ class _ShopProductCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      '${product.brand} • ${product.category.shortLabel}',
+                      '${product.brand} • ${product.subcategory.isNotEmpty ? product.subcategory : product.category.shortLabel}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 10.5,
                         color: PipeBuyerColors.muted,
                         fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: product.isBudgetLine
+                            ? const Color(0xFFECFDF5)
+                            : const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        product.qualityTierLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: product.isBudgetLine
+                              ? const Color(0xFF047857)
+                              : const Color(0xFF1D4ED8),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
